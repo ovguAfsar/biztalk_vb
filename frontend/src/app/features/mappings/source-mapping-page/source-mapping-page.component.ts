@@ -1,4 +1,4 @@
-import { CommonModule, Location } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import {
@@ -98,7 +98,6 @@ function uniqueFieldNamesValidator(control: AbstractControl): ValidationErrors |
 export class SourceMappingPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly location = inject(Location);
   private readonly mappingApi = inject(MappingApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
@@ -222,11 +221,6 @@ export class SourceMappingPageComponent implements OnInit {
   }
 
   protected goBack(): void {
-    if (window.history.length > 1) {
-      this.location.back();
-      return;
-    }
-
     void this.router.navigate(['/mappings/create']);
   }
 
