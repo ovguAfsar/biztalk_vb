@@ -1,0 +1,153 @@
+<main class="source-page">
+  <section class="wizard-shell" aria-labelledby="source-title">
+    <header class="wizard-header">
+      <p class="wizard-header__step">Adım 2 / 5 — Kaynak Veri Tanımlama</p>
+      <h1 id="source-title">Yeni Mapping Oluştur</h1>
+
+      <div class="mapping-summary" *ngIf="mapping">
+        <span class="mapping-summary__name">{{ mapping.name }}</span>
+        <span class="source-badge">{{ sourceCopy.badgeLabel }}</span>
+      </div>
+    </header>
+
+    <p class="state-message" *ngIf="isLoading">Mapping bilgisi yükleniyor...</p>
+    <p class="alert alert--error" *ngIf="!isLoading && loadError">{{ loadError }}</p>
+
+    <form class="source-form" *ngIf="!isLoading && mapping && !loadError" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <section class="source-intro">
+        <h2>{{ sourceCopy.title }}</h2>
+        <p>{{ sourceCopy.description }}</p>
+      </section>
+
+      <div class="field">
+        <label for="source-name">Kaynak Adı</label>
+        <input
+          id="source-name"
+          type="text"
+          formControlName="sourceName"
+          autocomplete="off"
+          [class.field__control--invalid]="sourceNameInvalid"
+        >
+        <p class="validation-message" *ngIf="sourceNameInvalid">Kaynak adı zorunludur.</p>
+      </div>
+
+      <section class="excel-import" *ngIf="isExcelSource">
+        <div class="excel-import__summary" [class.excel-import__summary--ready]="hasExcelImportedColumns">
+          <div>
+            <h2>Excel Dosyası</h2>
+            <p *ngIf="!hasExcelImportedColumns">Dosya seçildiğinde kolonlar burada tek tek tanımlanacak.</p>
+            <p *ngIf="hasExcelImportedColumns">{{ excelFileName }} · {{ fields.length }} kolon bulundu.</p>
+          </div>
+
+          <label class="file-picker" [class.file-picker--disabled]="isSaving || isExcelParsing">
+            <span *ngIf="!hasExcelImportedColumns">Excel Dosyası Seç</span>
+            <span *ngIf="hasExcelImportedColumns">Dosyayı Değiştir</span>
+            <input
+              type="file"
+              accept=".xlsx,.csv,.xls"
+              (change)="onExcelFileSelected($event)"
+              [disabled]="isSaving || isExcelParsing"
+            >
+          </label>
+        </div>
+
+        <p class="state-message" *ngIf="isExcelParsing">Excel kolonları okunuyor...</p>
+        <p class="validation-message" *ngIf="excelImportError">{{ excelImportError }}</p>
+      </section>
+
+      <section class="fields-section" *ngIf="!isExcelSource || hasExcelImportedColumns" formArrayName="fields">
+        <div class="fields-section__header">
+          <h2>{{ isExcelSource ? 'Kolon Listesi' : 'Alan Listesi' }}</h2>
+          <button class="secondary-action" type="button" (click)="addField()" [disabled]="isSaving">
+            {{ isExcelSource ? '+ Kolon Ekle' : '+ Alan Ekle' }}
+          </button>
+        </div>
+
+        <p class="validation-message" *ngIf="fields.hasError('minlength') && (fields.dirty || fields.touched)">
+          En az bir alan ekleyin.
+        </p>
+        <p class="validation-message" *ngIf="hasDuplicateFieldNames">Aynı field name iki kere kullanılamaz.</p>
+
+        <div class="field-list">
+          <div class="field-row" *ngFor="let field of fields.controls; let index = index" [formGroupName]="index">
+            <p class="excel-column-meta" *ngIf="isExcelSource && field.controls.sourceColumn.value">
+              Kolon {{ field.controls.sourceColumn.value }} · {{ field.controls.sourceHeader.value }}
+            </p>
+
+            <div class="field field--compact">
+              <label [for]="'field-name-' + index">{{ isExcelSource ? 'Kolonun Sistem Adı' : 'Alan Adı' }}</label>
+              <input
+                [id]="'field-name-' + index"
+                type="text"
+                formControlName="name"
+                autocomplete="off"
+                [class.field__control--invalid]="fieldNameInvalid(index)"
+              >
+              <p class="validation-message" *ngIf="fieldNameInvalid(index)">Alan adı zorunludur.</p>
+            </div>
+
+            <div class="field field--compact">
+              <label [for]="'field-display-name-' + index">{{ isExcelSource ? 'Kolon Açıklaması' : 'Görünen Ad' }}</label>
+              <input
+                [id]="'field-display-name-' + index"
+                type="text"
+                formControlName="displayName"
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="field field--compact">
+              <label [for]="'field-type-' + index">Tip</label>
+              <select
+                [id]="'field-type-' + index"
+                formControlName="type"
+                [class.field__control--invalid]="fieldTypeInvalid(index)"
+              >
+                <option value="" disabled>Tip seçin</option>
+                <option *ngFor="let type of fieldTypeOptions" [value]="type">{{ type }}</option>
+              </select>
+              <p class="validation-message" *ngIf="fieldTypeInvalid(index)">Tip seçin.</p>
+            </div>
+
+            <label class="required-toggle">
+              <input type="checkbox" formControlName="required">
+              <span>Zorunlu mu?</span>
+            </label>
+
+            <div class="field field--compact">
+              <label [for]="'field-sample-' + index">Örnek Değer</label>
+              <input
+                [id]="'field-sample-' + index"
+                type="text"
+                formControlName="sampleValue"
+                autocomplete="off"
+              >
+            </div>
+
+            <button
+              class="delete-action"
+              type="button"
+              (click)="removeField(index)"
+              [disabled]="fields.length <= 1 || isSaving"
+            >
+              Sil
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="feedback" aria-live="polite">
+        <p class="alert alert--success" *ngIf="successMessage">{{ successMessage }}</p>
+        <p class="alert alert--error" *ngIf="saveError">{{ saveError }}</p>
+      </div>
+
+      <div class="form-actions">
+        <button class="back-action" type="button" (click)="goBack()" [disabled]="isSaving">Geri</button>
+        <button class="primary-action" type="submit" [disabled]="form.invalid || isSaving">
+          <span *ngIf="!isSaving">Kaydet ve Devam Et</span>
+          <span *ngIf="isSaving">Kaydediliyor...</span>
+        </button>
+      </div>
+    </form>
+  </section>
+</main>

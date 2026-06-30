@@ -1,0 +1,246 @@
+<main class="map-page">
+  <section class="wizard-shell" aria-labelledby="map-title">
+    <header class="wizard-header">
+      <p class="wizard-header__step">Adım 4 / 6 — Alan Eşleştirme</p>
+      <h1 id="map-title">Yeni Mapping Oluştur</h1>
+
+      <div class="mapping-summary" *ngIf="mapping">
+        <span class="mapping-summary__name">{{ mapping.name }}</span>
+        <span class="schema-badge schema-badge--source">{{ mapping.sourceType }}</span>
+        <span class="schema-badge schema-badge--target">{{ mapping.targetType }}</span>
+      </div>
+    </header>
+
+    <p class="state-message" *ngIf="isLoading">Mapping bilgisi yükleniyor...</p>
+    <p class="alert alert--error" *ngIf="!isLoading && loadError">{{ loadError }}</p>
+
+    <section class="mapper-shell" *ngIf="!isLoading && mapping && !loadError">
+      <div class="mapper-workbench">
+        <aside class="schema-panel">
+          <header class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Source specification</p>
+              <h2>Kaynak Alanlar</h2>
+            </div>
+            <span class="field-count">{{ sourceFields.length }}</span>
+          </header>
+
+          <p class="schema-name">{{ mapping.sourceSchema?.sourceName }}</p>
+
+          <div class="schema-field-list">
+            <button
+              class="schema-field"
+              type="button"
+              *ngFor="let field of sourceFields"
+              [class.schema-field--selected]="selectedSourceField === field.name"
+              [class.schema-field--mapped]="isSourceMapped(field.name)"
+              (click)="selectSourceField(field.name)"
+            >
+              <span class="field-name">{{ getSourceFieldLabel(field) }}</span>
+              <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
+            </button>
+          </div>
+        </aside>
+
+        <section class="canvas-panel">
+          <header class="panel-header panel-header--canvas">
+            <div>
+              <p class="panel-eyebrow">Mapping surface</p>
+              <h2>Mapping Canvas</h2>
+            </div>
+
+            <div class="canvas-toolbar">
+              <label>
+                Transform
+                <select [value]="selectedTransformType" (change)="updateTransformType($event)">
+                  <option *ngFor="let transform of transformOptions" [value]="transform">{{ transform }}</option>
+                </select>
+              </label>
+              <button
+                class="secondary-action"
+                type="button"
+                [disabled]="!selectedSourceField || !selectedTargetField"
+                (click)="connectSelectedFields()"
+              >
+                Bağla
+              </button>
+            </div>
+          </header>
+
+          <div class="selection-strip">
+            <span>Source: {{ selectedSourceField || 'Seçilmedi' }}</span>
+            <span>Target: {{ selectedTargetField || 'Seçilmedi' }}</span>
+          </div>
+
+          <div class="canvas-grid" [style.min-height.px]="canvasHeight">
+            <svg
+              class="connection-layer"
+              [attr.viewBox]="'0 0 1000 ' + canvasHeight"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <line
+                class="connection-line"
+                *ngFor="let mappingDefinition of mappingDefinitions"
+                x1="220"
+                [attr.y1]="getSourceLineY(mappingDefinition.sourceField)"
+                x2="780"
+                [attr.y2]="getTargetLineY(mappingDefinition.targetField)"
+              />
+            </svg>
+
+            <div class="canvas-column canvas-column--source">
+              <button
+                class="canvas-node"
+                type="button"
+                *ngFor="let field of sourceFields"
+                [class.canvas-node--selected]="selectedSourceField === field.name"
+                [class.canvas-node--mapped]="isSourceMapped(field.name)"
+                (click)="selectSourceField(field.name)"
+              >
+                {{ field.name }}
+              </button>
+            </div>
+
+            <div class="canvas-column canvas-column--target">
+              <button
+                class="canvas-node"
+                type="button"
+                *ngFor="let field of targetFields"
+                [class.canvas-node--selected]="selectedTargetField === field.name"
+                [class.canvas-node--mapped]="isTargetMapped(field.name)"
+                (click)="selectTargetField(field.name)"
+              >
+                {{ field.name }}
+              </button>
+            </div>
+          </div>
+
+          <section class="mapping-list" aria-label="Mevcut eşleştirmeler">
+            <div class="mapping-list__header">
+              <h3>Bağlantılar</h3>
+              <span>{{ mappingDefinitions.length }} mapping</span>
+            </div>
+
+            <p class="empty-state" *ngIf="mappingDefinitions.length === 0">
+              Kaynak ve hedef alan seçip Bağla ile ilk eşleştirmeyi oluşturun.
+            </p>
+
+            <div class="mapping-row" *ngFor="let mappingDefinition of mappingDefinitions">
+              <span>{{ getSourceLabelByName(mappingDefinition.sourceField) }}</span>
+              <span class="mapping-row__arrow">→</span>
+              <span>{{ getTargetLabelByName(mappingDefinition.targetField) }}</span>
+              <span class="mapping-row__transform">{{ mappingDefinition.transformType }}</span>
+              <button class="delete-action" type="button" (click)="removeMapping(mappingDefinition.targetField)">Sil</button>
+            </div>
+          </section>
+        </section>
+
+        <aside class="schema-panel">
+          <header class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Destination specification</p>
+              <h2>Hedef Alanlar</h2>
+            </div>
+            <span class="field-count">{{ targetFields.length }}</span>
+          </header>
+
+          <p class="schema-name">{{ mapping.targetSchema?.targetName }}</p>
+
+          <div class="schema-field-list">
+            <button
+              class="schema-field"
+              type="button"
+              *ngFor="let field of targetFields"
+              [class.schema-field--selected]="selectedTargetField === field.name"
+              [class.schema-field--mapped]="isTargetMapped(field.name)"
+              (click)="selectTargetField(field.name)"
+            >
+              <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
+              <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
+              <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
+                {{ getSourceLabelByName(mappingDefinition.sourceField) }}
+              </span>
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      <section class="bottom-panel">
+        <div class="tab-list" role="tablist" aria-label="Mapping bilgi panelleri">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeBottomTab === 'properties'"
+            [class.tab-button--active]="activeBottomTab === 'properties'"
+            (click)="setActiveBottomTab('properties')"
+          >
+            Properties
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeBottomTab === 'output'"
+            [class.tab-button--active]="activeBottomTab === 'output'"
+            (click)="setActiveBottomTab('output')"
+          >
+            Output
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeBottomTab === 'warnings'"
+            [class.tab-button--active]="activeBottomTab === 'warnings'"
+            (click)="setActiveBottomTab('warnings')"
+          >
+            Warnings
+          </button>
+        </div>
+
+        <div class="tab-panel" *ngIf="activeBottomTab === 'properties'">
+          <dl class="property-grid">
+            <div>
+              <dt>Selected source</dt>
+              <dd>{{ selectedSourceFieldDetails ? getSourceFieldLabel(selectedSourceFieldDetails) : 'Seçilmedi' }}</dd>
+            </div>
+            <div>
+              <dt>Selected target</dt>
+              <dd>{{ selectedTargetFieldDetails ? getTargetFieldLabel(selectedTargetFieldDetails) : 'Seçilmedi' }}</dd>
+            </div>
+            <div>
+              <dt>Transform</dt>
+              <dd>{{ selectedTransformType }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="tab-panel" *ngIf="activeBottomTab === 'output'">
+          <p>{{ mappedTargetCount }} hedef alan eşleşti. Toplam {{ mappingDefinitions.length }} bağlantı var.</p>
+        </div>
+
+        <div class="tab-panel" *ngIf="activeBottomTab === 'warnings'">
+          <p class="empty-state" *ngIf="warnings.length === 0">Uyarı yok.</p>
+          <ul class="warning-list" *ngIf="warnings.length > 0">
+            <li *ngFor="let warning of warnings">{{ warning }}</li>
+          </ul>
+        </div>
+      </section>
+
+      <div class="feedback" aria-live="polite">
+        <p class="alert alert--success" *ngIf="successMessage">{{ successMessage }}</p>
+        <p class="alert alert--error" *ngIf="saveError">{{ saveError }}</p>
+      </div>
+
+      <div class="form-actions">
+        <button class="back-action" type="button" (click)="goBack()" [disabled]="isSaving">Geri</button>
+        <div class="form-actions__right">
+          <button class="secondary-action" type="button" (click)="saveMappings()" [disabled]="isSaving">
+            <span *ngIf="!isSaving">Kaydet</span>
+            <span *ngIf="isSaving">Kaydediliyor...</span>
+          </button>
+          <button class="primary-action" type="button" (click)="continueNext()" [disabled]="isSaving">Devam Et</button>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>

@@ -1,0 +1,70 @@
+using MappingStudio.Api.Options;
+using MappingStudio.Api.Repositories;
+using MappingStudio.Api.Services;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services
+    .AddOptions<MongoDbOptions>()
+    .Bind(builder.Configuration.GetSection(MongoDbOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddSingleton<IMongoClient>(serviceProvider =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<MongoDbOptions>>().Value;
+    return new MongoClient(options.ConnectionString);
+});
+
+builder.Services.AddScoped<IMongoDatabase>(serviceProvider =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<MongoDbOptions>>().Value;
+    var client = serviceProvider.GetRequiredService<IMongoClient>();
+    return client.GetDatabase(options.DatabaseName);
+});
+
+builder.Services.AddScoped<IMappingRepository, MappingRepository>();
+builder.Services.AddScoped<IMappingService, MappingService>();
+
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        if (allowedOrigins.Length > 0)
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+
+            return;
+        }
+
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+app.UseCors("Frontend");
+app.MapControllers();
+
+app.Run();
+

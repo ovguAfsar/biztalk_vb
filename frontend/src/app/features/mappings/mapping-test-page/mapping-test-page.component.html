@@ -1,0 +1,93 @@
+<main class="test-page">
+  <section class="wizard-shell" aria-labelledby="test-title">
+    <header class="wizard-header">
+      <p class="wizard-header__step">Adım 5 / 6 — Mapping Test</p>
+      <h1 id="test-title">Yeni Mapping Oluştur</h1>
+
+      <div class="mapping-summary" *ngIf="mapping">
+        <span class="mapping-summary__name">{{ mapping.name }}</span>
+        <span class="schema-badge schema-badge--source">{{ mapping.sourceType }}</span>
+        <span class="schema-badge schema-badge--target">{{ mapping.targetType }}</span>
+      </div>
+    </header>
+
+    <p class="state-message" *ngIf="isLoading">Mapping bilgisi yükleniyor...</p>
+    <p class="alert alert--error" *ngIf="!isLoading && loadError">{{ loadError }}</p>
+
+    <section class="test-shell" *ngIf="!isLoading && mapping && !loadError">
+      <div class="test-grid">
+        <section class="json-panel">
+          <header class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Sample source payload</p>
+              <h2>Test Input</h2>
+            </div>
+          </header>
+          <textarea
+            class="json-editor"
+            [(ngModel)]="inputJson"
+            spellcheck="false"
+            aria-label="Test input JSON"
+          ></textarea>
+        </section>
+
+        <section class="json-panel">
+          <header class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Generated target payload</p>
+              <h2>Output</h2>
+            </div>
+          </header>
+          <pre class="json-output">{{ outputJson }}</pre>
+        </section>
+      </div>
+
+      <section class="messages-panel">
+        <header class="panel-header">
+          <div>
+            <p class="panel-eyebrow">Validation result</p>
+            <h2>Warnings / Errors</h2>
+          </div>
+        </header>
+
+        <div class="message-body">
+          <p class="empty-state" *ngIf="warnings.length === 0 && errors.length === 0">
+            Henüz uyarı veya hata yok.
+          </p>
+
+          <div class="message-column" *ngIf="warnings.length > 0">
+            <h3>Warnings</h3>
+            <ul>
+              <li *ngFor="let warning of warnings">{{ warning }}</li>
+            </ul>
+          </div>
+
+          <div class="message-column message-column--error" *ngIf="errors.length > 0">
+            <h3>Errors</h3>
+            <ul>
+              <li *ngFor="let error of errors">{{ error }}</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <div class="feedback" aria-live="polite">
+        <p class="alert alert--info" *ngIf="noticeMessage">{{ noticeMessage }}</p>
+        <p class="alert alert--success" *ngIf="successMessage">{{ successMessage }}</p>
+      </div>
+
+      <div class="form-actions">
+        <button class="back-action" type="button" (click)="goBack()" [disabled]="isRunning">Geri</button>
+        <div class="form-actions__right">
+          <button class="secondary-action" type="button" (click)="runMapping()" [disabled]="isRunning">
+            <span *ngIf="!isRunning">Mapping'i Çalıştır</span>
+            <span *ngIf="isRunning">Çalıştırılıyor...</span>
+          </button>
+          <button class="primary-action" type="button" (click)="continueNext()" [disabled]="isRunning">
+            Testi Tamamla
+          </button>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>

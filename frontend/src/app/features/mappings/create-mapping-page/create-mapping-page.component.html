@@ -1,0 +1,80 @@
+<main class="create-page">
+  <section class="wizard-shell" aria-labelledby="create-mapping-title">
+    <header class="wizard-header">
+      <p class="wizard-header__step">Adım 1 / 5 — Başlangıç Bilgileri</p>
+      <h1 id="create-mapping-title">Yeni Mapping Oluştur</h1>
+      <p class="wizard-header__description">
+        Kaynak ve hedef veri yapısını seçerek mapping tanımınızı oluşturmaya başlayın.
+      </p>
+    </header>
+
+    <form class="mapping-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <div class="form-grid">
+        <div class="field">
+          <label for="mapping-name">Mapping Adı</label>
+          <input
+            id="mapping-name"
+            type="text"
+            formControlName="name"
+            autocomplete="off"
+            [class.field__control--invalid]="nameInvalid"
+          >
+          <p class="validation-message" *ngIf="nameInvalid">Mapping adı zorunludur.</p>
+        </div>
+
+        <div class="field">
+          <label for="mapping-description">Açıklama</label>
+          <textarea
+            id="mapping-description"
+            formControlName="description"
+            rows="4"
+          ></textarea>
+        </div>
+      </div>
+
+      <fieldset class="option-section">
+        <legend>Kaynak veri nereden gelecek?</legend>
+        <div class="option-grid">
+          <app-selectable-option-card
+            *ngFor="let option of sourceOptions"
+            [label]="option.label"
+            [description]="option.description"
+            [value]="option.value"
+            [selected]="form.controls.sourceType.value === option.value"
+            [disabled]="isSubmitting"
+            (selectedValue)="selectSourceType($event)"
+          />
+        </div>
+        <p class="validation-message" *ngIf="sourceInvalid">Kaynak veri tipi seçin.</p>
+      </fieldset>
+
+      <fieldset class="option-section">
+        <legend>Hedef veri nereye dönüştürülecek?</legend>
+        <div class="option-grid option-grid--target">
+          <app-selectable-option-card
+            *ngFor="let option of targetOptions"
+            [label]="option.label"
+            [description]="option.description"
+            [value]="option.value"
+            [selected]="form.controls.targetType.value === option.value"
+            [disabled]="isSubmitting"
+            (selectedValue)="selectTargetType($event)"
+          />
+        </div>
+        <p class="validation-message" *ngIf="targetInvalid">Hedef veri tipi seçin.</p>
+      </fieldset>
+
+      <div class="feedback" aria-live="polite">
+        <p class="alert alert--success" *ngIf="successMessage">{{ successMessage }}</p>
+        <p class="alert alert--error" *ngIf="errorMessage">{{ errorMessage }}</p>
+      </div>
+
+      <div class="form-actions">
+        <button class="primary-action" type="submit" [disabled]="form.invalid || isSubmitting">
+          <span *ngIf="!isSubmitting">Devam Et</span>
+          <span *ngIf="isSubmitting">Kaydediliyor...</span>
+        </button>
+      </div>
+    </form>
+  </section>
+</main>

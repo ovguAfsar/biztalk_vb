@@ -1,0 +1,12 @@
+<button
+  type="button"
+  class="option-card"
+  [class.option-card--selected]="selected"
+  [attr.aria-pressed]="selected"
+  [disabled]="disabled"
+  (click)="choose()"
+>
+  <span class="option-card__title">{{ label }}</span>
+  <span class="option-card__description">{{ description }}</span>
+</button>
+
