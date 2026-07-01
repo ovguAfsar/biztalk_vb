@@ -1,18 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, switchMap } from 'rxjs';
 
 import {
   MappingCreateRequest,
   MappingCreateResponse,
   MappingSourceType,
-  MappingTargetType
+  MappingTargetType,
+  SaveSourceSchemaRequest,
+  SourceField
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
 import { SelectableOptionCardComponent } from '../../../shared/selectable-option-card/selectable-option-card.component';
+import { SourceFieldImport, readSourceFile } from '../source-mapping-page/source-file-reader';
 
 interface SelectableOption<TValue extends string> {
   label: string;
@@ -31,15 +34,7 @@ export class CreateMappingPageComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly mappingApi = inject(MappingApiService);
   private readonly router = inject(Router);
-
-  protected readonly sourceOptions: SelectableOption<MappingSourceType>[] = [
-    { label: 'Excel', description: 'Kolonlu dosya verisi', value: 'excel' },
-    { label: 'JSON', description: 'API veya dosya datası', value: 'json' },
-    { label: 'XML', description: 'Kurumsal XML yapısı', value: 'xml' },
-    { label: 'API', description: 'Endpoint üzerinden veri al', value: 'api' },
-    { label: 'Database', description: 'Tablo veya SQL verisi', value: 'database' },
-    { label: 'Manuel', description: 'Alanları elle tanımla', value: 'manual' }
-  ];
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   protected readonly targetOptions: SelectableOption<MappingTargetType>[] = [
     { label: 'JSON', description: 'JSON çıktı üret', value: 'json' },
@@ -52,13 +47,17 @@ export class CreateMappingPageComponent {
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required]],
     description: [''],
-    sourceType: ['', [Validators.required]],
+    sourceType: ['file', [Validators.required]],
     targetType: ['', [Validators.required]]
   });
 
   protected isSubmitting = false;
   protected successMessage = '';
   protected errorMessage = '';
+  protected sourceFileName = '';
+  protected sourceFileError = '';
+  protected detectedSourceType: MappingSourceType | '' = '';
+  protected sourceFields: SourceField[] = [];
   protected createdMapping?: MappingCreateResponse;
 
   protected get nameInvalid(): boolean {
@@ -66,9 +65,8 @@ export class CreateMappingPageComponent {
     return control.invalid && (control.dirty || control.touched);
   }
 
-  protected get sourceInvalid(): boolean {
-    const control = this.form.controls.sourceType;
-    return control.invalid && (control.dirty || control.touched);
+  protected get hasSourceFile(): boolean {
+    return this.sourceFields.length > 0 && Boolean(this.detectedSourceType);
   }
 
   protected get targetInvalid(): boolean {
@@ -76,10 +74,47 @@ export class CreateMappingPageComponent {
     return control.invalid && (control.dirty || control.touched);
   }
 
-  protected selectSourceType(value: string): void {
-    this.form.controls.sourceType.setValue(value);
-    this.form.controls.sourceType.markAsTouched();
-    this.form.controls.sourceType.updateValueAndValidity();
+  protected get detectedSourceTypeLabel(): string {
+    switch (this.detectedSourceType) {
+      case 'excel':
+        return 'Excel';
+      case 'json':
+        return 'JSON';
+      case 'xml':
+        return 'XML';
+      default:
+        return '';
+    }
+  }
+
+  protected async onSourceFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    this.sourceFileName = file.name;
+    this.sourceFileError = '';
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.detectedSourceType = '';
+    this.sourceFields = [];
+
+    try {
+      const result = await readSourceFile(file, 'file');
+      this.detectedSourceType = result.format;
+      this.sourceFields = this.toSourceFields(result.fields);
+    } catch (error: unknown) {
+      this.sourceFileName = '';
+      this.detectedSourceType = '';
+      this.sourceFields = [];
+      this.sourceFileError = error instanceof Error ? error.message : 'Dosya okunamadı.';
+    } finally {
+      input.value = '';
+      this.changeDetector.detectChanges();
+    }
   }
 
   protected selectTargetType(value: string): void {
@@ -98,29 +133,103 @@ export class CreateMappingPageComponent {
       return;
     }
 
+    if (!this.hasSourceFile) {
+      this.sourceFileError = 'Kaynak dosyası seçin. Desteklenen formatlar: .xlsx, .xls, .csv, .json, .xml';
+      return;
+    }
+
     const value = this.form.getRawValue();
     const request: MappingCreateRequest = {
       name: value.name.trim(),
       description: value.description.trim() || undefined,
-      sourceType: value.sourceType as MappingSourceType,
+      sourceType: this.detectedSourceType as MappingSourceType,
       targetType: value.targetType as MappingTargetType
     };
+    const sourceRequest: SaveSourceSchemaRequest = {
+      sourceName: this.getFileBaseName(this.sourceFileName),
+      sourceType: this.detectedSourceType || undefined,
+      fields: this.sourceFields
+    };
+    let createdMappingId = '';
 
     this.isSubmitting = true;
     this.mappingApi.createMapping(request)
+      .pipe(switchMap((response) => {
+        this.createdMapping = response;
+        createdMappingId = response.id;
+        return this.mappingApi.saveSourceSchema(response.id, sourceRequest);
+      }))
       .pipe(finalize(() => {
         this.isSubmitting = false;
       }))
       .subscribe({
-        next: (response) => {
-          this.createdMapping = response;
-          this.successMessage = `Mapping taslağı başarıyla oluşturuldu. Id: ${response.id}`;
-          void this.router.navigate(['/mappings', response.id, 'source']);
+        next: () => {
+          this.successMessage = 'Mapping taslağı ve kaynak dosyası başarıyla kaydedildi.';
+          void this.router.navigate(['/mappings', createdMappingId, 'target']);
         },
         error: (error: unknown) => {
           this.errorMessage = this.getErrorMessage(error);
         }
       });
+  }
+
+  private toSourceFields(importedFields: SourceFieldImport[]): SourceField[] {
+    const usedFieldNames = new Set<string>();
+
+    return importedFields.map(field => ({
+      name: this.createUniqueFieldName(field.displayName, field.sourcePath, usedFieldNames),
+      displayName: field.displayName,
+      type: field.type,
+      required: false,
+      sampleValue: field.sampleValue || undefined
+    }));
+  }
+
+  private createUniqueFieldName(displayName: string, sourcePath: string, usedFieldNames: Set<string>): string {
+    const baseName = this.toFieldName(displayName || sourcePath) || 'field';
+    let candidate = baseName;
+    let suffix = 2;
+
+    while (usedFieldNames.has(candidate.toLowerCase())) {
+      candidate = `${baseName}${suffix}`;
+      suffix += 1;
+    }
+
+    usedFieldNames.add(candidate.toLowerCase());
+    return candidate;
+  }
+
+  private toFieldName(value: string): string {
+    const asciiValue = value
+      .replace(/[Çç]/g, 'c')
+      .replace(/[Ğğ]/g, 'g')
+      .replace(/[İIı]/g, 'i')
+      .replace(/[Öö]/g, 'o')
+      .replace(/[Şş]/g, 's')
+      .replace(/[Üü]/g, 'u')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const words = asciiValue
+      .replace(/[^A-Za-z0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (words.length === 0) {
+      return '';
+    }
+
+    const [firstWord, ...remainingWords] = words;
+    const fieldName = [
+      firstWord.charAt(0).toLowerCase() + firstWord.slice(1),
+      ...remainingWords.map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    ].join('');
+
+    return /^\d/.test(fieldName) ? `field${fieldName}` : fieldName;
+  }
+
+  private getFileBaseName(fileName: string): string {
+    return fileName.replace(/\.[^/.]+$/, '') || fileName;
   }
 
   private getErrorMessage(error: unknown): string {

@@ -1,4 +1,4 @@
-export type MappingSourceType = 'excel' | 'json' | 'xml' | 'api' | 'database' | 'manual';
+export type MappingSourceType = 'file' | 'excel' | 'json' | 'xml' | 'api' | 'database' | 'manual';
 export type MappingTargetType = 'json' | 'xml' | 'api' | 'database' | 'file';
 export type MappingStatus = 'draft';
 export type SourceFieldType = 'text' | 'number' | 'date' | 'boolean' | 'object' | 'array';
@@ -61,6 +61,7 @@ export interface MappingDetailsResponse extends MappingCreateResponse {}
 
 export interface SaveSourceSchemaRequest {
   sourceName: string;
+  sourceType?: MappingSourceType;
   fields: SourceField[];
 }
 
