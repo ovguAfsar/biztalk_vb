@@ -38,6 +38,7 @@ export class MappingTestPageComponent implements OnInit {
   protected successMessage = '';
   protected noticeMessage = '';
   protected hasSuccessfulRun = false;
+  protected showCompletionModal = false;
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -102,10 +103,16 @@ export class MappingTestPageComponent implements OnInit {
     }
 
     this.noticeMessage = '';
-    this.successMessage = 'Mapping testi tamamlandı. Mapping tanımı test edildi ve kullanıma hazır.';
-    void this.router.navigate(['/mappings/create']);
+    this.showCompletionModal = true;
+  }
+protected closeCompletionModal(): void {
+    this.showCompletionModal = false;
   }
 
+  protected goToNewMapping(): void {
+    this.showCompletionModal = false;
+    void this.router.navigate(['/mappings/create']);
+  }
   private loadMapping(mappingId: string): void {
     this.isLoading = true;
     this.loadError = '';
