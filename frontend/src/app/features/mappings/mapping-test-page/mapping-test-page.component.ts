@@ -103,6 +103,7 @@ export class MappingTestPageComponent implements OnInit {
 
     this.noticeMessage = '';
     this.successMessage = 'Mapping testi tamamlandı. Mapping tanımı test edildi ve kullanıma hazır.';
+    void this.router.navigate(['/mappings/create']);
   }
 
   private loadMapping(mappingId: string): void {
