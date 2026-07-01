@@ -1,7 +1,7 @@
 <main class="create-page">
   <section class="wizard-shell" aria-labelledby="create-mapping-title">
     <header class="wizard-header">
-      <p class="wizard-header__step">Adım 1 / 5 — Başlangıç Bilgileri</p>
+      <p class="wizard-header__step">Adım 1 / 4 — Başlangıç ve Kaynak Dosya</p>
       <h1 id="create-mapping-title">Yeni Mapping Oluştur</h1>
       <p class="wizard-header__description">
         Kaynak ve hedef veri yapısını seçerek mapping tanımınızı oluşturmaya başlayın.
@@ -34,18 +34,20 @@
 
       <fieldset class="option-section">
         <legend>Kaynak veri nereden gelecek?</legend>
-        <div class="option-grid">
-          <app-selectable-option-card
-            *ngFor="let option of sourceOptions"
-            [label]="option.label"
-            [description]="option.description"
-            [value]="option.value"
-            [selected]="form.controls.sourceType.value === option.value"
+        <label class="source-upload" [class.source-upload--ready]="hasSourceFile" [class.source-upload--disabled]="isSubmitting">
+          <input
+            type="file"
+            accept=".xlsx,.xls,.csv,.json,.xml"
+            (change)="onSourceFileSelected($event)"
             [disabled]="isSubmitting"
-            (selectedValue)="selectSourceType($event)"
-          />
-        </div>
-        <p class="validation-message" *ngIf="sourceInvalid">Kaynak veri tipi seçin.</p>
+          >
+          <span class="source-upload__title">Dosya Yükle</span>
+          <span class="source-upload__description">Excel, CSV, JSON veya XML dosyası seçin.</span>
+          <span class="source-upload__meta" *ngIf="hasSourceFile">
+            {{ sourceFileName }} · {{ sourceFields.length }} alan · {{ detectedSourceTypeLabel }}
+          </span>
+        </label>
+        <p class="validation-message" *ngIf="sourceFileError">{{ sourceFileError }}</p>
       </fieldset>
 
       <fieldset class="option-section">

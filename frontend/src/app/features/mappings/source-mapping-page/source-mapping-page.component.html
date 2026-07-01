@@ -1,7 +1,7 @@
 <main class="source-page">
   <section class="wizard-shell" aria-labelledby="source-title">
     <header class="wizard-header">
-      <p class="wizard-header__step">Adım 2 / 5 — Kaynak Veri Tanımlama</p>
+      <p class="wizard-header__step">Adım 1 / 4 — Kaynak Veri Tanımlama</p>
       <h1 id="source-title">Yeni Mapping Oluştur</h1>
 
       <div class="mapping-summary" *ngIf="mapping">
@@ -26,40 +26,42 @@
           type="text"
           formControlName="sourceName"
           autocomplete="off"
+          [placeholder]="sourceCopy.sourceNamePlaceholder"
           [class.field__control--invalid]="sourceNameInvalid"
         >
         <p class="validation-message" *ngIf="sourceNameInvalid">Kaynak adı zorunludur.</p>
       </div>
 
-      <section class="excel-import" *ngIf="isExcelSource">
-        <div class="excel-import__summary" [class.excel-import__summary--ready]="hasExcelImportedColumns">
+      <section class="file-import" *ngIf="isFileSource">
+        <div class="file-import__summary" [class.file-import__summary--ready]="hasImportedFields">
           <div>
-            <h2>Excel Dosyası</h2>
-            <p *ngIf="!hasExcelImportedColumns">Dosya seçildiğinde kolonlar burada tek tek tanımlanacak.</p>
-            <p *ngIf="hasExcelImportedColumns">{{ excelFileName }} · {{ fields.length }} kolon bulundu.</p>
+            <h2>{{ sourceFileTitle }}</h2>
+            <p *ngIf="!hasImportedFields">{{ sourceFileDescription }}</p>
+            <p *ngIf="hasImportedFields">{{ sourceFileName }} · {{ fields.length }} {{ importCountLabel }}</p>
+            <p class="detected-format" *ngIf="detectedSourceTypeLabel">Algılanan format: {{ detectedSourceTypeLabel }}</p>
           </div>
 
-          <label class="file-picker" [class.file-picker--disabled]="isSaving || isExcelParsing">
-            <span *ngIf="!hasExcelImportedColumns">Excel Dosyası Seç</span>
-            <span *ngIf="hasExcelImportedColumns">Dosyayı Değiştir</span>
+          <label class="file-picker" [class.file-picker--disabled]="isSaving || isFileParsing">
+            <span *ngIf="!hasImportedFields">Dosya Seç</span>
+            <span *ngIf="hasImportedFields">Dosyayı Değiştir</span>
             <input
               type="file"
-              accept=".xlsx,.csv,.xls"
-              (change)="onExcelFileSelected($event)"
-              [disabled]="isSaving || isExcelParsing"
+              [accept]="acceptedFileExtensions"
+              (change)="onSourceFileSelected($event)"
+              [disabled]="isSaving || isFileParsing"
             >
           </label>
         </div>
 
-        <p class="state-message" *ngIf="isExcelParsing">Excel kolonları okunuyor...</p>
-        <p class="validation-message" *ngIf="excelImportError">{{ excelImportError }}</p>
+        <p class="state-message" *ngIf="isFileParsing">Dosya alanları okunuyor...</p>
+        <p class="validation-message" *ngIf="fileImportError">{{ fileImportError }}</p>
       </section>
 
-      <section class="fields-section" *ngIf="!isExcelSource || hasExcelImportedColumns" formArrayName="fields">
+      <section class="fields-section" *ngIf="showFieldsSection" formArrayName="fields">
         <div class="fields-section__header">
-          <h2>{{ isExcelSource ? 'Kolon Listesi' : 'Alan Listesi' }}</h2>
+          <h2>{{ fieldsSectionTitle }}</h2>
           <button class="secondary-action" type="button" (click)="addField()" [disabled]="isSaving">
-            {{ isExcelSource ? '+ Kolon Ekle' : '+ Alan Ekle' }}
+            {{ addFieldButtonLabel }}
           </button>
         </div>
 
@@ -70,12 +72,12 @@
 
         <div class="field-list">
           <div class="field-row" *ngFor="let field of fields.controls; let index = index" [formGroupName]="index">
-            <p class="excel-column-meta" *ngIf="isExcelSource && field.controls.sourceColumn.value">
-              Kolon {{ field.controls.sourceColumn.value }} · {{ field.controls.sourceHeader.value }}
+            <p class="source-field-meta" *ngIf="getImportedFieldMeta(index)">
+              {{ getImportedFieldMeta(index) }}
             </p>
 
             <div class="field field--compact">
-              <label [for]="'field-name-' + index">{{ isExcelSource ? 'Kolonun Sistem Adı' : 'Alan Adı' }}</label>
+              <label [for]="'field-name-' + index">{{ fieldNameLabel }}</label>
               <input
                 [id]="'field-name-' + index"
                 type="text"
@@ -87,7 +89,7 @@
             </div>
 
             <div class="field field--compact">
-              <label [for]="'field-display-name-' + index">{{ isExcelSource ? 'Kolon Açıklaması' : 'Görünen Ad' }}</label>
+              <label [for]="'field-display-name-' + index">{{ displayNameLabel }}</label>
               <input
                 [id]="'field-display-name-' + index"
                 type="text"

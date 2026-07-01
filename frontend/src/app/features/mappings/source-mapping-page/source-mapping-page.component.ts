@@ -21,7 +21,7 @@ import {
   SourceFieldType
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
-import { ExcelColumnImport, readExcelColumns } from './excel-column-reader';
+import { SourceFieldImport, readSourceFile } from './source-file-reader';
 
 interface SourceTypeCopy {
   title: string;
@@ -41,6 +41,12 @@ type SourceFieldForm = FormGroup<{
 }>;
 
 const sourceTypeCopy: Record<MappingSourceType, SourceTypeCopy> = {
+  file: {
+    title: 'Kaynak Dosyasını Yükle',
+    description: 'Excel, CSV, JSON veya XML dosyanızı yükleyin. Format dosya uzantısından otomatik algılanır.',
+    sourceNamePlaceholder: 'Örn: Masraf Kaynak Dosyası',
+    badgeLabel: 'Dosya'
+  },
   excel: {
     title: 'Excel Kaynak Alanlarını Tanımla',
     description: 'Excel dosyanızdaki kolonları burada tanımlayın. Bu alanlar daha sonra hedef alanlarla eşleştirilecek.',
@@ -117,9 +123,10 @@ export class SourceMappingPageComponent implements OnInit {
   protected saveError = '';
   protected successMessage = '';
   protected savedSourceSchema?: SaveSourceSchemaResponse;
-  protected excelFileName = '';
-  protected excelImportError = '';
-  protected isExcelParsing = false;
+  protected sourceFileName = '';
+  protected fileImportError = '';
+  protected isFileParsing = false;
+  protected detectedSourceType: MappingSourceType | '' = '';
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -147,15 +154,89 @@ export class SourceMappingPageComponent implements OnInit {
   }
 
   protected get isExcelSource(): boolean {
-    return this.mapping?.sourceType === 'excel';
+    return this.currentSourceType === 'excel';
   }
 
-  protected get hasExcelImportedColumns(): boolean {
-    return this.isExcelSource && Boolean(this.excelFileName) && this.fields.length > 0;
+  protected get isFileSource(): boolean {
+    return ['file', 'excel', 'json', 'xml'].includes(this.mapping?.sourceType ?? '');
+  }
+
+  protected get hasImportedFields(): boolean {
+    return this.isFileSource && Boolean(this.sourceFileName) && this.fields.length > 0;
+  }
+
+  protected get showFieldsSection(): boolean {
+    return !this.isFileSource || this.hasImportedFields;
   }
 
   protected get sourceCopy(): SourceTypeCopy {
-    return sourceTypeCopy[this.mapping?.sourceType ?? 'manual'];
+    return sourceTypeCopy[this.currentSourceType];
+  }
+
+  protected get acceptedFileExtensions(): string {
+    switch (this.mapping?.sourceType) {
+      case 'file':
+        return '.xlsx,.csv,.xls,.json,.xml';
+      case 'excel':
+        return '.xlsx,.csv,.xls';
+      case 'json':
+        return '.json';
+      case 'xml':
+        return '.xml';
+      default:
+        return '';
+    }
+  }
+
+  protected get sourceFileTitle(): string {
+    return `${this.sourceCopy.badgeLabel} Dosyası`;
+  }
+
+  protected get sourceFileDescription(): string {
+    switch (this.mapping?.sourceType) {
+      case 'file':
+        return 'Excel, CSV, JSON veya XML dosyası seçin; format otomatik algılanacak.';
+      case 'excel':
+        return 'Dosya seçildiğinde kolonlar burada tek tek tanımlanacak.';
+      case 'json':
+        return 'Dosya seçildiğinde JSON alanları burada tek tek tanımlanacak.';
+      case 'xml':
+        return 'Dosya seçildiğinde XML elementleri burada tek tek tanımlanacak.';
+      default:
+        return 'Dosya seçildiğinde alanlar burada tek tek tanımlanacak.';
+    }
+  }
+
+  protected get importCountLabel(): string {
+    return this.isExcelSource ? 'kolon bulundu' : 'alan bulundu';
+  }
+
+  protected get fieldsSectionTitle(): string {
+    return this.isExcelSource ? 'Kolon Listesi' : 'Alan Listesi';
+  }
+
+  protected get addFieldButtonLabel(): string {
+    return this.isExcelSource ? '+ Kolon Ekle' : '+ Alan Ekle';
+  }
+
+  protected get fieldNameLabel(): string {
+    return this.isExcelSource ? 'Kolonun Sistem Adı' : 'Alan Adı';
+  }
+
+  protected get displayNameLabel(): string {
+    return this.isExcelSource ? 'Kolon Açıklaması' : 'Görünen Ad';
+  }
+
+  protected get currentSourceType(): MappingSourceType {
+    return this.detectedSourceType || this.mapping?.sourceType || 'manual';
+  }
+
+  protected get detectedSourceTypeLabel(): string {
+    if (!this.detectedSourceType) {
+      return '';
+    }
+
+    return sourceTypeCopy[this.detectedSourceType].badgeLabel;
   }
 
   protected addField(): void {
@@ -174,7 +255,7 @@ export class SourceMappingPageComponent implements OnInit {
     this.fields.updateValueAndValidity();
   }
 
-  protected async onExcelFileSelected(event: Event): Promise<void> {
+  protected async onSourceFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
 
@@ -182,32 +263,50 @@ export class SourceMappingPageComponent implements OnInit {
       return;
     }
 
-    this.excelFileName = file.name;
-    this.excelImportError = '';
+    this.sourceFileName = file.name;
+    this.fileImportError = '';
+    this.detectedSourceType = '';
     this.successMessage = '';
     this.saveError = '';
     this.savedSourceSchema = undefined;
-    this.isExcelParsing = true;
+    this.isFileParsing = true;
     this.fields.clear();
     this.fields.updateValueAndValidity();
 
     try {
-      const columns = await readExcelColumns(file);
-      this.setExcelColumns(columns);
+      const result = await readSourceFile(file, this.mapping?.sourceType ?? 'manual');
+      this.detectedSourceType = result.format;
+      this.setImportedFields(result.fields);
 
       if (!this.form.controls.sourceName.value.trim()) {
         this.form.controls.sourceName.setValue(this.getFileBaseName(file.name));
       }
     } catch (error: unknown) {
-      this.excelFileName = '';
-      this.excelImportError = error instanceof Error ? error.message : 'Excel dosyası okunamadı.';
+      this.sourceFileName = '';
+      this.fileImportError = error instanceof Error ? error.message : 'Dosya okunamadı.';
+      this.detectedSourceType = '';
       this.fields.markAsTouched();
       this.fields.updateValueAndValidity();
     } finally {
-      this.isExcelParsing = false;
+      this.isFileParsing = false;
       input.value = '';
       this.changeDetector.detectChanges();
     }
+  }
+
+  protected getImportedFieldMeta(index: number): string {
+    const field = this.fields.at(index);
+    const sourcePath = field.controls.sourceColumn.value;
+
+    if (!sourcePath) {
+      return '';
+    }
+
+    if (this.isExcelSource) {
+      return `Kolon ${sourcePath} · ${field.controls.sourceHeader.value}`;
+    }
+
+    return `${this.sourceCopy.badgeLabel} path · ${sourcePath}`;
   }
 
   protected fieldNameInvalid(index: number): boolean {
@@ -238,6 +337,7 @@ export class SourceMappingPageComponent implements OnInit {
     const value = this.form.getRawValue();
     const request: SaveSourceSchemaRequest = {
       sourceName: value.sourceName.trim(),
+      sourceType: this.detectedSourceType || undefined,
       fields: value.fields.map(field => ({
         name: field.name.trim(),
         displayName: field.displayName.trim() || undefined,
@@ -255,6 +355,17 @@ export class SourceMappingPageComponent implements OnInit {
       .subscribe({
         next: (response) => {
           this.savedSourceSchema = response;
+          if (this.mapping) {
+            this.mapping = {
+              ...this.mapping,
+              sourceType: response.sourceType,
+              sourceSchema: {
+                sourceName: response.sourceName,
+                fields: response.fields
+              },
+              updatedAt: response.updatedAt
+            };
+          }
           this.successMessage = 'Kaynak veri şeması başarıyla kaydedildi.';
           void this.router.navigate(['/mappings', this.mappingId, 'target']);
         },
@@ -276,7 +387,7 @@ export class SourceMappingPageComponent implements OnInit {
       .subscribe({
         next: (mapping) => {
           this.mapping = mapping;
-          if (this.fields.length === 0 && mapping.sourceType !== 'excel') {
+          if (this.fields.length === 0 && !['file', 'excel', 'json', 'xml'].includes(mapping.sourceType)) {
             this.addField();
             this.fields.markAsPristine();
           }
@@ -289,19 +400,19 @@ export class SourceMappingPageComponent implements OnInit {
       });
   }
 
-  private setExcelColumns(columns: ExcelColumnImport[]): void {
+  private setImportedFields(importedFields: SourceFieldImport[]): void {
     const usedFieldNames = new Set<string>();
 
     this.fields.clear();
-    columns.forEach(column => {
-      const fieldName = this.createUniqueFieldName(column.header, column.column, usedFieldNames);
+    importedFields.forEach(field => {
+      const fieldName = this.createUniqueFieldName(field.displayName, field.sourcePath, usedFieldNames);
       this.fields.push(this.createFieldForm({
         name: fieldName,
-        displayName: column.header,
-        type: 'text',
-        sampleValue: column.sampleValue,
-        sourceColumn: column.column,
-        sourceHeader: column.header
+        displayName: field.displayName,
+        type: field.type,
+        sampleValue: field.sampleValue,
+        sourceColumn: field.sourcePath,
+        sourceHeader: field.displayName
       }));
     });
     this.fields.markAsDirty();

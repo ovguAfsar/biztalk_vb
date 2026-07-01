@@ -12,12 +12,20 @@ public sealed class MappingService : IMappingService
 
     private static readonly HashSet<string> AllowedSourceTypes = new(StringComparer.OrdinalIgnoreCase)
     {
+        "file",
         "excel",
         "json",
         "xml",
         "api",
         "database",
         "manual"
+    };
+
+    private static readonly HashSet<string> AllowedDetectedFileSourceTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "excel",
+        "json",
+        "xml"
     };
 
     private static readonly HashSet<string> AllowedTargetTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -123,7 +131,11 @@ public sealed class MappingService : IMappingService
                 .ToList()
         };
 
-        var mapping = await _mappingRepository.SaveSourceSchemaAsync(id, sourceSchema, now, cancellationToken);
+        var sourceType = string.IsNullOrWhiteSpace(request.SourceType)
+            ? null
+            : request.SourceType.Trim().ToLowerInvariant();
+
+        var mapping = await _mappingRepository.SaveSourceSchemaAsync(id, sourceSchema, sourceType, now, cancellationToken);
         if (mapping is null)
         {
             throw new MappingNotFoundException(id);
@@ -300,7 +312,7 @@ public sealed class MappingService : IMappingService
         }
         else if (!AllowedSourceTypes.Contains(request.SourceType.Trim()))
         {
-            errors["sourceType"] = new[] { "Kaynak veri tipi excel, json, xml, api, database veya manual olmalidir." };
+            errors["sourceType"] = new[] { "Kaynak veri tipi file, excel, json, xml, api, database veya manual olmalidir." };
         }
 
         if (string.IsNullOrWhiteSpace(request.TargetType))
@@ -339,6 +351,12 @@ public sealed class MappingService : IMappingService
         if (string.IsNullOrWhiteSpace(request.SourceName))
         {
             AddError(errors, "sourceName", "Kaynak adi bos olamaz.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SourceType)
+            && !AllowedDetectedFileSourceTypes.Contains(request.SourceType.Trim()))
+        {
+            AddError(errors, "sourceType", "Dosyadan algilanan kaynak tipi excel, json veya xml olmalidir.");
         }
 
         if (request.Fields is null || request.Fields.Count == 0)

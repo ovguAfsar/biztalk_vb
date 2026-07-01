@@ -28,6 +28,7 @@ public sealed class MappingRepository : IMappingRepository
     public async Task<MappingDocument?> SaveSourceSchemaAsync(
         string id,
         SourceSchemaDocument sourceSchema,
+        string? sourceType,
         DateTime updatedAt,
         CancellationToken cancellationToken)
     {
@@ -35,6 +36,11 @@ public sealed class MappingRepository : IMappingRepository
         var update = Builders<MappingDocument>.Update
             .Set(mapping => mapping.SourceSchema, sourceSchema)
             .Set(mapping => mapping.UpdatedAt, updatedAt);
+
+        if (!string.IsNullOrWhiteSpace(sourceType))
+        {
+            update = update.Set(mapping => mapping.SourceType, sourceType.Trim().ToLowerInvariant());
+        }
 
         return await _mappings.FindOneAndUpdateAsync(
             filter,

@@ -11,6 +11,7 @@ public interface IMappingRepository
     Task<MappingDocument?> SaveSourceSchemaAsync(
         string id,
         SourceSchemaDocument sourceSchema,
+        string? sourceType,
         DateTime updatedAt,
         CancellationToken cancellationToken);
 
