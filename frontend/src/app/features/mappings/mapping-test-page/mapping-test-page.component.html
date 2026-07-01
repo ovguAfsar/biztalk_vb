@@ -86,8 +86,21 @@
           <button class="primary-action" type="button" (click)="continueNext()" [disabled]="isRunning">
             Testi Tamamla
           </button>
+          <button class="secondary-action" type="button" (click)="goToNewMapping()">
+            Yeni Mapping Oluştur
+          </button>
         </div>
       </div>
     </section>
   </section>
+  <div class="completion-overlay" *ngIf="showCompletionModal">
+  <div class="completion-modal">
+    <div class="completion-modal__icon">✓</div>
+    <h2 class="completion-modal__title">Test Tamamlandı</h2>
+    <p class="completion-modal__text">Mapping tanımı test edildi ve kullanıma hazır.</p>
+    <div class="completion-modal__actions">
+      <button type="button" class="completion-modal__btn" (click)="closeCompletionModal()">Kapat</button>
+    </div>
+  </div>
+</div>
 </main>
