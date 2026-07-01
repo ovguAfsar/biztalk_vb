@@ -46,7 +46,7 @@ export class CreateMappingPageComponent {
 
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required]],
-    description: [''],
+    description: ['', [Validators.required]],
     sourceType: ['file', [Validators.required]],
     targetType: ['', [Validators.required]]
   });
@@ -62,6 +62,11 @@ export class CreateMappingPageComponent {
 
   protected get nameInvalid(): boolean {
     const control = this.form.controls.name;
+    return control.invalid && (control.dirty || control.touched);
+  }
+
+  protected get descriptionInvalid(): boolean {
+    const control = this.form.controls.description;
     return control.invalid && (control.dirty || control.touched);
   }
 
