@@ -3,6 +3,7 @@ export type MappingTargetType = 'json' | 'xml' | 'api' | 'database' | 'file';
 export type MappingStatus = 'draft';
 export type SourceFieldType = 'text' | 'number' | 'date' | 'boolean' | 'object' | 'array';
 export type MappingTransformType = 'direct' | 'concat' | 'constant' | 'dateFormat';
+export type TargetFieldAlign = 'left' | 'right';
 
 export interface MappingCreateRequest {
   name: string;
@@ -25,6 +26,13 @@ export interface TargetField {
   type: SourceFieldType;
   required: boolean;
   sampleValue?: string;
+  length?: number;
+  startPosition?: number;
+  format?: string;
+  align?: TargetFieldAlign;
+  padChar?: string;
+  fixedValue?: string;
+  requiredForOutput?: boolean;
 }
 
 export interface SourceSchemaDetails {

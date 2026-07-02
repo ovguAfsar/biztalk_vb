@@ -93,6 +93,27 @@ public sealed class TargetFieldDocument
 
     [BsonElement("sampleValue")]
     public string? SampleValue { get; init; }
+
+    [BsonElement("length")]
+    public int? Length { get; init; }
+
+    [BsonElement("startPosition")]
+    public int? StartPosition { get; init; }
+
+    [BsonElement("format")]
+    public string? Format { get; init; }
+
+    [BsonElement("align")]
+    public string? Align { get; init; }
+
+    [BsonElement("padChar")]
+    public string? PadChar { get; init; }
+
+    [BsonElement("fixedValue")]
+    public string? FixedValue { get; init; }
+
+    [BsonElement("requiredForOutput")]
+    public bool RequiredForOutput { get; init; }
 }
 
 public sealed class MappingDefinitionDocument
