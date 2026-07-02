@@ -43,7 +43,7 @@ type SourceFieldForm = FormGroup<{
 const sourceTypeCopy: Record<MappingSourceType, SourceTypeCopy> = {
   file: {
     title: 'Kaynak Dosyasını Yükle',
-    description: 'Excel, CSV, JSON veya XML dosyanızı yükleyin. Format dosya uzantısından otomatik algılanır.',
+    description: 'Excel, CSV veya TXT dosyanızı yükleyin. Format dosya uzantısından otomatik algılanır.',
     sourceNamePlaceholder: 'Örn: Masraf Kaynak Dosyası',
     badgeLabel: 'Dosya'
   },
@@ -52,6 +52,12 @@ const sourceTypeCopy: Record<MappingSourceType, SourceTypeCopy> = {
     description: 'Excel dosyanızdaki kolonları burada tanımlayın. Bu alanlar daha sonra hedef alanlarla eşleştirilecek.',
     sourceNamePlaceholder: 'Örn: Masraf Excel Kaynağı',
     badgeLabel: 'Excel'
+  },
+  txt: {
+    title: 'TXT Kaynak Alanlarını Tanımla',
+    description: 'TXT dosyanızdaki alanları burada tanımlayın. Bu alanlar mapping ekranında kullanılacak.',
+    sourceNamePlaceholder: 'Örn: Maaş TXT Kaynağı',
+    badgeLabel: 'TXT'
   },
   json: {
     title: 'JSON Kaynak Alanlarını Tanımla',
@@ -158,7 +164,7 @@ export class SourceMappingPageComponent implements OnInit {
   }
 
   protected get isFileSource(): boolean {
-    return ['file', 'excel', 'json', 'xml'].includes(this.mapping?.sourceType ?? '');
+    return ['file', 'excel', 'txt'].includes(this.mapping?.sourceType ?? '');
   }
 
   protected get hasImportedFields(): boolean {
@@ -176,13 +182,11 @@ export class SourceMappingPageComponent implements OnInit {
   protected get acceptedFileExtensions(): string {
     switch (this.mapping?.sourceType) {
       case 'file':
-        return '.xlsx,.csv,.xls,.json,.xml';
+        return '.xlsx,.csv,.xls,.txt';
       case 'excel':
         return '.xlsx,.csv,.xls';
-      case 'json':
-        return '.json';
-      case 'xml':
-        return '.xml';
+      case 'txt':
+        return '.txt';
       default:
         return '';
     }
@@ -195,13 +199,11 @@ export class SourceMappingPageComponent implements OnInit {
   protected get sourceFileDescription(): string {
     switch (this.mapping?.sourceType) {
       case 'file':
-        return 'Excel, CSV, JSON veya XML dosyası seçin; format otomatik algılanacak.';
+        return 'Excel, CSV veya TXT dosyası seçin; format otomatik algılanacak.';
       case 'excel':
         return 'Dosya seçildiğinde kolonlar burada tek tek tanımlanacak.';
-      case 'json':
-        return 'Dosya seçildiğinde JSON alanları burada tek tek tanımlanacak.';
-      case 'xml':
-        return 'Dosya seçildiğinde XML elementleri burada tek tek tanımlanacak.';
+      case 'txt':
+        return 'Dosya seçildiğinde TXT alanları burada tek tek tanımlanacak.';
       default:
         return 'Dosya seçildiğinde alanlar burada tek tek tanımlanacak.';
     }
@@ -387,7 +389,7 @@ export class SourceMappingPageComponent implements OnInit {
       .subscribe({
         next: (mapping) => {
           this.mapping = mapping;
-          if (this.fields.length === 0 && !['file', 'excel', 'json', 'xml'].includes(mapping.sourceType)) {
+          if (this.fields.length === 0 && !['file', 'excel', 'txt'].includes(mapping.sourceType)) {
             this.addField();
             this.fields.markAsPristine();
           }

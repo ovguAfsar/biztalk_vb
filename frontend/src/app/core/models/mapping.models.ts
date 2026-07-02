@@ -1,4 +1,4 @@
-export type MappingSourceType = 'file' | 'excel' | 'json' | 'xml' | 'api' | 'database' | 'manual';
+export type MappingSourceType = 'file' | 'excel' | 'txt' | 'json' | 'xml' | 'api' | 'database' | 'manual';
 export type MappingTargetType = 'json' | 'xml' | 'api' | 'database' | 'file';
 export type MappingStatus = 'draft';
 export type SourceFieldType = 'text' | 'number' | 'date' | 'boolean' | 'object' | 'array';

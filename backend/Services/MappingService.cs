@@ -15,6 +15,7 @@ public sealed class MappingService : IMappingService
     {
         "file",
         "excel",
+        "txt",
         "json",
         "xml",
         "api",
@@ -25,8 +26,7 @@ public sealed class MappingService : IMappingService
     private static readonly HashSet<string> AllowedDetectedFileSourceTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         "excel",
-        "json",
-        "xml"
+        "txt"
     };
 
     private static readonly HashSet<string> AllowedTargetTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -328,7 +328,7 @@ public sealed class MappingService : IMappingService
         }
         else if (!AllowedSourceTypes.Contains(request.SourceType.Trim()))
         {
-            errors["sourceType"] = new[] { "Kaynak veri tipi file, excel, json, xml, api, database veya manual olmalidir." };
+            errors["sourceType"] = new[] { "Kaynak veri tipi file, excel, txt, json, xml, api, database veya manual olmalidir." };
         }
 
         if (string.IsNullOrWhiteSpace(request.TargetType))
@@ -372,7 +372,7 @@ public sealed class MappingService : IMappingService
         if (!string.IsNullOrWhiteSpace(request.SourceType)
             && !AllowedDetectedFileSourceTypes.Contains(request.SourceType.Trim()))
         {
-            AddError(errors, "sourceType", "Dosyadan algilanan kaynak tipi excel, json veya xml olmalidir.");
+            AddError(errors, "sourceType", "Dosyadan algilanan kaynak tipi excel veya txt olmalidir.");
         }
 
         if (request.Fields is null || request.Fields.Count == 0)

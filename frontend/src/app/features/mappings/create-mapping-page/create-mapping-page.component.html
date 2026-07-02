@@ -33,17 +33,16 @@
         </div>
       </div>
 
-      <fieldset class="option-section">
-        <legend>Kaynak veri nereden gelecek?</legend>
+      <fieldset class="option-section" aria-label="Kaynak dosya yükleme">
         <label class="source-upload" [class.source-upload--ready]="hasSourceFile" [class.source-upload--disabled]="isSubmitting">
           <input
             type="file"
-            accept=".xlsx,.xls,.csv,.json,.xml"
+            accept=".xlsx,.xls,.csv,.txt"
             (change)="onSourceFileSelected($event)"
             [disabled]="isSubmitting"
           >
           <span class="source-upload__title">Dosya Yükle</span>
-          <span class="source-upload__description">Excel, CSV, JSON veya XML dosyası seçin.</span>
+          <span class="source-upload__description">Excel, CSV veya TXT dosyası seçin.</span>
           <span class="source-upload__meta" *ngIf="hasSourceFile">
             {{ sourceFileName }} · {{ sourceFields.length }} alan · {{ detectedSourceTypeLabel }}
           </span>
