@@ -2,6 +2,7 @@ using MappingStudio.Api.DTOs;
 using MappingStudio.Api.Models;
 using MappingStudio.Api.Repositories;
 using MongoDB.Bson;
+using System.Globalization;
 using System.Text.Json;
 
 namespace MappingStudio.Api.Services;
@@ -53,6 +54,12 @@ public sealed class MappingService : IMappingService
         "concat",
         "constant",
         "dateFormat"
+    };
+
+    private static readonly HashSet<string> AllowedTargetAlignments = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "left",
+        "right"
     };
 
     private readonly IMappingRepository _mappingRepository;
@@ -168,7 +175,14 @@ public sealed class MappingService : IMappingService
                     DisplayName = string.IsNullOrWhiteSpace(field.DisplayName) ? null : field.DisplayName.Trim(),
                     Type = field.Type!.Trim().ToLowerInvariant(),
                     Required = field.Required,
-                    SampleValue = string.IsNullOrWhiteSpace(field.SampleValue) ? null : field.SampleValue.Trim()
+                    SampleValue = string.IsNullOrWhiteSpace(field.SampleValue) ? null : field.SampleValue.Trim(),
+                    Length = field.Length,
+                    StartPosition = field.StartPosition,
+                    Format = NormalizeOptionalString(field.Format),
+                    Align = NormalizeOptionalString(field.Align)?.ToLowerInvariant(),
+                    PadChar = NormalizeSingleCharacter(field.PadChar),
+                    FixedValue = field.FixedValue,
+                    RequiredForOutput = field.RequiredForOutput
                 })
                 .ToList()
         };
@@ -281,6 +295,8 @@ public sealed class MappingService : IMappingService
                     break;
             }
         }
+
+        ApplyTargetFieldFormats(output, mapping.TargetSchema!, warnings);
 
         return new TestMappingResponse
         {
@@ -541,6 +557,11 @@ public sealed class MappingService : IMappingService
             var field = request.Fields[index];
             var nameKey = $"fields[{index}].name";
             var typeKey = $"fields[{index}].type";
+            var lengthKey = $"fields[{index}].length";
+            var startPositionKey = $"fields[{index}].startPosition";
+            var alignKey = $"fields[{index}].align";
+            var padCharKey = $"fields[{index}].padChar";
+            var fixedValueKey = $"fields[{index}].fixedValue";
 
             if (string.IsNullOrWhiteSpace(field.Name))
             {
@@ -558,6 +579,34 @@ public sealed class MappingService : IMappingService
             else if (!AllowedFieldTypes.Contains(field.Type.Trim()))
             {
                 AddError(errors, typeKey, "Alan tipi text, number, date, boolean, object veya array olmalidir.");
+            }
+
+            if (field.Length.HasValue && field.Length.Value <= 0)
+            {
+                AddError(errors, lengthKey, "Alan uzunlugu 0'dan buyuk olmalidir.");
+            }
+
+            if (field.StartPosition.HasValue && field.StartPosition.Value < 0)
+            {
+                AddError(errors, startPositionKey, "Baslangic pozisyonu 0 veya daha buyuk olmalidir.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(field.Align)
+                && !AllowedTargetAlignments.Contains(field.Align.Trim()))
+            {
+                AddError(errors, alignKey, "Hizalama left veya right olmalidir.");
+            }
+
+            if (field.PadChar is not null && field.PadChar.Length != 1)
+            {
+                AddError(errors, padCharKey, "Padding karakteri tek karakter olmalidir.");
+            }
+
+            if (field.FixedValue is not null
+                && field.Length.HasValue
+                && field.FixedValue.Length > field.Length.Value)
+            {
+                AddError(errors, fixedValueKey, "Sabit deger alan uzunlugundan buyuk olamaz.");
             }
         }
 
@@ -641,14 +690,7 @@ public sealed class MappingService : IMappingService
             TargetName = targetSchema.TargetName,
             TargetType = mapping.TargetType,
             Fields = targetSchema.Fields
-                .Select(field => new TargetFieldDto
-                {
-                    Name = field.Name,
-                    DisplayName = field.DisplayName,
-                    Type = field.Type,
-                    Required = field.Required,
-                    SampleValue = field.SampleValue
-                })
+                .Select(ToTargetFieldDto)
                 .ToList(),
             UpdatedAt = mapping.UpdatedAt
         };
@@ -678,15 +720,27 @@ public sealed class MappingService : IMappingService
         {
             TargetName = targetSchema.TargetName,
             Fields = targetSchema.Fields
-                .Select(field => new TargetFieldDto
-                {
-                    Name = field.Name,
-                    DisplayName = field.DisplayName,
-                    Type = field.Type,
-                    Required = field.Required,
-                    SampleValue = field.SampleValue
-                })
+                .Select(ToTargetFieldDto)
                 .ToList()
+        };
+    }
+
+    private static TargetFieldDto ToTargetFieldDto(TargetFieldDocument field)
+    {
+        return new TargetFieldDto
+        {
+            Name = field.Name,
+            DisplayName = field.DisplayName,
+            Type = field.Type,
+            Required = field.Required,
+            SampleValue = field.SampleValue,
+            Length = field.Length,
+            StartPosition = field.StartPosition,
+            Format = field.Format,
+            Align = field.Align,
+            PadChar = field.PadChar,
+            FixedValue = field.FixedValue,
+            RequiredForOutput = field.RequiredForOutput
         };
     }
 
@@ -709,6 +763,181 @@ public sealed class MappingService : IMappingService
         return trimmedTransformType.Equals("dateFormat", StringComparison.OrdinalIgnoreCase)
             ? "dateFormat"
             : trimmedTransformType.ToLowerInvariant();
+    }
+
+    private static string? NormalizeOptionalString(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string? NormalizeSingleCharacter(string? value)
+    {
+        return string.IsNullOrEmpty(value) ? null : value[..1];
+    }
+
+    private static void ApplyTargetFieldFormats(
+        IDictionary<string, object?> output,
+        TargetSchemaDocument targetSchema,
+        ICollection<string> warnings)
+    {
+        foreach (var field in targetSchema.Fields)
+        {
+            if (!output.TryGetValue(field.Name, out var value))
+            {
+                if (field.FixedValue is not null)
+                {
+                    output[field.Name] = FormatTargetFieldValue(null, field, warnings);
+                    continue;
+                }
+
+                if (field.RequiredForOutput)
+                {
+                    warnings.Add($"Target field '{field.Name}' is required by the output format but has no mapped value.");
+                }
+
+                continue;
+            }
+
+            if (!HasTargetFormatting(field))
+            {
+                continue;
+            }
+
+            output[field.Name] = FormatTargetFieldValue(value, field, warnings);
+        }
+    }
+
+    private static bool HasTargetFormatting(TargetFieldDocument field)
+    {
+        return field.Length.HasValue
+            || !string.IsNullOrWhiteSpace(field.Format)
+            || !string.IsNullOrWhiteSpace(field.Align)
+            || !string.IsNullOrEmpty(field.PadChar)
+            || field.FixedValue is not null;
+    }
+
+    private static string FormatTargetFieldValue(
+        object? value,
+        TargetFieldDocument field,
+        ICollection<string> warnings)
+    {
+        var text = field.FixedValue is not null ? field.FixedValue : ObjectValueToText(value);
+        var format = field.Format?.Trim();
+
+        if (field.FixedValue is null && !string.IsNullOrWhiteSpace(format))
+        {
+            if (format.Equals("YYYYMMDD", StringComparison.OrdinalIgnoreCase)
+                || format.Equals("yyyyMMdd", StringComparison.OrdinalIgnoreCase))
+            {
+                text = FormatDateValue(value, text, field.Name, warnings);
+            }
+            else if (format.StartsWith("amount", StringComparison.OrdinalIgnoreCase)
+                || format.StartsWith("decimal", StringComparison.OrdinalIgnoreCase))
+            {
+                text = FormatDecimalValue(value, text, field.Name, warnings);
+            }
+        }
+
+        return field.Length.HasValue
+            ? ApplyFixedLength(text, field, warnings)
+            : text;
+    }
+
+    private static string ApplyFixedLength(
+        string value,
+        TargetFieldDocument field,
+        ICollection<string> warnings)
+    {
+        var length = field.Length!.Value;
+        var normalizedValue = value;
+
+        if (normalizedValue.Length > length)
+        {
+            warnings.Add($"Target field '{field.Name}' exceeded length {length}; value was truncated.");
+            normalizedValue = normalizedValue[..length];
+        }
+
+        if (normalizedValue.Length == length)
+        {
+            return normalizedValue;
+        }
+
+        var align = string.IsNullOrWhiteSpace(field.Align)
+            ? (field.Type.Equals("number", StringComparison.OrdinalIgnoreCase) ? "right" : "left")
+            : field.Align.Trim().ToLowerInvariant();
+        var padChar = string.IsNullOrEmpty(field.PadChar) ? ' ' : field.PadChar[0];
+
+        return align == "right"
+            ? normalizedValue.PadLeft(length, padChar)
+            : normalizedValue.PadRight(length, padChar);
+    }
+
+    private static string FormatDateValue(
+        object? value,
+        string fallbackText,
+        string fieldName,
+        ICollection<string> warnings)
+    {
+        if (TryGetDateTime(value, fallbackText, out var dateValue))
+        {
+            return dateValue.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+        }
+
+        warnings.Add($"Target field '{fieldName}' could not be formatted as YYYYMMDD.");
+        return fallbackText;
+    }
+
+    private static string FormatDecimalValue(
+        object? value,
+        string fallbackText,
+        string fieldName,
+        ICollection<string> warnings)
+    {
+        if (TryGetDecimal(value, fallbackText, out var decimalValue))
+        {
+            return decimalValue.ToString("0.00", CultureInfo.InvariantCulture);
+        }
+
+        warnings.Add($"Target field '{fieldName}' could not be formatted as decimal amount.");
+        return fallbackText;
+    }
+
+    private static bool TryGetDateTime(object? value, string fallbackText, out DateTime dateValue)
+    {
+        if (value is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.String)
+        {
+            return DateTime.TryParse(
+                jsonElement.GetString(),
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out dateValue);
+        }
+
+        return DateTime.TryParse(fallbackText, CultureInfo.InvariantCulture, DateTimeStyles.None, out dateValue);
+    }
+
+    private static bool TryGetDecimal(object? value, string fallbackText, out decimal decimalValue)
+    {
+        if (value is JsonElement jsonElement)
+        {
+            if (jsonElement.ValueKind == JsonValueKind.Number && jsonElement.TryGetDecimal(out decimalValue))
+            {
+                return true;
+            }
+
+            if (jsonElement.ValueKind == JsonValueKind.String)
+            {
+                return TryParseDecimalText(jsonElement.GetString(), out decimalValue);
+            }
+        }
+
+        return TryParseDecimalText(fallbackText, out decimalValue);
+    }
+
+    private static bool TryParseDecimalText(string? value, out decimal decimalValue)
+    {
+        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out decimalValue)
+            || decimal.TryParse(value, NumberStyles.Number, CultureInfo.GetCultureInfo("tr-TR"), out decimalValue);
     }
 
     private static void CopySourceValue(
@@ -753,6 +982,11 @@ public sealed class MappingService : IMappingService
         }
 
         output[targetField] = JsonElementToText(value);
+    }
+
+    private static string ObjectValueToText(object? value)
+    {
+        return value is JsonElement jsonElement ? JsonElementToText(jsonElement) : value?.ToString() ?? string.Empty;
     }
 
     private static string JsonElementToText(JsonElement value)
