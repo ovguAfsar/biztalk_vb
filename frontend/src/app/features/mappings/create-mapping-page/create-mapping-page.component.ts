@@ -3,7 +3,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { finalize, switchMap } from 'rxjs';
+import { concatMap, finalize, switchMap } from 'rxjs';
 
 import {
   MappingCreateRequest,
@@ -14,19 +14,13 @@ import {
   SourceField
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
-import { SelectableOptionCardComponent } from '../../../shared/selectable-option-card/selectable-option-card.component';
+import { createDefaultTargetSchemaRequest } from '../default-target-schema';
 import { SourceFieldImport, readSourceFile } from '../source-mapping-page/source-file-reader';
-
-interface SelectableOption<TValue extends string> {
-  label: string;
-  description: string;
-  value: TValue;
-}
 
 @Component({
   selector: 'app-create-mapping-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, SelectableOptionCardComponent],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './create-mapping-page.component.html',
   styleUrl: './create-mapping-page.component.css'
 })
@@ -36,19 +30,10 @@ export class CreateMappingPageComponent {
   private readonly router = inject(Router);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
-  protected readonly targetOptions: SelectableOption<MappingTargetType>[] = [
-    { label: 'JSON', description: 'JSON çıktı üret', value: 'json' },
-    { label: 'XML', description: 'XML çıktı üret', value: 'xml' },
-    { label: 'API', description: 'Hedef sisteme gönder', value: 'api' },
-    { label: 'Database', description: 'Tabloya yaz', value: 'database' },
-    { label: 'Dosya', description: 'Dosya çıktısı üret', value: 'file' }
-  ];
-
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required]],
     description: ['', [Validators.required]],
-    sourceType: ['file', [Validators.required]],
-    targetType: ['', [Validators.required]]
+    sourceType: ['file', [Validators.required]]
   });
 
   protected isSubmitting = false;
@@ -72,11 +57,6 @@ export class CreateMappingPageComponent {
 
   protected get hasSourceFile(): boolean {
     return this.sourceFields.length > 0 && Boolean(this.detectedSourceType);
-  }
-
-  protected get targetInvalid(): boolean {
-    const control = this.form.controls.targetType;
-    return control.invalid && (control.dirty || control.touched);
   }
 
   protected get detectedSourceTypeLabel(): string {
@@ -122,12 +102,6 @@ export class CreateMappingPageComponent {
     }
   }
 
-  protected selectTargetType(value: string): void {
-    this.form.controls.targetType.setValue(value);
-    this.form.controls.targetType.markAsTouched();
-    this.form.controls.targetType.updateValueAndValidity();
-  }
-
   protected onSubmit(): void {
     this.successMessage = '';
     this.errorMessage = '';
@@ -148,7 +122,7 @@ export class CreateMappingPageComponent {
       name: value.name.trim(),
       description: value.description.trim() || undefined,
       sourceType: this.detectedSourceType as MappingSourceType,
-      targetType: value.targetType as MappingTargetType
+      targetType: 'json' as MappingTargetType
     };
     const sourceRequest: SaveSourceSchemaRequest = {
       sourceName: this.getFileBaseName(this.sourceFileName),
@@ -164,13 +138,14 @@ export class CreateMappingPageComponent {
         createdMappingId = response.id;
         return this.mappingApi.saveSourceSchema(response.id, sourceRequest);
       }))
+      .pipe(concatMap(() => this.mappingApi.saveTargetSchema(createdMappingId, createDefaultTargetSchemaRequest())))
       .pipe(finalize(() => {
         this.isSubmitting = false;
       }))
       .subscribe({
         next: () => {
-          this.successMessage = 'Mapping taslağı ve kaynak dosyası başarıyla kaydedildi.';
-          void this.router.navigate(['/mappings', createdMappingId, 'target']);
+          this.successMessage = 'Mapping taslağı, kaynak dosyası ve varsayılan JSON hedefi kaydedildi.';
+          void this.router.navigate(['/mappings', createdMappingId, 'map']);
         },
         error: (error: unknown) => {
           this.errorMessage = this.getErrorMessage(error);

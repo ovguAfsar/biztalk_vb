@@ -1,10 +1,10 @@
 <main class="create-page">
   <section class="wizard-shell" aria-labelledby="create-mapping-title">
     <header class="wizard-header">
-      <p class="wizard-header__step">Adım 1 / 4 — Başlangıç ve Kaynak Dosya</p>
+      <p class="wizard-header__step">Adım 1 / 3 — Kaynak Dosya</p>
       <h1 id="create-mapping-title">Yeni Mapping Oluştur</h1>
       <p class="wizard-header__description">
-        Kaynak ve hedef veri yapısını seçerek mapping tanımınızı oluşturmaya başlayın.
+        Kaynak dosyanızı yükleyin; hedef JSON alanları otomatik hazırlanacak.
       </p>
     </header>
 
@@ -49,22 +49,6 @@
           </span>
         </label>
         <p class="validation-message" *ngIf="sourceFileError">{{ sourceFileError }}</p>
-      </fieldset>
-
-      <fieldset class="option-section">
-        <legend>Hedef veri nereye dönüştürülecek?</legend>
-        <div class="option-grid option-grid--target">
-          <app-selectable-option-card
-            *ngFor="let option of targetOptions"
-            [label]="option.label"
-            [description]="option.description"
-            [value]="option.value"
-            [selected]="form.controls.targetType.value === option.value"
-            [disabled]="isSubmitting"
-            (selectedValue)="selectTargetType($event)"
-          />
-        </div>
-        <p class="validation-message" *ngIf="targetInvalid">Hedef veri tipi seçin.</p>
       </fieldset>
 
       <div class="feedback" aria-live="polite">

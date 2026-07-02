@@ -1,4 +1,4 @@
-import { CommonModule, Location } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -25,7 +25,6 @@ type BottomPanelTab = 'properties' | 'output' | 'warnings';
 export class VisualMappingPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly location = inject(Location);
   private readonly mappingApi = inject(MappingApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
@@ -166,16 +165,6 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected goBack(): void {
-    if (this.mappingId) {
-      void this.router.navigate(['/mappings', this.mappingId, 'target']);
-      return;
-    }
-
-    if (window.history.length > 1) {
-      this.location.back();
-      return;
-    }
-
     void this.router.navigate(['/mappings/create']);
   }
 
