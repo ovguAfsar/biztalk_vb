@@ -53,8 +53,7 @@
   gap: 9px;
 }
 
-.field label,
-.option-section legend {
+.field label {
   color: #1f2937;
   font-size: 0.96rem;
   font-weight: 720;
@@ -98,11 +97,6 @@
   border: 0;
   border-top: 1px solid #dfe5ef;
   padding: 28px 0 0;
-}
-
-.option-section legend {
-  margin-bottom: 16px;
-  padding: 0;
 }
 
 .option-grid {

@@ -63,10 +63,8 @@ export class CreateMappingPageComponent {
     switch (this.detectedSourceType) {
       case 'excel':
         return 'Excel';
-      case 'json':
-        return 'JSON';
-      case 'xml':
-        return 'XML';
+      case 'txt':
+        return 'TXT';
       default:
         return '';
     }
@@ -113,7 +111,7 @@ export class CreateMappingPageComponent {
     }
 
     if (!this.hasSourceFile) {
-      this.sourceFileError = 'Kaynak dosyası seçin. Desteklenen formatlar: .xlsx, .xls, .csv, .json, .xml';
+      this.sourceFileError = 'Kaynak dosyası seçin. Desteklenen formatlar: .xlsx, .xls, .csv, .txt';
       return;
     }
 

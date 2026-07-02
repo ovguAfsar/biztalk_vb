@@ -1,7 +1,7 @@
 import { MappingSourceType, SourceFieldType } from '../../../core/models/mapping.models';
 import { readExcelColumns } from './excel-column-reader';
 
-export type SourceFileFormat = 'excel' | 'json' | 'xml';
+export type SourceFileFormat = 'excel' | 'txt';
 
 export interface SourceFieldImport {
   displayName: string;
@@ -19,7 +19,7 @@ export async function readSourceFile(file: File, expectedSourceType: MappingSour
   const format = detectSourceFileFormat(file.name);
 
   if (!format) {
-    throw new Error('Desteklenen dosya formatları: .xlsx, .csv, .json, .xml');
+    throw new Error('Desteklenen dosya formatları: .xlsx, .xls, .csv, .txt');
   }
 
   validateExpectedFormat(format, expectedSourceType);
@@ -35,15 +35,10 @@ export async function readSourceFile(file: File, expectedSourceType: MappingSour
           type: inferScalarType(column.sampleValue)
         }))
       };
-    case 'json':
+    case 'txt':
       return {
         format,
-        fields: readJsonFields(await file.text())
-      };
-    case 'xml':
-      return {
-        format,
-        fields: readXmlFields(await file.text())
+        fields: readTxtFields(await file.text())
       };
   }
 }
@@ -55,12 +50,8 @@ function detectSourceFileFormat(fileName: string): SourceFileFormat | null {
     return 'excel';
   }
 
-  if (lowerName.endsWith('.json')) {
-    return 'json';
-  }
-
-  if (lowerName.endsWith('.xml')) {
-    return 'xml';
+  if (lowerName.endsWith('.txt')) {
+    return 'txt';
   }
 
   return null;
@@ -75,17 +66,91 @@ function validateExpectedFormat(format: SourceFileFormat, expectedSourceType: Ma
     throw new Error('Excel kaynağı için .xlsx veya .csv dosyası seçin.');
   }
 
-  if (expectedSourceType === 'json' && format !== 'json') {
-    throw new Error('JSON kaynağı için .json dosyası seçin.');
+  if (expectedSourceType === 'txt' && format !== 'txt') {
+    throw new Error('TXT kaynağı için .txt dosyası seçin.');
   }
 
-  if (expectedSourceType === 'xml' && format !== 'xml') {
-    throw new Error('XML kaynağı için .xml dosyası seçin.');
-  }
-
-  if (!['excel', 'json', 'xml'].includes(expectedSourceType)) {
+  if (!['excel', 'txt'].includes(expectedSourceType)) {
     throw new Error('Bu kaynak tipi için dosya içe aktarma desteklenmiyor.');
   }
+}
+
+function readTxtFields(text: string): SourceFieldImport[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    throw new Error('TXT dosyasında alan bulunamadı.');
+  }
+
+  const keyValueFields = readTxtKeyValueFields(lines);
+  if (keyValueFields.length > 0) {
+    return keyValueFields;
+  }
+
+  const delimitedFields = readTxtDelimitedFields(lines);
+  if (delimitedFields.length > 0) {
+    return delimitedFields;
+  }
+
+  return [{
+    displayName: 'Satır',
+    sampleValue: lines[0],
+    sourcePath: 'line',
+    type: inferScalarType(lines[0])
+  }];
+}
+
+function readTxtKeyValueFields(lines: string[]): SourceFieldImport[] {
+  const pairs = lines
+    .map(line => line.match(/^([^:=]+)\s*[:=]\s*(.*)$/))
+    .filter((match): match is RegExpMatchArray => Boolean(match));
+
+  if (pairs.length === 0 || pairs.length !== lines.length) {
+    return [];
+  }
+
+  return pairs.map(pair => ({
+    displayName: pair[1].trim(),
+    sampleValue: pair[2].trim(),
+    sourcePath: pair[1].trim(),
+    type: inferScalarType(pair[2].trim())
+  }));
+}
+
+function readTxtDelimitedFields(lines: string[]): SourceFieldImport[] {
+  const delimiter = detectTxtDelimiter(lines[0]);
+  if (!delimiter) {
+    return [];
+  }
+
+  const headers = splitTxtLine(lines[0], delimiter);
+  if (headers.length < 2 || headers.some(header => !header)) {
+    return [];
+  }
+
+  const sampleValues = lines.length > 1 ? splitTxtLine(lines[1], delimiter) : [];
+
+  return headers.map((header, index) => ({
+    displayName: header,
+    sampleValue: sampleValues[index] ?? '',
+    sourcePath: header,
+    type: inferScalarType(sampleValues[index] ?? '')
+  }));
+}
+
+function detectTxtDelimiter(line: string): string {
+  const candidates = ['\t', ';', '|', ','];
+  return candidates
+    .map(delimiter => ({ delimiter, count: line.split(delimiter).length }))
+    .filter(candidate => candidate.count > 1)
+    .sort((left, right) => right.count - left.count)[0]?.delimiter ?? '';
+}
+
+function splitTxtLine(line: string, delimiter: string): string[] {
+  return line.split(delimiter).map(value => value.trim());
 }
 
 function readJsonFields(text: string): SourceFieldImport[] {
