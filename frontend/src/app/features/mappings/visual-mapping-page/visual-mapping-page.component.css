@@ -270,6 +270,37 @@
   stroke-width: 3;
 }
 
+.connection-label {
+  fill: #1d4ed8;
+  font-size: 22px;
+  font-weight: 760;
+  paint-order: stroke;
+  stroke: #fbfdff;
+  stroke-linejoin: round;
+  stroke-width: 8px;
+}
+
+.floating-connect-action {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  box-shadow: 0 14px 28px rgb(37 99 235 / 24%);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 760;
+  padding: 10px 20px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.floating-connect-action:hover {
+  background: #1d4ed8;
+}
+
 .canvas-column {
   position: absolute;
   top: 64px;
