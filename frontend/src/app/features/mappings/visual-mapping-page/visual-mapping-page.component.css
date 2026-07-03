@@ -280,27 +280,6 @@
   stroke-width: 8px;
 }
 
-.floating-connect-action {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  min-height: 42px;
-  border: 0;
-  border-radius: 8px;
-  background: #2563eb;
-  box-shadow: 0 14px 28px rgb(37 99 235 / 24%);
-  color: #ffffff;
-  cursor: pointer;
-  font-weight: 760;
-  padding: 10px 20px;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-}
-
-.floating-connect-action:hover {
-  background: #1d4ed8;
-}
-
 .canvas-column {
   position: absolute;
   top: 64px;
@@ -347,39 +326,73 @@
   box-shadow: 0 0 0 3px rgb(15 102 84 / 16%);
 }
 
+.target-drop-zone--pending .canvas-node {
+  border-color: #2563eb;
+  background: #eef5ff;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 16%);
+}
+
 .drop-transform-palette {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 8px);
+  top: calc(100% + 8px);
   z-index: 4;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  width: min(420px, 78vw);
+  width: min(360px, 78vw);
   border: 1px solid #bfd0e7;
   border-radius: 8px;
   background: #ffffff;
   box-shadow: 0 16px 36px rgb(23 32 51 / 18%);
-  padding: 8px;
+  padding: 10px;
+}
+
+.drop-transform-palette__summary {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+  border-bottom: 1px solid #dfe5ef;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding-bottom: 8px;
+}
+
+.drop-transform-palette__summary span,
+.drop-transform-palette__summary strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.drop-transform-palette__summary strong {
+  color: #172033;
+  font-size: 0.82rem;
 }
 
 .drop-transform-palette button {
-  min-height: 30px;
+  min-height: 36px;
   border: 1px solid #d7deea;
-  border-radius: 999px;
+  border-radius: 8px;
   background: #f8fafc;
   color: #334155;
   cursor: pointer;
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 760;
-  padding: 5px 9px;
+  padding: 8px 10px;
+  text-align: center;
 }
 
 .drop-transform-palette__option--active {
   border-color: #2563eb !important;
   background: #eef5ff !important;
   color: #1d4ed8 !important;
+}
+
+.drop-transform-palette__cancel {
+  grid-column: 1 / -1;
+  background: #ffffff !important;
+  color: #64748b !important;
 }
 
 .mapping-list {

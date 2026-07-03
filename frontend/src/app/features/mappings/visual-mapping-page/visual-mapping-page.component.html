@@ -54,8 +54,11 @@
           </header>
 
           <div class="selection-strip">
-            <span>Source alanı sürükleyip hedef alanın üzerine bırakın.</span>
+            <span>Source alanı hedef alanın üzerine bırakın, sonra bağlama türünü seçin.</span>
             <span *ngIf="draggedSourceField">Sürüklenen: {{ getSourceLabelByName(draggedSourceField) }}</span>
+            <span *ngIf="pendingConnection">
+              Seçiliyor: {{ getSourceLabelByName(pendingConnection.sourceField) }} → {{ getTargetLabelByName(pendingConnection.targetField) }}
+            </span>
           </div>
 
           <div class="canvas-grid" [style.min-height.px]="canvasHeight">
@@ -105,6 +108,7 @@
                 class="target-drop-zone"
                 *ngFor="let field of targetFields"
                 [class.target-drop-zone--active]="dragTargetField === field.name"
+                [class.target-drop-zone--pending]="isPendingTarget(field.name)"
                 (dragenter)="enterTargetDropZone($event, field.name)"
                 (dragover)="enterTargetDropZone($event, field.name)"
                 (dragleave)="leaveTargetDropZone(field.name)"
@@ -120,15 +124,21 @@
                   {{ field.name }}
                 </button>
 
-                <div class="drop-transform-palette" *ngIf="dragTargetField === field.name">
+                <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
+                  <div class="drop-transform-palette__summary">
+                    <span>{{ getSourceLabelByName(pending.sourceField) }}</span>
+                    <strong>{{ getTargetLabelByName(pending.targetField) }}</strong>
+                  </div>
                   <button
                     type="button"
                     *ngFor="let transform of transformOptions"
-                    [class.drop-transform-palette__option--active]="dragTransformType === transform"
-                    (mouseenter)="updateDragTransform(transform)"
-                    (pointerdown)="updateDragTransform(transform)"
+                    [class.drop-transform-palette__option--active]="selectedTransformType === transform"
+                    (click)="choosePendingTransform(transform)"
                   >
                     {{ transform }}
+                  </button>
+                  <button class="drop-transform-palette__cancel" type="button" (click)="cancelPendingConnection()">
+                    Vazgeç
                   </button>
                 </div>
               </div>
@@ -142,7 +152,7 @@
             </div>
 
             <p class="empty-state" *ngIf="mappingDefinitions.length === 0">
-              İlk eşleştirmeyi oluşturmak için kaynak alanı hedef alanın üzerine sürükleyin.
+              İlk eşleştirmeyi oluşturmak için kaynak alanı hedef alanın üzerine bırakın ve bağlama türünü seçin.
             </p>
 
             <div class="mapping-row" *ngFor="let mappingDefinition of mappingDefinitions">
