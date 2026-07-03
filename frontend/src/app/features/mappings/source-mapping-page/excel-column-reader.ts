@@ -182,19 +182,21 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
 
   const headerRow = rows[0];
   if (!headerRow) {
-    throw new Error('Excel dosyasında kolon başlığı bulunamadı.');
+    throw new Error('Excel dosyasında kolon başlıkları bulunamadı.');
   }
 
   const sampleRow = rows[1];
   if (!sampleRow) {
-    throw new Error('Excel dosyasında en az bir veri satırı bulunmalıdır.');
+    throw new Error('Excel dosyasında veri satırı bulunamadı.');
   }
 
-  validateHeaderRow(headerRow, sampleRow, 'Kolon');
+  validateHeaderCells(headerRow, 'Excel', Math.max(
+    ...headerRow.map(cell => cell.columnIndex),
+    ...sampleRow.map(cell => cell.columnIndex)
+  ));
 
   const sampleByColumn = new Map(sampleRow.map(cell => [cell.columnIndex, cell.value]));
   const columns = headerRow
-    .filter(cell => cell.value.trim())
     .map(cell => ({
       column: cell.column,
       header: cell.value.trim(),
@@ -202,10 +204,37 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
     }));
 
   if (columns.length === 0) {
-    throw new Error('Excel dosyasında kolon başlığı bulunamadı.');
+    throw new Error('Excel dosyasında kolon başlıkları bulunamadı.');
   }
 
   return columns;
+}
+
+function validateHeaderCells(
+  headerRow: Array<{ column: string; columnIndex: number; value: string }>,
+  fileType: 'Excel' | 'CSV',
+  maxColumnIndex = headerRow[headerRow.length - 1]?.columnIndex ?? 0)
+{
+  const firstColumnIndex = headerRow[0]?.columnIndex ?? 1;
+  const cellsByColumn = new Map(headerRow.map(cell => [cell.columnIndex, cell]));
+  const seenHeaders = new Set<string>();
+
+  for (let columnIndex = firstColumnIndex; columnIndex <= maxColumnIndex; columnIndex += 1) {
+    const cell = cellsByColumn.get(columnIndex);
+    const header = cell?.value.trim() ?? '';
+
+    if (!header) {
+      const columnName = cell?.column ?? getColumnNameFromIndex(columnIndex);
+      throw new Error(`${fileType} dosyasında kolon adı boş olamaz. Boş kolon: ${columnName}`);
+    }
+
+    const normalizedHeader = header.toLowerCase();
+    if (seenHeaders.has(normalizedHeader)) {
+      throw new Error(`${fileType} dosyasında tekrarlı kolon başlığı var: ${header}`);
+    }
+
+    seenHeaders.add(normalizedHeader);
+  }
 }
 
 function parseWorksheetRow(row: Element, sharedStrings: string[]): Array<{
@@ -251,75 +280,33 @@ function readCsvColumns(text: string): ExcelColumnImport[] {
   const headerRow = rows[0];
 
   if (!headerRow) {
-    throw new Error('CSV dosyasında kolon başlığı bulunamadı.');
+    throw new Error('CSV dosyasında kolon başlıkları bulunamadı.');
   }
 
+  const headerCells = headerRow.map((header, index) => ({
+    column: getColumnNameFromIndex(index + 1),
+    columnIndex: index + 1,
+    value: header
+  }));
   const sampleRow = rows[1];
   if (!sampleRow) {
-    throw new Error('CSV dosyasında en az bir veri satırı bulunmalıdır.');
+    throw new Error('CSV dosyasında veri satırı bulunamadı.');
   }
 
-  validateCsvHeaderRow(headerRow, sampleRow);
+  validateHeaderCells(headerCells, 'CSV', Math.max(headerCells.length, sampleRow.length));
 
   const columns = headerRow
     .map((header, index) => ({
       column: getColumnNameFromIndex(index + 1),
       header: header.trim(),
       sampleValue: sampleRow[index]?.trim() ?? ''
-    }))
-    .filter(column => column.header);
+    }));
 
   if (columns.length === 0) {
-    throw new Error('CSV dosyasında kolon başlığı bulunamadı.');
+    throw new Error('CSV dosyasında kolon başlıkları bulunamadı.');
   }
 
   return columns;
-}
-
-function validateHeaderRow(
-  headerRow: Array<{ column: string; columnIndex: number; value: string }>,
-  sampleRow: Array<{ columnIndex: number; value: string }>,
-  label: string
-): void {
-  const maxColumnIndex = Math.max(
-    ...headerRow.map(cell => cell.columnIndex),
-    ...sampleRow.map(cell => cell.columnIndex)
-  );
-  const headerByColumn = new Map(headerRow.map(cell => [cell.columnIndex, cell.value.trim()]));
-  const seenHeaders = new Set<string>();
-
-  for (let columnIndex = 1; columnIndex <= maxColumnIndex; columnIndex += 1) {
-    const header = headerByColumn.get(columnIndex) ?? '';
-    if (!header) {
-      throw new Error(`${label} adı boş olamaz.`);
-    }
-
-    const normalizedHeader = header.toLocaleLowerCase('tr-TR');
-    if (seenHeaders.has(normalizedHeader)) {
-      throw new Error(`Tekrarlı ${label.toLocaleLowerCase('tr-TR')} başlığı var: ${header}.`);
-    }
-
-    seenHeaders.add(normalizedHeader);
-  }
-}
-
-function validateCsvHeaderRow(headerRow: string[], sampleRow: string[]): void {
-  const maxColumnCount = Math.max(headerRow.length, sampleRow.length);
-  const seenHeaders = new Set<string>();
-
-  for (let index = 0; index < maxColumnCount; index += 1) {
-    const header = headerRow[index]?.trim() ?? '';
-    if (!header) {
-      throw new Error('Kolon adı boş olamaz.');
-    }
-
-    const normalizedHeader = header.toLocaleLowerCase('tr-TR');
-    if (seenHeaders.has(normalizedHeader)) {
-      throw new Error(`Tekrarlı kolon başlığı var: ${header}.`);
-    }
-
-    seenHeaders.add(normalizedHeader);
-  }
 }
 
 function parseCsvRows(text: string): string[][] {

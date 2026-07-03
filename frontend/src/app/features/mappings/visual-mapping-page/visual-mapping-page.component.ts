@@ -100,6 +100,10 @@ export class VisualMappingPageComponent implements OnInit {
     return this.getTargetField(this.selectedTargetField);
   }
 
+  protected get canConnectSelectedFields(): boolean {
+    return Boolean(this.selectedSourceField && this.selectedTargetField);
+  }
+
   protected selectSourceField(fieldName: string): void {
     this.selectedSourceField = fieldName;
     this.successMessage = '';
@@ -186,6 +190,20 @@ export class VisualMappingPageComponent implements OnInit {
       mapping => mapping.targetField === targetField
     );
     const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
+    const sourceMappedElsewhere = this.mappingDefinitions.find(
+      mapping => mapping.targetField !== targetField
+        && this.getSourceFieldNames(mapping.sourceField).includes(sourceField)
+    );
+
+    if (sourceMappedElsewhere) {
+      this.saveError = `${this.getSourceLabelByName(sourceField)} zaten ${this.getTargetLabelByName(sourceMappedElsewhere.targetField)} alanına eşleştirilmiş. Aynı kaynak kolon iki kez kullanılamaz.`;
+      return;
+    }
+
+    if (this.shouldConfirmMapping(sourceField, targetField) && !window.confirm(this.getMismatchConfirmationMessage(sourceField, targetField))) {
+      return;
+    }
+
     const sourceFieldValue = transformType === 'concat' && existingMapping?.transformType === 'concat'
       ? this.mergeSourceFields(existingMapping.sourceField, sourceField)
       : sourceField;
@@ -281,6 +299,10 @@ export class VisualMappingPageComponent implements OnInit {
     return 94 + index * 58;
   }
 
+  protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
+    return (this.getSourceLineY(mappingDefinition.sourceField) + this.getTargetLineY(mappingDefinition.targetField)) / 2 - 8;
+  }
+
   protected getSourceFieldLabel(field: SourceField): string {
     return field.displayName ? `${field.displayName} (${field.name})` : field.name;
   }
@@ -355,6 +377,21 @@ export class VisualMappingPageComponent implements OnInit {
       .split(',')
       .map(fieldName => fieldName.trim())
       .filter(Boolean);
+  }
+
+  private shouldConfirmMapping(sourceFieldName: string, targetFieldName: string): boolean {
+    const sourceField = this.getSourceField(sourceFieldName);
+    const targetField = this.getTargetField(targetFieldName);
+
+    if (!sourceField || !targetField) {
+      return false;
+    }
+
+    return sourceField.type !== targetField.type;
+  }
+
+  private getMismatchConfirmationMessage(sourceFieldName: string, targetFieldName: string): string {
+    return `${this.getSourceLabelByName(sourceFieldName)} ile ${this.getTargetLabelByName(targetFieldName)} eşleştirdiniz. Devam etmek istediğinize emin misiniz?`;
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {

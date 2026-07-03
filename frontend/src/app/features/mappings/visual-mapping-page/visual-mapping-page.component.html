@@ -73,6 +73,15 @@
                 x2="780"
                 [attr.y2]="getTargetLineY(mappingDefinition.targetField)"
               />
+              <text
+                class="connection-label"
+                *ngFor="let mappingDefinition of mappingDefinitions"
+                x="500"
+                [attr.y]="getConnectionLabelY(mappingDefinition)"
+                text-anchor="middle"
+              >
+                {{ mappingDefinition.transformType }}
+              </text>
             </svg>
 
             <div class="canvas-column canvas-column--source">
@@ -169,7 +178,7 @@
               <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
               <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
               <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
-                {{ getSourceLabelByName(mappingDefinition.sourceField) }}
+                {{ getMappingSourceLabel(mappingDefinition) }}
               </span>
             </button>
           </div>
