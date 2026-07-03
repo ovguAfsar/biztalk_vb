@@ -34,13 +34,15 @@
               *ngFor="let field of sourceFields"
               draggable="true"
               [class.schema-field--selected]="selectedSourceField === field.name"
-              [class.schema-field--mapped]="isSourceMapped(field.name)"
               (click)="selectSourceField(field.name)"
               (dragstart)="startSourceDrag($event, field.name)"
               (dragend)="endSourceDrag()"
             >
               <span class="field-name">{{ getSourceFieldLabel(field) }}</span>
               <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
+              <span class="source-usage" *ngIf="getSourceMappingCount(field.name) as usageCount">
+                {{ usageCount }} eşleşme
+              </span>
             </button>
           </div>
         </aside>
@@ -94,7 +96,7 @@
                 *ngFor="let field of sourceFields"
                 draggable="true"
                 [class.canvas-node--selected]="selectedSourceField === field.name"
-                [class.canvas-node--mapped]="isSourceMapped(field.name)"
+                [attr.title]="getSourceUsageLabel(field.name)"
                 (click)="selectSourceField(field.name)"
                 (dragstart)="startSourceDrag($event, field.name)"
                 (dragend)="endSourceDrag()"
