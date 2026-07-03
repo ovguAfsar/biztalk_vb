@@ -580,6 +580,19 @@ public sealed class MappingService : IMappingService
             }
         }
 
+        var missingRequiredTargetFields = mapping.TargetSchema.Fields
+            .Where(field => field.Required && !mappedTargets.Contains(field.Name))
+            .Select(field => string.IsNullOrWhiteSpace(field.DisplayName) ? field.Name : field.DisplayName)
+            .ToList();
+
+        if (missingRequiredTargetFields.Count > 0)
+        {
+            AddError(
+                errors,
+                "mappings",
+                $"Zorunlu hedef alanlar eslestirilmeden devam edilemez: {string.Join(", ", missingRequiredTargetFields)}.");
+        }
+
         return ToValidationErrors(errors);
     }
 

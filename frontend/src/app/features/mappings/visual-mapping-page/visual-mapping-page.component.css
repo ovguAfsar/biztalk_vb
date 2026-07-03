@@ -192,6 +192,23 @@
   background: #f7fffc;
 }
 
+.schema-field--required-missing,
+.canvas-node--required-missing {
+  border-color: #dc2626;
+  background: #fff1f1;
+  color: #7f1d1d;
+}
+
+.schema-field--required-missing:hover,
+.canvas-node--required-missing:hover {
+  border-color: #b91c1c;
+  box-shadow: 0 8px 18px rgb(185 28 28 / 12%);
+}
+
+.schema-field--required-missing .field-meta {
+  color: #b91c1c;
+}
+
 .field-name {
   overflow-wrap: anywhere;
   font-size: 0.9rem;

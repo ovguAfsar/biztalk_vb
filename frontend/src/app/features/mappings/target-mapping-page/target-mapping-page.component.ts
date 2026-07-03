@@ -11,10 +11,9 @@ import {
   Validators
 } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { finalize, switchMap } from 'rxjs';
+import { finalize } from 'rxjs';
 
 import {
-  MappingDefinition,
   MappingDetailsResponse,
   MappingTargetType,
   SaveTargetSchemaRequest,
@@ -239,24 +238,20 @@ export class TargetMappingPageComponent implements OnInit {
         sampleValue: field.sampleValue.trim() || undefined
       }))
     };
-    const mappingDefinitions = this.createAutoMappings(value.fields);
 
     this.isSaving = true;
     this.mappingApi.saveTargetSchema(this.mappingId, request)
-      .pipe(switchMap((response) => {
-        this.savedTargetSchema = response;
-        return this.mappingApi.saveMappings(this.mappingId, { mappings: mappingDefinitions });
-      }))
       .pipe(finalize(() => {
         this.isSaving = false;
       }))
       .subscribe({
-        next: () => {
-          this.successMessage = 'Hedef veri şeması ve otomatik eşleştirmeler kaydedildi.';
+        next: (response) => {
+          this.savedTargetSchema = response;
+          this.successMessage = 'Hedef veri şeması kaydedildi.';
           void this.router.navigate(['/mappings', this.mappingId, 'map']);
         },
         error: (error: unknown) => {
-          this.saveError = this.getErrorMessage(error, 'Hedef veri şeması veya eşleştirmeler kaydedilemedi.');
+          this.saveError = this.getErrorMessage(error, 'Hedef veri şeması kaydedilemedi.');
         }
       });
   }
@@ -321,16 +316,6 @@ export class TargetMappingPageComponent implements OnInit {
       sampleValue: new FormControl(initial.sampleValue ?? '', { nonNullable: true }),
       sourceFieldName: new FormControl(initial.sourceFieldName ?? '', { nonNullable: true })
     });
-  }
-
-  private createAutoMappings(fields: Array<{ name: string; sourceFieldName: string }>): MappingDefinition[] {
-    return fields
-      .map(field => ({
-        sourceField: field.sourceFieldName.trim() || this.getMatchingSourceFieldName(field.name),
-        targetField: field.name.trim(),
-        transformType: 'direct' as const
-      }))
-      .filter(mapping => mapping.sourceField && mapping.targetField);
   }
 
   private getMatchingSourceFieldName(targetFieldName: string): string {

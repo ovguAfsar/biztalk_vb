@@ -119,6 +119,7 @@
                   type="button"
                   [class.canvas-node--selected]="selectedTargetField === field.name"
                   [class.canvas-node--mapped]="isTargetMapped(field.name)"
+                  [class.canvas-node--required-missing]="isRequiredTargetUnmapped(field.name)"
                   (click)="selectTargetField(field.name)"
                 >
                   {{ field.name }}
@@ -183,10 +184,11 @@
               *ngFor="let field of targetFields"
               [class.schema-field--selected]="selectedTargetField === field.name"
               [class.schema-field--mapped]="isTargetMapped(field.name)"
+              [class.schema-field--required-missing]="isRequiredTargetUnmapped(field.name)"
               (click)="selectTargetField(field.name)"
             >
               <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
-              <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
+              <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · zorunlu</span></span>
               <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
                 {{ getMappingSourceLabel(mappingDefinition) }}
               </span>
