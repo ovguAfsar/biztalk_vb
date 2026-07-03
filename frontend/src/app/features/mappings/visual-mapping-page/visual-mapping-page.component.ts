@@ -28,7 +28,15 @@ export class VisualMappingPageComponent implements OnInit {
   private readonly mappingApi = inject(MappingApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
-  protected readonly transformOptions: MappingTransformType[] = ['direct', 'concat', 'constant', 'dateFormat'];
+  protected readonly transformOptions: MappingTransformType[] = [
+    'direct',
+    'concat',
+    'constant',
+    'dateFormat',
+    'uppercase',
+    'lowercase',
+    'trim'
+  ];
 
   protected mappingId = '';
   protected mapping?: MappingDetailsResponse;
