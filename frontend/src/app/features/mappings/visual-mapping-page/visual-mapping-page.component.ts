@@ -267,15 +267,6 @@ export class VisualMappingPageComponent implements OnInit {
       mapping => mapping.targetField === targetField
     );
     const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
-    const sourceMappedElsewhere = this.mappingDefinitions.find(
-      mapping => mapping.targetField !== targetField
-        && this.getSourceFieldNames(mapping.sourceField).includes(sourceField)
-    );
-
-    if (sourceMappedElsewhere) {
-      this.saveError = `${this.getSourceLabelByName(sourceField)} zaten ${this.getTargetLabelByName(sourceMappedElsewhere.targetField)} alanına eşleştirilmiş. Aynı kaynak kolon iki kez kullanılamaz.`;
-      return false;
-    }
 
     if (this.shouldConfirmMapping(sourceField, targetField) && !window.confirm(this.getMismatchConfirmationMessage(sourceField, targetField))) {
       return false;
