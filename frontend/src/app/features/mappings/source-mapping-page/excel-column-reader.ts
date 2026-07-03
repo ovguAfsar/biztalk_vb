@@ -186,9 +186,8 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
   }
 
   const headerColumnIndexes = headerRow.map(cell => cell.columnIndex);
-  const sampleRow = rows
-    .slice(1)
-    .find(row => rowHasDataInColumns(row, headerColumnIndexes));
+  const dataRows = rows.slice(1);
+  const sampleRow = dataRows.find(row => rowHasDataInColumns(row, headerColumnIndexes));
 
   if (!sampleRow) {
     throw new Error('Excel dosyasında başlıklardan sonra veri satırı bulunamadı.');
@@ -196,7 +195,7 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
 
   validateHeaderCells(headerRow, 'Excel', Math.max(
     ...headerRow.map(cell => cell.columnIndex),
-    ...sampleRow.map(cell => cell.columnIndex)
+    ...dataRows.flatMap(row => row.filter(cell => cell.value.trim()).map(cell => cell.columnIndex))
   ));
 
   const sampleByColumn = new Map(sampleRow.map(cell => [cell.columnIndex, cell.value]));
@@ -300,15 +299,18 @@ function readCsvColumns(text: string): ExcelColumnImport[] {
     columnIndex: index + 1,
     value: header
   }));
-  const sampleRow = rows
-    .slice(1)
+  const dataRows = rows.slice(1);
+  const sampleRow = dataRows
     .find(row => row.some((cell, index) => index < headerRow.length && cell.trim()));
 
   if (!sampleRow) {
     throw new Error('CSV dosyasında başlıklardan sonra veri satırı bulunamadı.');
   }
 
-  validateHeaderCells(headerCells, 'CSV', Math.max(headerCells.length, sampleRow.length));
+  validateHeaderCells(headerCells, 'CSV', Math.max(
+    headerCells.length,
+    ...dataRows.map(row => row.length)
+  ));
 
   const columns = headerRow
     .map((header, index) => ({
