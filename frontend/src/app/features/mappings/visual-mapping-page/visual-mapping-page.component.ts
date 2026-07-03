@@ -103,8 +103,21 @@ export class VisualMappingPageComponent implements OnInit {
     return this.mapping?.targetSchema?.fields ?? [];
   }
 
+  protected get requiredTargetFields(): TargetField[] {
+    return this.targetFields.filter(field => field.required);
+  }
+
+  protected get optionalTargetFields(): TargetField[] {
+    return this.targetFields.filter(field => !field.required);
+  }
+
   protected get canvasHeight(): number {
-    return Math.max(360, 112 + Math.max(this.sourceFields.length, this.targetFields.length) * 58);
+    const sourceHeight = this.sourceFields.length * 58;
+    const targetHeaderHeight = (this.requiredTargetFields.length > 0 ? 40 : 0)
+      + (this.optionalTargetFields.length > 0 ? 40 : 0);
+    const targetHeight = this.targetFields.length * 58 + targetHeaderHeight;
+
+    return Math.max(420, 112 + Math.max(sourceHeight, targetHeight));
   }
 
   protected get mappedTargetCount(): number {
@@ -250,15 +263,6 @@ export class VisualMappingPageComponent implements OnInit {
       mapping => mapping.targetField === targetField
     );
     const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
-    const sourceMappedElsewhere = this.mappingDefinitions.find(
-      mapping => mapping.targetField !== targetField
-        && this.getSourceFieldNames(mapping.sourceField).includes(sourceField)
-    );
-
-    if (sourceMappedElsewhere) {
-      this.saveError = `${this.getSourceLabelByName(sourceField)} zaten ${this.getTargetLabelByName(sourceMappedElsewhere.targetField)} alanına eşleştirilmiş. Aynı kaynak kolon iki kez kullanılamaz.`;
-      return false;
-    }
 
     if (this.shouldConfirmMapping(sourceField, targetField) && !window.confirm(this.getMismatchConfirmationMessage(sourceField, targetField))) {
       return false;
@@ -369,8 +373,17 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected getTargetLineY(targetField: string): number {
-    const index = Math.max(this.targetFields.findIndex(field => field.name === targetField), 0);
-    return 94 + index * 58;
+    const requiredIndex = this.requiredTargetFields.findIndex(field => field.name === targetField);
+    if (requiredIndex >= 0) {
+      return 113 + requiredIndex * 58;
+    }
+
+    const optionalIndex = Math.max(this.optionalTargetFields.findIndex(field => field.name === targetField), 0);
+    const optionalBaseY = this.requiredTargetFields.length > 0
+      ? 153 + this.requiredTargetFields.length * 58
+      : 113;
+
+    return optionalBaseY + optionalIndex * 58;
   }
 
   protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
