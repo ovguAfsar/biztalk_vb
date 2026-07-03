@@ -4,12 +4,14 @@ using MappingStudio.Api.Repositories;
 using MongoDB.Bson;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace MappingStudio.Api.Services;
 
 public sealed class MappingService : IMappingService
 {
     private const string DraftStatus = "draft";
+    private static readonly Regex FieldNamePattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
 
     private static readonly HashSet<string> AllowedSourceTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -423,6 +425,10 @@ public sealed class MappingService : IMappingService
             {
                 AddError(errors, nameKey, "Alan adi bos olamaz.");
             }
+            else if (!IsValidFieldName(field.Name.Trim()))
+            {
+                AddError(errors, nameKey, "Alan adi harf veya alt cizgi ile baslamali; sadece harf, rakam ve alt cizgi icermelidir.");
+            }
             else if (!fieldNames.Add(field.Name.Trim()))
             {
                 AddError(errors, nameKey, "Ayni alan adi birden fazla kullanilamaz.");
@@ -502,6 +508,10 @@ public sealed class MappingService : IMappingService
         {
             AddError(errors, "mappings", "Mapping listesi zorunludur.");
             return ToValidationErrors(errors);
+        }
+        else if (request.Mappings.Count == 0)
+        {
+            AddError(errors, "mappings", "En az bir alan eslestirmesi yapilmalidir.");
         }
 
         if (mapping.SourceSchema is null || mapping.TargetSchema is null)
@@ -597,6 +607,10 @@ public sealed class MappingService : IMappingService
             {
                 AddError(errors, nameKey, "Alan adi bos olamaz.");
             }
+            else if (!IsValidFieldName(field.Name.Trim()))
+            {
+                AddError(errors, nameKey, "Alan adi harf veya alt cizgi ile baslamali; sadece harf, rakam ve alt cizgi icermelidir.");
+            }
             else if (!fieldNames.Add(field.Name.Trim()))
             {
                 AddError(errors, nameKey, "Ayni alan adi birden fazla kullanilamaz.");
@@ -641,6 +655,11 @@ public sealed class MappingService : IMappingService
         }
 
         return ToValidationErrors(errors);
+    }
+
+    private static bool IsValidFieldName(string fieldName)
+    {
+        return FieldNamePattern.IsMatch(fieldName);
     }
 
     private static void AddError(IDictionary<string, List<string>> errors, string key, string message)

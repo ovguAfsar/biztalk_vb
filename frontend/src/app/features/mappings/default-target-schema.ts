@@ -43,6 +43,27 @@ export const DEFAULT_TARGET_FIELDS: TargetField[] = [
     requiredForOutput: true
   },
   {
+    name: 'adSoyad',
+    displayName: 'Ad Soyad',
+    type: 'text',
+    required: false,
+    sampleValue: ''
+  },
+  {
+    name: 'aliciHesapIsim',
+    displayName: 'Alıcı Hesap İsim',
+    type: 'text',
+    required: false,
+    sampleValue: ''
+  },
+  {
+    name: 'aliciIbanNumber',
+    displayName: 'Alıcı IBAN Number',
+    type: 'text',
+    required: false,
+    sampleValue: ''
+  },
+  {
     name: 'odemeTarihi',
     displayName: 'Ödeme Tarihi',
     type: 'date',

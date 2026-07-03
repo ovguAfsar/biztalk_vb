@@ -339,6 +339,12 @@
   font-size: 15px;
 }
 
+.completion-modal__actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
 .completion-modal__btn {
   background: #2563eb;
   color: #ffffff;
@@ -350,6 +356,16 @@
   cursor: pointer;
 }
 
+.completion-modal__btn--secondary {
+  border: 1px solid #cfd8e6;
+  background: #ffffff;
+  color: #172033;
+}
+
 .completion-modal__btn:hover {
   background: #1d4ed8;
+}
+
+.completion-modal__btn--secondary:hover {
+  background: #f8fafc;
 }
