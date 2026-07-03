@@ -20,30 +20,6 @@ interface PendingConnection {
   targetField: string;
 }
 
-const genericFieldTokens = new Set([
-  'alan',
-  'field',
-  'kolon',
-  'column',
-  'deger',
-  'value',
-  'data',
-  'veri',
-  'bilgi',
-  'info'
-]);
-
-const fieldMeaningKeywords: Record<string, string[]> = {
-  amount: ['amount', 'tutar', 'ucret', 'fiyat', 'bedel', 'maas', 'salary', 'total', 'toplam', 'borc', 'alacak', 'bakiye'],
-  date: ['date', 'tarih', 'gun', 'ay', 'yil', 'time', 'zaman'],
-  name: ['name', 'ad', 'adi', 'isim', 'soyad', 'soyadi', 'surname', 'firstname', 'lastname', 'unvan', 'title'],
-  identity: ['id', 'no', 'numara', 'number', 'kod', 'code', 'sicil', 'tckn', 'vkn', 'iban', 'hesap'],
-  address: ['adres', 'address', 'il', 'ilce', 'sehir', 'city', 'ulke', 'country', 'posta', 'zip'],
-  contact: ['telefon', 'phone', 'gsm', 'mobile', 'email', 'mail', 'eposta'],
-  status: ['durum', 'status', 'state', 'aktif', 'pasif'],
-  currency: ['para', 'currency', 'doviz', 'kur', 'try', 'tl', 'usd', 'eur']
-};
-
 @Component({
   selector: 'app-visual-mapping-page',
   standalone: true,
@@ -103,6 +79,22 @@ export class VisualMappingPageComponent implements OnInit {
     return this.mapping?.targetSchema?.fields ?? [];
   }
 
+  protected get requiredTargetFields(): TargetField[] {
+    return this.targetFields.filter(field => field.required);
+  }
+
+  protected get optionalTargetFields(): TargetField[] {
+    return this.targetFields.filter(field => !field.required);
+  }
+
+  protected get orderedTargetFields(): TargetField[] {
+    return [...this.requiredTargetFields, ...this.optionalTargetFields];
+  }
+
+  protected get missingRequiredTargetFields(): TargetField[] {
+    return this.requiredTargetFields.filter(field => !this.isTargetMapped(field.name));
+  }
+
   protected get canvasHeight(): number {
     return Math.max(360, 112 + Math.max(this.sourceFields.length, this.targetFields.length) * 58);
   }
@@ -116,8 +108,7 @@ export class VisualMappingPageComponent implements OnInit {
       return [];
     }
 
-    return this.targetFields
-      .filter(field => field.required && !this.isTargetMapped(field.name))
+    return this.missingRequiredTargetFields
       .map(field => `${this.getTargetFieldLabel(field)} zorunlu ama henüz eşleşmedi.`);
   }
 
@@ -150,6 +141,7 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected startSourceDrag(event: DragEvent, fieldName: string): void {
+    event.stopPropagation();
     this.draggedSourceField = fieldName;
     this.selectedSourceField = fieldName;
     this.selectedTransformType = 'direct';
@@ -185,6 +177,7 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected dropOnTarget(event: DragEvent, targetField: string): void {
     event.preventDefault();
+    event.stopPropagation();
     const sourceField = this.draggedSourceField || event.dataTransfer?.getData('text/plain') || '';
 
     if (!sourceField) {
@@ -251,19 +244,6 @@ export class VisualMappingPageComponent implements OnInit {
       mapping => mapping.targetField === targetField
     );
     const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
-    const sourceMappedElsewhere = this.mappingDefinitions.find(
-      mapping => mapping.targetField !== targetField
-        && this.getSourceFieldNames(mapping.sourceField).includes(sourceField)
-    );
-
-    if (sourceMappedElsewhere) {
-      this.saveError = `${this.getSourceLabelByName(sourceField)} zaten ${this.getTargetLabelByName(sourceMappedElsewhere.targetField)} alanına eşleştirilmiş. Aynı kaynak kolon iki kez kullanılamaz.`;
-      return false;
-    }
-
-    if (this.shouldConfirmMapping(sourceField, targetField) && !window.confirm(this.getMismatchConfirmationMessage(sourceField, targetField))) {
-      return false;
-    }
 
     const sourceFieldValue = transformType === 'concat' && existingMapping?.transformType === 'concat'
       ? this.mergeSourceFields(existingMapping.sourceField, sourceField)
@@ -302,6 +282,14 @@ export class VisualMappingPageComponent implements OnInit {
 
     if (this.mappingDefinitions.length === 0) {
       this.saveError = 'Devam etmeden önce en az bir alan eşleştirmesi yapın.';
+      return;
+    }
+
+    if (this.missingRequiredTargetFields.length > 0) {
+      this.activeBottomTab = 'warnings';
+      this.saveError = `Zorunlu hedef alanlar eşleştirilmeden devam edilemez: ${this.missingRequiredTargetFields
+        .map(field => this.getTargetFieldLabel(field))
+        .join(', ')}.`;
       return;
     }
 
@@ -346,6 +334,10 @@ export class VisualMappingPageComponent implements OnInit {
     return this.mappingDefinitions.some(mapping => mapping.targetField === fieldName);
   }
 
+  protected isRequiredTargetUnmapped(fieldName: string): boolean {
+    return this.missingRequiredTargetFields.some(field => field.name === fieldName);
+  }
+
   protected getMappingForTarget(fieldName: string): MappingDefinition | undefined {
     return this.mappingDefinitions.find(mapping => mapping.targetField === fieldName);
   }
@@ -357,12 +349,16 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected getTargetLineY(targetField: string): number {
-    const index = Math.max(this.targetFields.findIndex(field => field.name === targetField), 0);
+    const index = Math.max(this.orderedTargetFields.findIndex(field => field.name === targetField), 0);
     return 94 + index * 58;
   }
 
   protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
     return (this.getSourceLineY(mappingDefinition.sourceField) + this.getTargetLineY(mappingDefinition.targetField)) / 2 - 8;
+  }
+
+  protected getFunctionNodeLabel(mappingDefinition: MappingDefinition): string {
+    return mappingDefinition.transformType;
   }
 
   protected getSourceFieldLabel(field: SourceField): string {
@@ -441,68 +437,6 @@ export class VisualMappingPageComponent implements OnInit {
       .split(',')
       .map(fieldName => fieldName.trim())
       .filter(Boolean);
-  }
-
-  private shouldConfirmMapping(sourceFieldName: string, targetFieldName: string): boolean {
-    const sourceField = this.getSourceField(sourceFieldName);
-    const targetField = this.getTargetField(targetFieldName);
-
-    if (!sourceField || !targetField) {
-      return false;
-    }
-
-    const sourceProfile = this.getFieldMeaningProfile(sourceField.name, sourceField.displayName);
-    const targetProfile = this.getFieldMeaningProfile(targetField.name, targetField.displayName);
-    const hasSharedToken = sourceProfile.tokens.some(token => targetProfile.tokens.includes(token));
-    const hasSharedCategory = sourceProfile.categories.some(category => targetProfile.categories.includes(category));
-    const hasNamedCategory = sourceProfile.categories.length > 0 && targetProfile.categories.length > 0;
-
-    if (sourceField.type !== targetField.type) {
-      return true;
-    }
-
-    if (hasNamedCategory) {
-      return !hasSharedCategory;
-    }
-
-    return !hasSharedToken;
-  }
-
-  private getMismatchConfirmationMessage(sourceFieldName: string, targetFieldName: string): string {
-    return `${this.getSourceLabelByName(sourceFieldName)} ile ${this.getTargetLabelByName(targetFieldName)} alakasız görünüyor. Yine de eşleştirmek istediğinize emin misiniz?`;
-  }
-
-  private getFieldMeaningProfile(fieldName: string, displayName?: string): {
-    tokens: string[];
-    categories: string[];
-  } {
-    const tokens = this.tokenizeFieldText(`${displayName ?? ''} ${fieldName}`);
-    const categories = Object.entries(fieldMeaningKeywords)
-      .filter(([, keywords]) => keywords.some(keyword => tokens.includes(keyword)))
-      .map(([category]) => category);
-
-    return {
-      tokens,
-      categories
-    };
-  }
-
-  private tokenizeFieldText(value: string): string[] {
-    const normalizedValue = value
-      .replace(/[Çç]/g, 'c')
-      .replace(/[Ğğ]/g, 'g')
-      .replace(/[İIı]/g, 'i')
-      .replace(/[Öö]/g, 'o')
-      .replace(/[Şş]/g, 's')
-      .replace(/[Üü]/g, 'u')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-
-    return normalizedValue
-      .split(/[^a-z0-9]+/)
-      .filter(token => token.length > 1 && !genericFieldTokens.has(token));
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {

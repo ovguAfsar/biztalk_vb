@@ -32,12 +32,9 @@
               class="schema-field"
               type="button"
               *ngFor="let field of sourceFields"
-              draggable="true"
               [class.schema-field--selected]="selectedSourceField === field.name"
               [class.schema-field--mapped]="isSourceMapped(field.name)"
               (click)="selectSourceField(field.name)"
-              (dragstart)="startSourceDrag($event, field.name)"
-              (dragend)="endSourceDrag()"
             >
               <span class="field-name">{{ getSourceFieldLabel(field) }}</span>
               <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
@@ -54,8 +51,8 @@
           </header>
 
           <div class="selection-strip">
-            <span>Source alanı hedef alanın üzerine bırakın, sonra bağlama türünü seçin.</span>
-            <span *ngIf="draggedSourceField">Sürüklenen: {{ getSourceLabelByName(draggedSourceField) }}</span>
+            <span>Kaynak alanın sağındaki bağlantı noktasından hedef alanın solundaki noktaya ok çekin.</span>
+            <span *ngIf="draggedSourceField">Ok başlangıcı: {{ getSourceLabelByName(draggedSourceField) }}</span>
             <span *ngIf="pendingConnection">
               Seçiliyor: {{ getSourceLabelByName(pendingConnection.sourceField) }} → {{ getTargetLabelByName(pendingConnection.targetField) }}
             </span>
@@ -68,23 +65,45 @@
               preserveAspectRatio="none"
               aria-hidden="true"
             >
+              <defs>
+                <marker
+                  id="connection-arrow"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="5"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" class="connection-arrowhead" />
+                </marker>
+              </defs>
+
               <line
                 class="connection-line"
                 *ngFor="let mappingDefinition of mappingDefinitions"
                 x1="220"
                 [attr.y1]="getSourceLineY(mappingDefinition.sourceField)"
+                x2="452"
+                [attr.y2]="getConnectionLabelY(mappingDefinition)"
+              />
+              <line
+                class="connection-line connection-line--arrow"
+                *ngFor="let mappingDefinition of mappingDefinitions"
+                x1="548"
+                [attr.y1]="getConnectionLabelY(mappingDefinition)"
                 x2="780"
                 [attr.y2]="getTargetLineY(mappingDefinition.targetField)"
               />
-              <text
-                class="connection-label"
+
+              <g
+                class="connection-function"
                 *ngFor="let mappingDefinition of mappingDefinitions"
-                x="500"
-                [attr.y]="getConnectionLabelY(mappingDefinition)"
-                text-anchor="middle"
+                [attr.transform]="'translate(500 ' + getConnectionLabelY(mappingDefinition) + ')'"
               >
-                {{ mappingDefinition.transformType }}
-              </text>
+                <rect x="-48" y="-18" width="96" height="36" rx="8" />
+                <text text-anchor="middle" y="5">{{ getFunctionNodeLabel(mappingDefinition) }}</text>
+              </g>
             </svg>
 
             <div class="canvas-column canvas-column--source">
@@ -92,21 +111,25 @@
                 class="canvas-node"
                 type="button"
                 *ngFor="let field of sourceFields"
-                draggable="true"
                 [class.canvas-node--selected]="selectedSourceField === field.name"
                 [class.canvas-node--mapped]="isSourceMapped(field.name)"
                 (click)="selectSourceField(field.name)"
-                (dragstart)="startSourceDrag($event, field.name)"
-                (dragend)="endSourceDrag()"
               >
-                {{ field.name }}
+                <span class="canvas-node__label">{{ field.name }}</span>
+                <span
+                  class="connector-port connector-port--source"
+                  draggable="true"
+                  title="Bağlantı başlat"
+                  (dragstart)="startSourceDrag($event, field.name)"
+                  (dragend)="endSourceDrag()"
+                ></span>
               </button>
             </div>
 
             <div class="canvas-column canvas-column--target">
               <div
                 class="target-drop-zone"
-                *ngFor="let field of targetFields"
+                *ngFor="let field of orderedTargetFields"
                 [class.target-drop-zone--active]="dragTargetField === field.name"
                 [class.target-drop-zone--pending]="isPendingTarget(field.name)"
                 (dragenter)="enterTargetDropZone($event, field.name)"
@@ -119,9 +142,16 @@
                   type="button"
                   [class.canvas-node--selected]="selectedTargetField === field.name"
                   [class.canvas-node--mapped]="isTargetMapped(field.name)"
+                  [class.canvas-node--required]="field.required"
+                  [class.canvas-node--required-missing]="isRequiredTargetUnmapped(field.name)"
                   (click)="selectTargetField(field.name)"
                 >
-                  {{ field.name }}
+                  <span
+                    class="connector-port connector-port--target"
+                    title="Bağlantıyı buraya bırak"
+                  ></span>
+                  <span class="canvas-node__label">{{ field.name }}</span>
+                  <span class="canvas-node__badge" *ngIf="field.required">required</span>
                 </button>
 
                 <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
@@ -177,20 +207,50 @@
           <p class="schema-name">{{ mapping.targetSchema?.targetName }}</p>
 
           <div class="schema-field-list">
-            <button
-              class="schema-field"
-              type="button"
-              *ngFor="let field of targetFields"
-              [class.schema-field--selected]="selectedTargetField === field.name"
-              [class.schema-field--mapped]="isTargetMapped(field.name)"
-              (click)="selectTargetField(field.name)"
-            >
-              <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
-              <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
-              <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
-                {{ getMappingSourceLabel(mappingDefinition) }}
-              </span>
-            </button>
+            <section class="schema-field-group" *ngIf="requiredTargetFields.length > 0">
+              <div class="schema-field-group__header schema-field-group__header--required">
+                <span>Zorunlu Alanlar</span>
+                <strong>{{ requiredTargetFields.length }}</strong>
+              </div>
+
+              <button
+                class="schema-field schema-field--required"
+                type="button"
+                *ngFor="let field of requiredTargetFields"
+                [class.schema-field--selected]="selectedTargetField === field.name"
+                [class.schema-field--mapped]="isTargetMapped(field.name)"
+                [class.schema-field--required-missing]="isRequiredTargetUnmapped(field.name)"
+                (click)="selectTargetField(field.name)"
+              >
+                <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
+                <span class="field-meta">{{ field.type }} · required</span>
+                <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
+                  {{ getMappingSourceLabel(mappingDefinition) }}
+                </span>
+              </button>
+            </section>
+
+            <section class="schema-field-group" *ngIf="optionalTargetFields.length > 0">
+              <div class="schema-field-group__header">
+                <span>Diğer Alanlar</span>
+                <strong>{{ optionalTargetFields.length }}</strong>
+              </div>
+
+              <button
+                class="schema-field"
+                type="button"
+                *ngFor="let field of optionalTargetFields"
+                [class.schema-field--selected]="selectedTargetField === field.name"
+                [class.schema-field--mapped]="isTargetMapped(field.name)"
+                (click)="selectTargetField(field.name)"
+              >
+                <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
+                <span class="field-meta">{{ field.type }}</span>
+                <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
+                  {{ getMappingSourceLabel(mappingDefinition) }}
+                </span>
+              </button>
+            </section>
           </div>
         </aside>
       </div>
