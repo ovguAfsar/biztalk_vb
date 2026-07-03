@@ -59,7 +59,7 @@
               <button
                 class="secondary-action"
                 type="button"
-                [disabled]="!selectedSourceField || !selectedTargetField"
+                [disabled]="!canConnectSelectedFields"
                 (click)="connectSelectedFields()"
               >
                 Bağla
@@ -87,7 +87,25 @@
                 x2="780"
                 [attr.y2]="getTargetLineY(mappingDefinition.targetField)"
               />
+              <text
+                class="connection-label"
+                *ngFor="let mappingDefinition of mappingDefinitions"
+                x="500"
+                [attr.y]="getConnectionLabelY(mappingDefinition)"
+                text-anchor="middle"
+              >
+                {{ mappingDefinition.transformType }}
+              </text>
             </svg>
+
+            <button
+              class="floating-connect-action"
+              type="button"
+              *ngIf="canConnectSelectedFields"
+              (click)="connectSelectedFields()"
+            >
+              Bağla
+            </button>
 
             <div class="canvas-column canvas-column--source">
               <button
@@ -96,6 +114,8 @@
                 *ngFor="let field of sourceFields"
                 [class.canvas-node--selected]="selectedSourceField === field.name"
                 [class.canvas-node--mapped]="isSourceMapped(field.name)"
+                [draggable]="true"
+                (dragstart)="startSourceDrag(field.name)"
                 (click)="selectSourceField(field.name)"
               >
                 {{ field.name }}
@@ -109,6 +129,8 @@
                 *ngFor="let field of targetFields"
                 [class.canvas-node--selected]="selectedTargetField === field.name"
                 [class.canvas-node--mapped]="isTargetMapped(field.name)"
+                (dragover)="allowTargetDrop($event)"
+                (drop)="dropOnTarget($event, field.name)"
                 (click)="selectTargetField(field.name)"
               >
                 {{ field.name }}

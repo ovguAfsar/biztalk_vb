@@ -50,6 +50,7 @@ export class VisualMappingPageComponent implements OnInit {
   protected loadError = '';
   protected saveError = '';
   protected successMessage = '';
+  protected draggedSourceField = '';
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -97,6 +98,10 @@ export class VisualMappingPageComponent implements OnInit {
     return this.getTargetField(this.selectedTargetField);
   }
 
+  protected get canConnectSelectedFields(): boolean {
+    return Boolean(this.selectedSourceField && this.selectedTargetField);
+  }
+
   protected selectSourceField(fieldName: string): void {
     this.selectedSourceField = fieldName;
     this.successMessage = '';
@@ -121,6 +126,19 @@ export class VisualMappingPageComponent implements OnInit {
     const existingIndex = this.mappingDefinitions.findIndex(
       mapping => mapping.targetField === this.selectedTargetField
     );
+    const sourceMappedElsewhere = this.mappingDefinitions.find(
+      mapping => mapping.sourceField === this.selectedSourceField && mapping.targetField !== this.selectedTargetField
+    );
+
+    if (sourceMappedElsewhere) {
+      this.saveError = `${this.getSourceLabelByName(this.selectedSourceField)} zaten ${this.getTargetLabelByName(sourceMappedElsewhere.targetField)} alanına eşleştirilmiş. Aynı kaynak kolon iki kez kullanılamaz.`;
+      return;
+    }
+
+    if (this.shouldConfirmMapping() && !window.confirm(this.getMismatchConfirmationMessage())) {
+      return;
+    }
+
     const mappingDefinition: MappingDefinition = {
       sourceField: this.selectedSourceField,
       targetField: this.selectedTargetField,
@@ -137,6 +155,30 @@ export class VisualMappingPageComponent implements OnInit {
 
     this.successMessage = '';
     this.saveError = '';
+  }
+
+  protected startSourceDrag(fieldName: string): void {
+    this.draggedSourceField = fieldName;
+    this.selectSourceField(fieldName);
+  }
+
+  protected clearSourceDrag(): void {
+    this.draggedSourceField = '';
+  }
+
+  protected allowTargetDrop(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  protected dropOnTarget(event: DragEvent, fieldName: string): void {
+    event.preventDefault();
+    if (!this.draggedSourceField) {
+      return;
+    }
+
+    this.selectedSourceField = this.draggedSourceField;
+    this.selectTargetField(fieldName);
+    this.draggedSourceField = '';
   }
 
   protected removeMapping(targetField: string): void {
@@ -206,6 +248,10 @@ export class VisualMappingPageComponent implements OnInit {
     return 94 + index * 58;
   }
 
+  protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
+    return (this.getSourceLineY(mappingDefinition.sourceField) + this.getTargetLineY(mappingDefinition.targetField)) / 2 - 8;
+  }
+
   protected getSourceFieldLabel(field: SourceField): string {
     return field.displayName ? `${field.displayName} (${field.name})` : field.name;
   }
@@ -259,6 +305,21 @@ export class VisualMappingPageComponent implements OnInit {
 
   private getTargetField(fieldName: string): TargetField | undefined {
     return this.targetFields.find(field => field.name === fieldName);
+  }
+
+  private shouldConfirmMapping(): boolean {
+    const sourceField = this.selectedSourceFieldDetails;
+    const targetField = this.selectedTargetFieldDetails;
+
+    if (!sourceField || !targetField) {
+      return false;
+    }
+
+    return sourceField.type !== targetField.type;
+  }
+
+  private getMismatchConfirmationMessage(): string {
+    return `${this.getSourceLabelByName(this.selectedSourceField)} ile ${this.getTargetLabelByName(this.selectedTargetField)} eşleştirdiniz. Devam etmek istediğinize emin misiniz?`;
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {
