@@ -2,7 +2,7 @@ export type MappingSourceType = 'file' | 'excel' | 'txt' | 'json' | 'xml' | 'api
 export type MappingTargetType = 'json' | 'xml' | 'api' | 'database' | 'file';
 export type MappingStatus = 'draft';
 export type SourceFieldType = 'text' | 'number' | 'date' | 'boolean' | 'object' | 'array';
-export type MappingTransformType = 'direct' | 'concat' | 'constant' | 'dateFormat';
+export type MappingTransformType = 'direct' | 'concat' | 'constant' | 'dateFormat' | 'uppercase' | 'lowercase' | 'trim';
 export type TargetFieldAlign = 'left' | 'right';
 
 export interface MappingCreateRequest {

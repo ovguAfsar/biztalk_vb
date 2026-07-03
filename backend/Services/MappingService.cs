@@ -53,7 +53,10 @@ public sealed class MappingService : IMappingService
         "direct",
         "concat",
         "constant",
-        "dateFormat"
+        "dateFormat",
+        "uppercase",
+        "lowercase",
+        "trim"
     };
 
     private static readonly HashSet<string> AllowedTargetAlignments = new(StringComparer.OrdinalIgnoreCase)
@@ -290,6 +293,33 @@ public sealed class MappingService : IMappingService
                     warnings.Add("dateFormat transform is currently pass-through.");
                     CopySourceValue(input, output, warnings, mappingDefinition.SourceField, targetField);
                     break;
+                case "uppercase":
+                    TransformSourceText(
+                        input,
+                        output,
+                        warnings,
+                        mappingDefinition.SourceField,
+                        targetField,
+                        value => value.ToUpperInvariant());
+                    break;
+                case "lowercase":
+                    TransformSourceText(
+                        input,
+                        output,
+                        warnings,
+                        mappingDefinition.SourceField,
+                        targetField,
+                        value => value.ToLowerInvariant());
+                    break;
+                case "trim":
+                    TransformSourceText(
+                        input,
+                        output,
+                        warnings,
+                        mappingDefinition.SourceField,
+                        targetField,
+                        value => value.Trim());
+                    break;
                 default:
                     errors.Add($"Unsupported transformType '{mappingDefinition.TransformType}' for target field '{targetField}'.");
                     break;
@@ -522,7 +552,7 @@ public sealed class MappingService : IMappingService
             }
             else if (!AllowedTransformTypes.Contains(mappingDefinition.TransformType.Trim()))
             {
-                AddError(errors, transformKey, "Transform tipi direct, concat, constant veya dateFormat olmalidir.");
+                AddError(errors, transformKey, "Transform tipi direct, concat, constant, dateFormat, uppercase, lowercase veya trim olmalidir.");
             }
         }
 
@@ -982,6 +1012,29 @@ public sealed class MappingService : IMappingService
         }
 
         output[targetField] = JsonElementToText(value);
+    }
+
+    private static void TransformSourceText(
+        IReadOnlyDictionary<string, JsonElement> input,
+        IDictionary<string, object?> output,
+        ICollection<string> warnings,
+        string sourceField,
+        string targetField,
+        Func<string, string> transform)
+    {
+        if (string.IsNullOrWhiteSpace(sourceField))
+        {
+            warnings.Add($"Source field is empty for target field '{targetField}'.");
+            return;
+        }
+
+        if (!input.TryGetValue(sourceField, out var value))
+        {
+            warnings.Add($"Source field '{sourceField}' was not found in input.");
+            return;
+        }
+
+        output[targetField] = transform(JsonElementToText(value));
     }
 
     private static string ObjectValueToText(object? value)
