@@ -111,6 +111,10 @@ export class VisualMappingPageComponent implements OnInit {
     return this.targetFields.filter(field => !field.required);
   }
 
+  protected get orderedTargetFields(): TargetField[] {
+    return [...this.requiredTargetFields, ...this.optionalTargetFields];
+  }
+
   protected get canvasHeight(): number {
     const sourceHeight = this.sourceFields.length * 58;
     const targetHeaderHeight = (this.requiredTargetFields.length > 0 ? 40 : 0)
