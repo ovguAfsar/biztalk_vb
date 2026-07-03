@@ -203,16 +203,6 @@
   cursor: pointer;
   text-align: left;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-user-drag: element;
-}
-
-.schema-field *,
-.canvas-node * {
-  user-select: none;
-  -webkit-user-select: none;
-  pointer-events: none;
 }
 
 .schema-field {
@@ -473,6 +463,8 @@
 .connector-port {
   pointer-events: auto;
   -webkit-user-drag: element;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .connector-port--source:active {

@@ -125,6 +125,10 @@ export class VisualMappingPageComponent implements OnInit {
     return Boolean(this.selectedSourceField && this.selectedTargetField);
   }
 
+  protected trackByFieldName(_index: number, field: SourceField | TargetField): string {
+    return field.name;
+  }
+
   protected selectSourceField(fieldName: string): void {
     this.selectedSourceField = fieldName;
     this.successMessage = '';
@@ -162,6 +166,9 @@ export class VisualMappingPageComponent implements OnInit {
     }
 
     event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
     this.dragTargetField = fieldName;
     this.selectedTargetField = fieldName;
   }
@@ -170,6 +177,54 @@ export class VisualMappingPageComponent implements OnInit {
     if (this.dragTargetField === fieldName) {
       this.dragTargetField = '';
     }
+  }
+
+  protected allowDragOverGap(event: DragEvent): void {
+    if (!this.draggedSourceField) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  protected dropOnNearestTarget(event: DragEvent): void {
+    if ((event.target as HTMLElement)?.closest('.target-drop-zone')) {
+      return;
+    }
+
+    event.preventDefault();
+    const targetField = this.resolveNearestTargetField(event.clientY);
+    if (!targetField) {
+      this.clearDragState();
+      return;
+    }
+
+    this.dropOnTarget(event, targetField);
+  }
+
+  private resolveNearestTargetField(clientY: number): string | undefined {
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('.target-drop-zone[data-field-name]'));
+    let closestFieldName: string | undefined;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const row of rows) {
+      const rect = row.getBoundingClientRect();
+      const distance = clientY < rect.top
+        ? rect.top - clientY
+        : clientY > rect.bottom
+          ? clientY - rect.bottom
+          : 0;
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestFieldName = row.dataset['fieldName'];
+      }
+    }
+
+    return closestFieldName;
   }
 
   protected updateDragTransform(transformType: MappingTransformType): void {
@@ -188,6 +243,8 @@ export class VisualMappingPageComponent implements OnInit {
 
     this.selectedSourceField = sourceField;
     this.selectedTargetField = targetField;
+    const existingMapping = this.getMappingForTarget(targetField);
+    this.selectedTransformType = existingMapping ? 'concat' : 'direct';
     this.pendingConnection = { sourceField, targetField };
     this.clearDragState(false);
   }
@@ -246,7 +303,7 @@ export class VisualMappingPageComponent implements OnInit {
     );
     const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
 
-    const sourceFieldValue = transformType === 'concat' && existingMapping?.transformType === 'concat'
+    const sourceFieldValue = transformType === 'concat' && existingMapping
       ? this.mergeSourceFields(existingMapping.sourceField, sourceField)
       : sourceField;
     const mappingDefinition: MappingDefinition = {

@@ -31,7 +31,7 @@
             <button
               class="schema-field"
               type="button"
-              *ngFor="let field of sourceFields"
+              *ngFor="let field of sourceFields; trackBy: trackByFieldName"
               [class.schema-field--selected]="selectedSourceField === field.name"
               (click)="selectSourceField(field.name)"
             >
@@ -112,7 +112,7 @@
               <button
                 class="canvas-node"
                 type="button"
-                *ngFor="let field of sourceFields"
+                *ngFor="let field of sourceFields; trackBy: trackByFieldName"
                 [class.canvas-node--selected]="selectedSourceField === field.name"
                 [attr.title]="getSourceUsageLabel(field.name)"
                 (click)="selectSourceField(field.name)"
@@ -128,13 +128,18 @@
               </button>
             </div>
 
-            <div class="canvas-column canvas-column--target">
-              <section class="canvas-field-group" *ngIf="requiredTargetFields.length > 0">
+            <div
+              class="canvas-column canvas-column--target"
+              (dragover)="allowDragOverGap($event)"
+              (drop)="dropOnNearestTarget($event)"
+            >
+              <section class="canvas-field-group" *ngIf="requiredTargetFields.length > 0" (dragover)="allowDragOverGap($event)">
                 <div class="canvas-field-group__header canvas-field-group__header--required">Zorunlu</div>
 
                 <div
                   class="target-drop-zone"
-                  *ngFor="let field of requiredTargetFields"
+                  *ngFor="let field of requiredTargetFields; trackBy: trackByFieldName"
+                  [attr.data-field-name]="field.name"
                   [class.target-drop-zone--active]="dragTargetField === field.name"
                   [class.target-drop-zone--pending]="isPendingTarget(field.name)"
                   (dragenter)="enterTargetDropZone($event, field.name)"
@@ -149,10 +154,16 @@
                     [class.canvas-node--mapped]="isTargetMapped(field.name)"
                     [class.canvas-node--required-missing]="isRequiredTargetUnmapped(field.name)"
                     (click)="selectTargetField(field.name)"
+                    (dragenter)="enterTargetDropZone($event, field.name)"
+                    (dragover)="enterTargetDropZone($event, field.name)"
+                    (drop)="dropOnTarget($event, field.name)"
                   >
                     <span
                       class="connector-port connector-port--target"
                       title="Bağlantıyı buraya bırak"
+                      (dragenter)="enterTargetDropZone($event, field.name)"
+                      (dragover)="enterTargetDropZone($event, field.name)"
+                      (drop)="dropOnTarget($event, field.name)"
                     ></span>
                     <span class="canvas-node__label">{{ field.name }}</span>
                     <span class="canvas-node__badge">required</span>
@@ -178,12 +189,13 @@
                 </div>
               </section>
 
-              <section class="canvas-field-group" *ngIf="optionalTargetFields.length > 0">
+              <section class="canvas-field-group" *ngIf="optionalTargetFields.length > 0" (dragover)="allowDragOverGap($event)">
                 <div class="canvas-field-group__header">Diğer</div>
 
                 <div
                   class="target-drop-zone"
-                  *ngFor="let field of optionalTargetFields"
+                  *ngFor="let field of optionalTargetFields; trackBy: trackByFieldName"
+                  [attr.data-field-name]="field.name"
                   [class.target-drop-zone--active]="dragTargetField === field.name"
                   [class.target-drop-zone--pending]="isPendingTarget(field.name)"
                   (dragenter)="enterTargetDropZone($event, field.name)"
@@ -197,10 +209,16 @@
                     [class.canvas-node--selected]="selectedTargetField === field.name"
                     [class.canvas-node--mapped]="isTargetMapped(field.name)"
                     (click)="selectTargetField(field.name)"
+                    (dragenter)="enterTargetDropZone($event, field.name)"
+                    (dragover)="enterTargetDropZone($event, field.name)"
+                    (drop)="dropOnTarget($event, field.name)"
                   >
                     <span
                       class="connector-port connector-port--target"
                       title="Bağlantıyı buraya bırak"
+                      (dragenter)="enterTargetDropZone($event, field.name)"
+                      (dragover)="enterTargetDropZone($event, field.name)"
+                      (drop)="dropOnTarget($event, field.name)"
                     ></span>
                     <span class="canvas-node__label">{{ field.name }}</span>
                   </button>
@@ -268,7 +286,7 @@
               <button
                 class="schema-field schema-field--required"
                 type="button"
-                *ngFor="let field of requiredTargetFields"
+                *ngFor="let field of requiredTargetFields; trackBy: trackByFieldName"
                 [class.schema-field--selected]="selectedTargetField === field.name"
                 [class.schema-field--mapped]="isTargetMapped(field.name)"
                 [class.schema-field--required-missing]="isRequiredTargetUnmapped(field.name)"
@@ -291,7 +309,7 @@
               <button
                 class="schema-field"
                 type="button"
-                *ngFor="let field of optionalTargetFields"
+                *ngFor="let field of optionalTargetFields; trackBy: trackByFieldName"
                 [class.schema-field--selected]="selectedTargetField === field.name"
                 [class.schema-field--mapped]="isTargetMapped(field.name)"
                 (click)="selectTargetField(field.name)"
