@@ -32,9 +32,12 @@
               class="schema-field"
               type="button"
               *ngFor="let field of sourceFields"
+              draggable="true"
               [class.schema-field--selected]="selectedSourceField === field.name"
               [class.schema-field--mapped]="isSourceMapped(field.name)"
               (click)="selectSourceField(field.name)"
+              (dragstart)="startSourceDrag($event, field.name)"
+              (dragend)="endSourceDrag()"
             >
               <span class="field-name">{{ getSourceFieldLabel(field) }}</span>
               <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
@@ -48,28 +51,11 @@
               <p class="panel-eyebrow">Mapping surface</p>
               <h2>Mapping Canvas</h2>
             </div>
-
-            <div class="canvas-toolbar">
-              <label>
-                Transform
-                <select [value]="selectedTransformType" (change)="updateTransformType($event)">
-                  <option *ngFor="let transform of transformOptions" [value]="transform">{{ transform }}</option>
-                </select>
-              </label>
-              <button
-                class="secondary-action"
-                type="button"
-                [disabled]="!canConnectSelectedFields"
-                (click)="connectSelectedFields()"
-              >
-                Bağla
-              </button>
-            </div>
           </header>
 
           <div class="selection-strip">
-            <span>Source: {{ selectedSourceField || 'Seçilmedi' }}</span>
-            <span>Target: {{ selectedTargetField || 'Seçilmedi' }}</span>
+            <span>Source alanı sürükleyip hedef alanın üzerine bırakın.</span>
+            <span *ngIf="draggedSourceField">Sürüklenen: {{ getSourceLabelByName(draggedSourceField) }}</span>
           </div>
 
           <div class="canvas-grid" [style.min-height.px]="canvasHeight">
@@ -98,43 +84,54 @@
               </text>
             </svg>
 
-            <button
-              class="floating-connect-action"
-              type="button"
-              *ngIf="canConnectSelectedFields"
-              (click)="connectSelectedFields()"
-            >
-              Bağla
-            </button>
-
             <div class="canvas-column canvas-column--source">
               <button
                 class="canvas-node"
                 type="button"
                 *ngFor="let field of sourceFields"
+                draggable="true"
                 [class.canvas-node--selected]="selectedSourceField === field.name"
                 [class.canvas-node--mapped]="isSourceMapped(field.name)"
-                [draggable]="true"
-                (dragstart)="startSourceDrag(field.name)"
                 (click)="selectSourceField(field.name)"
+                (dragstart)="startSourceDrag($event, field.name)"
+                (dragend)="endSourceDrag()"
               >
                 {{ field.name }}
               </button>
             </div>
 
             <div class="canvas-column canvas-column--target">
-              <button
-                class="canvas-node"
-                type="button"
+              <div
+                class="target-drop-zone"
                 *ngFor="let field of targetFields"
-                [class.canvas-node--selected]="selectedTargetField === field.name"
-                [class.canvas-node--mapped]="isTargetMapped(field.name)"
-                (dragover)="allowTargetDrop($event)"
+                [class.target-drop-zone--active]="dragTargetField === field.name"
+                (dragenter)="enterTargetDropZone($event, field.name)"
+                (dragover)="enterTargetDropZone($event, field.name)"
+                (dragleave)="leaveTargetDropZone(field.name)"
                 (drop)="dropOnTarget($event, field.name)"
-                (click)="selectTargetField(field.name)"
               >
-                {{ field.name }}
-              </button>
+                <button
+                  class="canvas-node"
+                  type="button"
+                  [class.canvas-node--selected]="selectedTargetField === field.name"
+                  [class.canvas-node--mapped]="isTargetMapped(field.name)"
+                  (click)="selectTargetField(field.name)"
+                >
+                  {{ field.name }}
+                </button>
+
+                <div class="drop-transform-palette" *ngIf="dragTargetField === field.name">
+                  <button
+                    type="button"
+                    *ngFor="let transform of transformOptions"
+                    [class.drop-transform-palette__option--active]="dragTransformType === transform"
+                    (mouseenter)="updateDragTransform(transform)"
+                    (pointerdown)="updateDragTransform(transform)"
+                  >
+                    {{ transform }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -145,11 +142,11 @@
             </div>
 
             <p class="empty-state" *ngIf="mappingDefinitions.length === 0">
-              Kaynak ve hedef alan seçip Bağla ile ilk eşleştirmeyi oluşturun.
+              İlk eşleştirmeyi oluşturmak için kaynak alanı hedef alanın üzerine sürükleyin.
             </p>
 
             <div class="mapping-row" *ngFor="let mappingDefinition of mappingDefinitions">
-              <span>{{ getSourceLabelByName(mappingDefinition.sourceField) }}</span>
+              <span>{{ getMappingSourceLabel(mappingDefinition) }}</span>
               <span class="mapping-row__arrow">→</span>
               <span>{{ getTargetLabelByName(mappingDefinition.targetField) }}</span>
               <span class="mapping-row__transform">{{ mappingDefinition.transformType }}</span>
@@ -181,7 +178,7 @@
               <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
               <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
               <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
-                {{ getSourceLabelByName(mappingDefinition.sourceField) }}
+                {{ getMappingSourceLabel(mappingDefinition) }}
               </span>
             </button>
           </div>

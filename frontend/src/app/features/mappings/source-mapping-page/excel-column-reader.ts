@@ -185,12 +185,15 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
     throw new Error('Excel dosyasında kolon başlıkları bulunamadı.');
   }
 
-  validateHeaderCells(headerRow, 'Excel');
-
   const sampleRow = rows[1];
   if (!sampleRow) {
     throw new Error('Excel dosyasında veri satırı bulunamadı.');
   }
+
+  validateHeaderCells(headerRow, 'Excel', Math.max(
+    ...headerRow.map(cell => cell.columnIndex),
+    ...sampleRow.map(cell => cell.columnIndex)
+  ));
 
   const sampleByColumn = new Map(sampleRow.map(cell => [cell.columnIndex, cell.value]));
   const columns = headerRow
@@ -209,14 +212,14 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
 
 function validateHeaderCells(
   headerRow: Array<{ column: string; columnIndex: number; value: string }>,
-  fileType: 'Excel' | 'CSV')
+  fileType: 'Excel' | 'CSV',
+  maxColumnIndex = headerRow[headerRow.length - 1]?.columnIndex ?? 0)
 {
   const firstColumnIndex = headerRow[0]?.columnIndex ?? 1;
-  const lastColumnIndex = headerRow[headerRow.length - 1]?.columnIndex ?? 0;
   const cellsByColumn = new Map(headerRow.map(cell => [cell.columnIndex, cell]));
   const seenHeaders = new Set<string>();
 
-  for (let columnIndex = firstColumnIndex; columnIndex <= lastColumnIndex; columnIndex += 1) {
+  for (let columnIndex = firstColumnIndex; columnIndex <= maxColumnIndex; columnIndex += 1) {
     const cell = cellsByColumn.get(columnIndex);
     const header = cell?.value.trim() ?? '';
 
@@ -285,19 +288,19 @@ function readCsvColumns(text: string): ExcelColumnImport[] {
     columnIndex: index + 1,
     value: header
   }));
-  validateHeaderCells(headerCells, 'CSV');
-
   const sampleRow = rows[1];
   if (!sampleRow) {
     throw new Error('CSV dosyasında veri satırı bulunamadı.');
   }
+
+  validateHeaderCells(headerCells, 'CSV', Math.max(headerCells.length, sampleRow.length));
 
   const columns = headerRow
     .map((header, index) => ({
       column: getColumnNameFromIndex(index + 1),
       header: header.trim(),
       sampleValue: sampleRow[index]?.trim() ?? ''
-    }))
+    }));
 
   if (columns.length === 0) {
     throw new Error('CSV dosyasında kolon başlıkları bulunamadı.');

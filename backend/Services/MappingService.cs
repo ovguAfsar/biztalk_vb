@@ -288,12 +288,10 @@ public sealed class MappingService : IMappingService
                     warnings.Add($"Constant transform for target field '{targetField}' has no constantValue configured.");
                     break;
                 case "concat":
-                    warnings.Add($"Concat transform for target field '{targetField}' has no sourceFields configured; sourceField fallback was used.");
-                    CopySourceValueAsText(input, output, warnings, mappingDefinition.SourceField, targetField);
+                    ConcatSourceValues(input, output, warnings, mappingDefinition.SourceField, targetField);
                     break;
                 case "dateFormat":
-                    warnings.Add("dateFormat transform is currently pass-through.");
-                    CopySourceValue(input, output, warnings, mappingDefinition.SourceField, targetField);
+                    FormatSourceDate(input, output, warnings, mappingDefinition.SourceField, targetField);
                     break;
                 case "uppercase":
                     TransformSourceText(
@@ -538,6 +536,17 @@ public sealed class MappingService : IMappingService
             if (string.IsNullOrWhiteSpace(mappingDefinition.SourceField))
             {
                 AddError(errors, sourceKey, "Kaynak alan bos olamaz.");
+            }
+            else if (NormalizeTransformType(mappingDefinition.TransformType ?? string.Empty) == "concat")
+            {
+                var missingSourceFields = GetSourceFieldNames(mappingDefinition.SourceField)
+                    .Where(sourceField => !sourceFields.Contains(sourceField))
+                    .ToList();
+
+                if (missingSourceFields.Count > 0)
+                {
+                    AddError(errors, sourceKey, "Concat icindeki tum kaynak alanlar source schema icinde bulunmalidir.");
+                }
             }
             else if (!sourceFields.Contains(mappingDefinition.SourceField.Trim()))
             {
@@ -1038,6 +1047,57 @@ public sealed class MappingService : IMappingService
         output[targetField] = JsonElementToText(value);
     }
 
+    private static void ConcatSourceValues(
+        IReadOnlyDictionary<string, JsonElement> input,
+        IDictionary<string, object?> output,
+        ICollection<string> warnings,
+        string sourceField,
+        string targetField)
+    {
+        var sourceFields = GetSourceFieldNames(sourceField);
+        if (sourceFields.Count == 0)
+        {
+            warnings.Add($"Source field is empty for target field '{targetField}'.");
+            return;
+        }
+
+        var textParts = new List<string>();
+        foreach (var fieldName in sourceFields)
+        {
+            if (!input.TryGetValue(fieldName, out var value))
+            {
+                warnings.Add($"Source field '{fieldName}' was not found in input.");
+                continue;
+            }
+
+            textParts.Add(JsonElementToText(value));
+        }
+
+        output[targetField] = string.Join(" ", textParts.Where(text => !string.IsNullOrEmpty(text)));
+    }
+
+    private static void FormatSourceDate(
+        IReadOnlyDictionary<string, JsonElement> input,
+        IDictionary<string, object?> output,
+        ICollection<string> warnings,
+        string sourceField,
+        string targetField)
+    {
+        if (string.IsNullOrWhiteSpace(sourceField))
+        {
+            warnings.Add($"Source field is empty for target field '{targetField}'.");
+            return;
+        }
+
+        if (!input.TryGetValue(sourceField, out var value))
+        {
+            warnings.Add($"Source field '{sourceField}' was not found in input.");
+            return;
+        }
+
+        output[targetField] = FormatDateValue(value, JsonElementToText(value), targetField, warnings);
+    }
+
     private static void TransformSourceText(
         IReadOnlyDictionary<string, JsonElement> input,
         IDictionary<string, object?> output,
@@ -1059,6 +1119,14 @@ public sealed class MappingService : IMappingService
         }
 
         output[targetField] = transform(JsonElementToText(value));
+    }
+
+    private static IReadOnlyList<string> GetSourceFieldNames(string? sourceField)
+    {
+        return (sourceField ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(fieldName => !string.IsNullOrWhiteSpace(fieldName))
+            .ToList();
     }
 
     private static string ObjectValueToText(object? value)

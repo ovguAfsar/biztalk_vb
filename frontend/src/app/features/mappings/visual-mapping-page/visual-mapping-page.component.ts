@@ -44,13 +44,15 @@ export class VisualMappingPageComponent implements OnInit {
   protected selectedSourceField = '';
   protected selectedTargetField = '';
   protected selectedTransformType: MappingTransformType = 'direct';
+  protected draggedSourceField = '';
+  protected dragTargetField = '';
+  protected dragTransformType: MappingTransformType = 'direct';
   protected activeBottomTab: BottomPanelTab = 'properties';
   protected isLoading = true;
   protected isSaving = false;
   protected loadError = '';
   protected saveError = '';
   protected successMessage = '';
-  protected draggedSourceField = '';
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -118,31 +120,97 @@ export class VisualMappingPageComponent implements OnInit {
     this.selectedTransformType = (event.target as HTMLSelectElement).value as MappingTransformType;
   }
 
+  protected startSourceDrag(event: DragEvent, fieldName: string): void {
+    this.draggedSourceField = fieldName;
+    this.selectedSourceField = fieldName;
+    this.dragTransformType = 'direct';
+    this.selectedTransformType = 'direct';
+    this.successMessage = '';
+    this.saveError = '';
+
+    event.dataTransfer?.setData('text/plain', fieldName);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+    }
+  }
+
+  protected enterTargetDropZone(event: DragEvent, fieldName: string): void {
+    if (!this.draggedSourceField) {
+      return;
+    }
+
+    event.preventDefault();
+    this.dragTargetField = fieldName;
+    this.selectedTargetField = fieldName;
+  }
+
+  protected leaveTargetDropZone(fieldName: string): void {
+    if (!this.draggedSourceField && this.dragTargetField === fieldName) {
+      this.dragTargetField = '';
+    }
+  }
+
+  protected updateDragTransform(transformType: MappingTransformType): void {
+    this.dragTransformType = transformType;
+    this.selectedTransformType = transformType;
+  }
+
+  protected dropOnTarget(event: DragEvent, targetField: string): void {
+    event.preventDefault();
+    const sourceField = this.draggedSourceField || event.dataTransfer?.getData('text/plain') || '';
+
+    this.connectFields(sourceField, targetField, this.dragTransformType);
+    this.clearDragState();
+  }
+
+  protected endSourceDrag(): void {
+    this.clearDragState();
+  }
+
   protected connectSelectedFields(): void {
-    if (!this.selectedSourceField || !this.selectedTargetField) {
+    this.connectFields(this.selectedSourceField, this.selectedTargetField, this.selectedTransformType);
+  }
+
+  protected getMappingSourceLabel(mappingDefinition: MappingDefinition): string {
+    return this.getSourceFieldNames(mappingDefinition.sourceField)
+      .map(fieldName => this.getSourceLabelByName(fieldName))
+      .join(' + ');
+  }
+
+  private connectFields(
+    sourceField: string,
+    targetField: string,
+    transformType: MappingTransformType
+  ): void {
+    if (!sourceField || !targetField) {
       return;
     }
 
     const existingIndex = this.mappingDefinitions.findIndex(
-      mapping => mapping.targetField === this.selectedTargetField
+      mapping => mapping.targetField === targetField
     );
+    const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
     const sourceMappedElsewhere = this.mappingDefinitions.find(
-      mapping => mapping.sourceField === this.selectedSourceField && mapping.targetField !== this.selectedTargetField
+      mapping => mapping.targetField !== targetField
+        && this.getSourceFieldNames(mapping.sourceField).includes(sourceField)
     );
 
     if (sourceMappedElsewhere) {
-      this.saveError = `${this.getSourceLabelByName(this.selectedSourceField)} zaten ${this.getTargetLabelByName(sourceMappedElsewhere.targetField)} alanına eşleştirilmiş. Aynı kaynak kolon iki kez kullanılamaz.`;
+      this.saveError = `${this.getSourceLabelByName(sourceField)} zaten ${this.getTargetLabelByName(sourceMappedElsewhere.targetField)} alanına eşleştirilmiş. Aynı kaynak kolon iki kez kullanılamaz.`;
       return;
     }
 
-    if (this.shouldConfirmMapping() && !window.confirm(this.getMismatchConfirmationMessage())) {
+    if (this.shouldConfirmMapping(sourceField, targetField) && !window.confirm(this.getMismatchConfirmationMessage(sourceField, targetField))) {
       return;
     }
 
+    const sourceFieldValue = transformType === 'concat' && existingMapping?.transformType === 'concat'
+      ? this.mergeSourceFields(existingMapping.sourceField, sourceField)
+      : sourceField;
     const mappingDefinition: MappingDefinition = {
-      sourceField: this.selectedSourceField,
-      targetField: this.selectedTargetField,
-      transformType: this.selectedTransformType
+      sourceField: sourceFieldValue,
+      targetField,
+      transformType
     };
 
     if (existingIndex >= 0) {
@@ -155,30 +223,6 @@ export class VisualMappingPageComponent implements OnInit {
 
     this.successMessage = '';
     this.saveError = '';
-  }
-
-  protected startSourceDrag(fieldName: string): void {
-    this.draggedSourceField = fieldName;
-    this.selectSourceField(fieldName);
-  }
-
-  protected clearSourceDrag(): void {
-    this.draggedSourceField = '';
-  }
-
-  protected allowTargetDrop(event: DragEvent): void {
-    event.preventDefault();
-  }
-
-  protected dropOnTarget(event: DragEvent, fieldName: string): void {
-    event.preventDefault();
-    if (!this.draggedSourceField) {
-      return;
-    }
-
-    this.selectedSourceField = this.draggedSourceField;
-    this.selectTargetField(fieldName);
-    this.draggedSourceField = '';
   }
 
   protected removeMapping(targetField: string): void {
@@ -233,7 +277,7 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected isSourceMapped(fieldName: string): boolean {
-    return this.mappingDefinitions.some(mapping => mapping.sourceField === fieldName);
+    return this.mappingDefinitions.some(mapping => this.getSourceFieldNames(mapping.sourceField).includes(fieldName));
   }
 
   protected isTargetMapped(fieldName: string): boolean {
@@ -245,7 +289,8 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected getSourceLineY(sourceField: string): number {
-    const index = Math.max(this.sourceFields.findIndex(field => field.name === sourceField), 0);
+    const firstSourceField = this.getSourceFieldNames(sourceField)[0] ?? sourceField;
+    const index = Math.max(this.sourceFields.findIndex(field => field.name === firstSourceField), 0);
     return 94 + index * 58;
   }
 
@@ -313,9 +358,30 @@ export class VisualMappingPageComponent implements OnInit {
     return this.targetFields.find(field => field.name === fieldName);
   }
 
-  private shouldConfirmMapping(): boolean {
-    const sourceField = this.selectedSourceFieldDetails;
-    const targetField = this.selectedTargetFieldDetails;
+  private clearDragState(): void {
+    this.draggedSourceField = '';
+    this.dragTargetField = '';
+    this.dragTransformType = this.selectedTransformType;
+  }
+
+  private mergeSourceFields(existingSourceField: string, nextSourceField: string): string {
+    const sourceFields = [...this.getSourceFieldNames(existingSourceField), nextSourceField]
+      .map(fieldName => fieldName.trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(sourceFields)).join(', ');
+  }
+
+  private getSourceFieldNames(sourceField: string): string[] {
+    return sourceField
+      .split(',')
+      .map(fieldName => fieldName.trim())
+      .filter(Boolean);
+  }
+
+  private shouldConfirmMapping(sourceFieldName: string, targetFieldName: string): boolean {
+    const sourceField = this.getSourceField(sourceFieldName);
+    const targetField = this.getTargetField(targetFieldName);
 
     if (!sourceField || !targetField) {
       return false;
@@ -324,8 +390,8 @@ export class VisualMappingPageComponent implements OnInit {
     return sourceField.type !== targetField.type;
   }
 
-  private getMismatchConfirmationMessage(): string {
-    return `${this.getSourceLabelByName(this.selectedSourceField)} ile ${this.getTargetLabelByName(this.selectedTargetField)} eşleştirdiniz. Devam etmek istediğinize emin misiniz?`;
+  private getMismatchConfirmationMessage(sourceFieldName: string, targetFieldName: string): string {
+    return `${this.getSourceLabelByName(sourceFieldName)} ile ${this.getTargetLabelByName(targetFieldName)} eşleştirdiniz. Devam etmek istediğinize emin misiniz?`;
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {
