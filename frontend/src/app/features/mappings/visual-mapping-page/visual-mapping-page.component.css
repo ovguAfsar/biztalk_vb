@@ -239,7 +239,8 @@
   background: #f7fffc;
 }
 
-.schema-field--required {
+.schema-field--required,
+.canvas-node--required {
   border-color: #fecaca;
   background: #fff7f7;
 }
@@ -345,14 +346,28 @@
   stroke-width: 3;
 }
 
-.connection-label {
+.connection-line--arrow {
+  marker-end: url("#connection-arrow");
+}
+
+.connection-arrowhead {
+  fill: #2563eb;
+}
+
+.connection-function rect {
+  fill: #ffffff;
+  stroke: #2563eb;
+  stroke-width: 2;
+}
+
+.connection-function text {
   fill: #1d4ed8;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 760;
   paint-order: stroke;
-  stroke: #fbfdff;
+  stroke: #ffffff;
   stroke-linejoin: round;
-  stroke-width: 8px;
+  stroke-width: 4px;
 }
 
 .canvas-column {
@@ -373,12 +388,57 @@
 }
 
 .canvas-node {
-  display: block;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   min-height: 46px;
   overflow: hidden;
-  padding: 9px 11px;
+  padding: 9px 34px 9px 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.canvas-column--target .canvas-node {
+  padding-left: 34px;
+  padding-right: 11px;
+}
+
+.canvas-node__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-node__badge {
+  margin-left: auto;
+  border: 1px solid #fecaca;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #b91c1c;
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  text-transform: uppercase;
+}
+
+.connector-port {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #2563eb;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+  transform: translateY(-50%);
+}
+
+.connector-port--source {
+  right: 8px;
+  cursor: grab;
 }
 
 .canvas-field-group {
@@ -404,14 +464,29 @@
   background: #fff7f7;
 }
 
-.schema-field[draggable="true"],
-.canvas-node[draggable="true"] {
-  cursor: grab;
+.connector-port--target {
+  left: 8px;
+  border-color: #0f6654;
+  box-shadow: 0 0 0 3px rgb(15 102 84 / 10%);
 }
 
-.schema-field[draggable="true"]:active,
-.canvas-node[draggable="true"]:active {
+.connector-port {
+  pointer-events: auto;
+  -webkit-user-drag: element;
+}
+
+.connector-port--source:active {
   cursor: grabbing;
+}
+
+.canvas-node:hover .connector-port--source,
+.target-drop-zone--active .connector-port--target {
+  background: #2563eb;
+}
+
+.target-drop-zone--active .connector-port--target {
+  border-color: #0f6654;
+  background: #0f6654;
 }
 
 .target-drop-zone {

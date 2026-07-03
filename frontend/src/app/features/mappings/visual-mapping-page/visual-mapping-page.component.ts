@@ -20,30 +20,6 @@ interface PendingConnection {
   targetField: string;
 }
 
-const genericFieldTokens = new Set([
-  'alan',
-  'field',
-  'kolon',
-  'column',
-  'deger',
-  'value',
-  'data',
-  'veri',
-  'bilgi',
-  'info'
-]);
-
-const fieldMeaningKeywords: Record<string, string[]> = {
-  amount: ['amount', 'tutar', 'ucret', 'fiyat', 'bedel', 'maas', 'salary', 'total', 'toplam', 'borc', 'alacak', 'bakiye'],
-  date: ['date', 'tarih', 'gun', 'ay', 'yil', 'time', 'zaman'],
-  name: ['name', 'ad', 'adi', 'isim', 'soyad', 'soyadi', 'surname', 'firstname', 'lastname', 'unvan', 'title'],
-  identity: ['id', 'no', 'numara', 'number', 'kod', 'code', 'sicil', 'tckn', 'vkn', 'iban', 'hesap'],
-  address: ['adres', 'address', 'il', 'ilce', 'sehir', 'city', 'ulke', 'country', 'posta', 'zip'],
-  contact: ['telefon', 'phone', 'gsm', 'mobile', 'email', 'mail', 'eposta'],
-  status: ['durum', 'status', 'state', 'aktif', 'pasif'],
-  currency: ['para', 'currency', 'doviz', 'kur', 'try', 'tl', 'usd', 'eur']
-};
-
 @Component({
   selector: 'app-visual-mapping-page',
   standalone: true,
@@ -166,6 +142,7 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected startSourceDrag(event: DragEvent, fieldName: string): void {
+    event.stopPropagation();
     this.draggedSourceField = fieldName;
     this.selectedSourceField = fieldName;
     this.selectedTransformType = 'direct';
@@ -201,6 +178,7 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected dropOnTarget(event: DragEvent, targetField: string): void {
     event.preventDefault();
+    event.stopPropagation();
     const sourceField = this.draggedSourceField || event.dataTransfer?.getData('text/plain') || '';
 
     if (!sourceField) {
@@ -267,10 +245,6 @@ export class VisualMappingPageComponent implements OnInit {
       mapping => mapping.targetField === targetField
     );
     const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
-
-    if (this.shouldConfirmMapping(sourceField, targetField) && !window.confirm(this.getMismatchConfirmationMessage(sourceField, targetField))) {
-      return false;
-    }
 
     const sourceFieldValue = transformType === 'concat' && existingMapping?.transformType === 'concat'
       ? this.mergeSourceFields(existingMapping.sourceField, sourceField)
@@ -399,6 +373,10 @@ export class VisualMappingPageComponent implements OnInit {
     return (this.getSourceLineY(mappingDefinition.sourceField) + this.getTargetLineY(mappingDefinition.targetField)) / 2 - 8;
   }
 
+  protected getFunctionNodeLabel(mappingDefinition: MappingDefinition): string {
+    return mappingDefinition.transformType;
+  }
+
   protected getSourceFieldLabel(field: SourceField): string {
     return field.displayName ? `${field.displayName} (${field.name})` : field.name;
   }
@@ -475,68 +453,6 @@ export class VisualMappingPageComponent implements OnInit {
       .split(',')
       .map(fieldName => fieldName.trim())
       .filter(Boolean);
-  }
-
-  private shouldConfirmMapping(sourceFieldName: string, targetFieldName: string): boolean {
-    const sourceField = this.getSourceField(sourceFieldName);
-    const targetField = this.getTargetField(targetFieldName);
-
-    if (!sourceField || !targetField) {
-      return false;
-    }
-
-    const sourceProfile = this.getFieldMeaningProfile(sourceField.name, sourceField.displayName);
-    const targetProfile = this.getFieldMeaningProfile(targetField.name, targetField.displayName);
-    const hasSharedToken = sourceProfile.tokens.some(token => targetProfile.tokens.includes(token));
-    const hasSharedCategory = sourceProfile.categories.some(category => targetProfile.categories.includes(category));
-    const hasNamedCategory = sourceProfile.categories.length > 0 && targetProfile.categories.length > 0;
-
-    if (sourceField.type !== targetField.type) {
-      return true;
-    }
-
-    if (hasNamedCategory) {
-      return !hasSharedCategory;
-    }
-
-    return !hasSharedToken;
-  }
-
-  private getMismatchConfirmationMessage(sourceFieldName: string, targetFieldName: string): string {
-    return `${this.getSourceLabelByName(sourceFieldName)} ile ${this.getTargetLabelByName(targetFieldName)} alakasız görünüyor. Yine de eşleştirmek istediğinize emin misiniz?`;
-  }
-
-  private getFieldMeaningProfile(fieldName: string, displayName?: string): {
-    tokens: string[];
-    categories: string[];
-  } {
-    const tokens = this.tokenizeFieldText(`${displayName ?? ''} ${fieldName}`);
-    const categories = Object.entries(fieldMeaningKeywords)
-      .filter(([, keywords]) => keywords.some(keyword => tokens.includes(keyword)))
-      .map(([category]) => category);
-
-    return {
-      tokens,
-      categories
-    };
-  }
-
-  private tokenizeFieldText(value: string): string[] {
-    const normalizedValue = value
-      .replace(/[Çç]/g, 'c')
-      .replace(/[Ğğ]/g, 'g')
-      .replace(/[İIı]/g, 'i')
-      .replace(/[Öö]/g, 'o')
-      .replace(/[Şş]/g, 's')
-      .replace(/[Üü]/g, 'u')
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-
-    return normalizedValue
-      .split(/[^a-z0-9]+/)
-      .filter(token => token.length > 1 && !genericFieldTokens.has(token));
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {

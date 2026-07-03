@@ -32,11 +32,8 @@
               class="schema-field"
               type="button"
               *ngFor="let field of sourceFields"
-              draggable="true"
               [class.schema-field--selected]="selectedSourceField === field.name"
               (click)="selectSourceField(field.name)"
-              (dragstart)="startSourceDrag($event, field.name)"
-              (dragend)="endSourceDrag()"
             >
               <span class="field-name">{{ getSourceFieldLabel(field) }}</span>
               <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
@@ -56,8 +53,8 @@
           </header>
 
           <div class="selection-strip">
-            <span>Source alanı hedef alanın üzerine bırakın, sonra bağlama türünü seçin.</span>
-            <span *ngIf="draggedSourceField">Sürüklenen: {{ getSourceLabelByName(draggedSourceField) }}</span>
+            <span>Kaynak alanın sağındaki bağlantı noktasından hedef alanın solundaki noktaya ok çekin.</span>
+            <span *ngIf="draggedSourceField">Ok başlangıcı: {{ getSourceLabelByName(draggedSourceField) }}</span>
             <span *ngIf="pendingConnection">
               Seçiliyor: {{ getSourceLabelByName(pendingConnection.sourceField) }} → {{ getTargetLabelByName(pendingConnection.targetField) }}
             </span>
@@ -70,23 +67,45 @@
               preserveAspectRatio="none"
               aria-hidden="true"
             >
+              <defs>
+                <marker
+                  id="connection-arrow"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="5"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" class="connection-arrowhead" />
+                </marker>
+              </defs>
+
               <line
                 class="connection-line"
                 *ngFor="let mappingDefinition of mappingDefinitions"
                 x1="220"
                 [attr.y1]="getSourceLineY(mappingDefinition.sourceField)"
+                x2="452"
+                [attr.y2]="getConnectionLabelY(mappingDefinition)"
+              />
+              <line
+                class="connection-line connection-line--arrow"
+                *ngFor="let mappingDefinition of mappingDefinitions"
+                x1="548"
+                [attr.y1]="getConnectionLabelY(mappingDefinition)"
                 x2="780"
                 [attr.y2]="getTargetLineY(mappingDefinition.targetField)"
               />
-              <text
-                class="connection-label"
+
+              <g
+                class="connection-function"
                 *ngFor="let mappingDefinition of mappingDefinitions"
-                x="500"
-                [attr.y]="getConnectionLabelY(mappingDefinition)"
-                text-anchor="middle"
+                [attr.transform]="'translate(500 ' + getConnectionLabelY(mappingDefinition) + ')'"
               >
-                {{ mappingDefinition.transformType }}
-              </text>
+                <rect x="-48" y="-18" width="96" height="36" rx="8" />
+                <text text-anchor="middle" y="5">{{ getFunctionNodeLabel(mappingDefinition) }}</text>
+              </g>
             </svg>
 
             <div class="canvas-column canvas-column--source">
@@ -94,14 +113,18 @@
                 class="canvas-node"
                 type="button"
                 *ngFor="let field of sourceFields"
-                draggable="true"
                 [class.canvas-node--selected]="selectedSourceField === field.name"
                 [attr.title]="getSourceUsageLabel(field.name)"
                 (click)="selectSourceField(field.name)"
-                (dragstart)="startSourceDrag($event, field.name)"
-                (dragend)="endSourceDrag()"
               >
-                {{ field.name }}
+                <span class="canvas-node__label">{{ field.name }}</span>
+                <span
+                  class="connector-port connector-port--source"
+                  draggable="true"
+                  title="Bağlantı başlat"
+                  (dragstart)="startSourceDrag($event, field.name)"
+                  (dragend)="endSourceDrag()"
+                ></span>
               </button>
             </div>
 
@@ -127,7 +150,12 @@
                     [class.canvas-node--required-missing]="isRequiredTargetUnmapped(field.name)"
                     (click)="selectTargetField(field.name)"
                   >
-                    {{ field.name }}
+                    <span
+                      class="connector-port connector-port--target"
+                      title="Bağlantıyı buraya bırak"
+                    ></span>
+                    <span class="canvas-node__label">{{ field.name }}</span>
+                    <span class="canvas-node__badge">required</span>
                   </button>
 
                   <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
@@ -170,7 +198,11 @@
                     [class.canvas-node--mapped]="isTargetMapped(field.name)"
                     (click)="selectTargetField(field.name)"
                   >
-                    {{ field.name }}
+                    <span
+                      class="connector-port connector-port--target"
+                      title="Bağlantıyı buraya bırak"
+                    ></span>
+                    <span class="canvas-node__label">{{ field.name }}</span>
                   </button>
 
                   <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
