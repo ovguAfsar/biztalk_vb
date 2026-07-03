@@ -203,6 +203,16 @@
   cursor: pointer;
   text-align: left;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: element;
+}
+
+.schema-field *,
+.canvas-node * {
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
 }
 
 .schema-field {
@@ -267,6 +277,12 @@
 
 .mapped-from {
   color: #0f6654;
+}
+
+.source-usage {
+  color: #1d4ed8;
+  font-size: 0.76rem;
+  font-weight: 760;
 }
 
 .canvas-toolbar {

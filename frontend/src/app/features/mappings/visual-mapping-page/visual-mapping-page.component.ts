@@ -190,7 +190,7 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected leaveTargetDropZone(fieldName: string): void {
-    if (!this.draggedSourceField && this.dragTargetField === fieldName) {
+    if (this.dragTargetField === fieldName) {
       this.dragTargetField = '';
     }
   }
@@ -353,8 +353,13 @@ export class VisualMappingPageComponent implements OnInit {
     this.activeBottomTab = tab;
   }
 
-  protected isSourceMapped(fieldName: string): boolean {
-    return this.mappingDefinitions.some(mapping => this.getSourceFieldNames(mapping.sourceField).includes(fieldName));
+  protected getSourceMappingCount(fieldName: string): number {
+    return this.mappingDefinitions.filter(mapping => this.getSourceFieldNames(mapping.sourceField).includes(fieldName)).length;
+  }
+
+  protected getSourceUsageLabel(fieldName: string): string {
+    const usageCount = this.getSourceMappingCount(fieldName);
+    return usageCount > 0 ? `${fieldName} - ${usageCount} eşleşme` : fieldName;
   }
 
   protected isTargetMapped(fieldName: string): boolean {
