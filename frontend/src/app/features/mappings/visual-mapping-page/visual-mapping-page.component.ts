@@ -91,12 +91,13 @@ export class VisualMappingPageComponent implements OnInit {
     return [...this.requiredTargetFields, ...this.optionalTargetFields];
   }
 
-  protected get missingRequiredTargetFields(): TargetField[] {
-    return this.requiredTargetFields.filter(field => !this.isTargetMapped(field.name));
-  }
-
   protected get canvasHeight(): number {
-    return Math.max(360, 112 + Math.max(this.sourceFields.length, this.targetFields.length) * 58);
+    const sourceHeight = this.sourceFields.length * 58;
+    const targetHeaderHeight = (this.requiredTargetFields.length > 0 ? 40 : 0)
+      + (this.optionalTargetFields.length > 0 ? 40 : 0);
+    const targetHeight = this.targetFields.length * 58 + targetHeaderHeight;
+
+    return Math.max(420, 112 + Math.max(sourceHeight, targetHeight));
   }
 
   protected get mappedTargetCount(): number {
@@ -104,12 +105,12 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected get warnings(): string[] {
-    if (!this.mapping?.targetSchema) {
-      return [];
-    }
-
     return this.missingRequiredTargetFields
       .map(field => `${this.getTargetFieldLabel(field)} zorunlu ama henüz eşleşmedi.`);
+  }
+
+  protected get missingRequiredTargetFields(): TargetField[] {
+    return this.targetFields.filter(field => this.isRequiredTargetUnmapped(field.name));
   }
 
   protected get selectedSourceFieldDetails(): SourceField | undefined {
@@ -166,7 +167,7 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected leaveTargetDropZone(fieldName: string): void {
-    if (!this.draggedSourceField && this.dragTargetField === fieldName) {
+    if (this.dragTargetField === fieldName) {
       this.dragTargetField = '';
     }
   }
@@ -326,8 +327,13 @@ export class VisualMappingPageComponent implements OnInit {
     this.activeBottomTab = tab;
   }
 
-  protected isSourceMapped(fieldName: string): boolean {
-    return this.mappingDefinitions.some(mapping => this.getSourceFieldNames(mapping.sourceField).includes(fieldName));
+  protected getSourceMappingCount(fieldName: string): number {
+    return this.mappingDefinitions.filter(mapping => this.getSourceFieldNames(mapping.sourceField).includes(fieldName)).length;
+  }
+
+  protected getSourceUsageLabel(fieldName: string): string {
+    const usageCount = this.getSourceMappingCount(fieldName);
+    return usageCount > 0 ? `${fieldName} - ${usageCount} eşleşme` : fieldName;
   }
 
   protected isTargetMapped(fieldName: string): boolean {
@@ -335,7 +341,8 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected isRequiredTargetUnmapped(fieldName: string): boolean {
-    return this.missingRequiredTargetFields.some(field => field.name === fieldName);
+    const field = this.getTargetField(fieldName);
+    return Boolean(field?.required && !this.isTargetMapped(fieldName));
   }
 
   protected getMappingForTarget(fieldName: string): MappingDefinition | undefined {
@@ -349,8 +356,17 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected getTargetLineY(targetField: string): number {
-    const index = Math.max(this.orderedTargetFields.findIndex(field => field.name === targetField), 0);
-    return 94 + index * 58;
+    const requiredIndex = this.requiredTargetFields.findIndex(field => field.name === targetField);
+    if (requiredIndex >= 0) {
+      return 113 + requiredIndex * 58;
+    }
+
+    const optionalIndex = Math.max(this.optionalTargetFields.findIndex(field => field.name === targetField), 0);
+    const optionalBaseY = this.requiredTargetFields.length > 0
+      ? 153 + this.requiredTargetFields.length * 58
+      : 113;
+
+    return optionalBaseY + optionalIndex * 58;
   }
 
   protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {

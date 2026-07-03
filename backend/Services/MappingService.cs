@@ -523,7 +523,6 @@ public sealed class MappingService : IMappingService
         var targetFields = mapping.TargetSchema.Fields
             .Select(field => field.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var mappedSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var mappedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         for (var index = 0; index < request.Mappings.Count; index++)
@@ -552,10 +551,6 @@ public sealed class MappingService : IMappingService
             {
                 AddError(errors, sourceKey, "Kaynak alan source schema icinde bulunmalidir.");
             }
-            else if (!mappedSources.Add(mappingDefinition.SourceField.Trim()))
-            {
-                AddError(errors, sourceKey, "Ayni kaynak alan birden fazla mapping icinde kullanilamaz.");
-            }
 
             if (string.IsNullOrWhiteSpace(mappingDefinition.TargetField))
             {
@@ -578,6 +573,19 @@ public sealed class MappingService : IMappingService
             {
                 AddError(errors, transformKey, "Transform tipi direct, concat, constant, dateFormat, uppercase, lowercase veya trim olmalidir.");
             }
+        }
+
+        var missingRequiredTargetFields = mapping.TargetSchema.Fields
+            .Where(field => field.Required && !mappedTargets.Contains(field.Name))
+            .Select(field => string.IsNullOrWhiteSpace(field.DisplayName) ? field.Name : field.DisplayName)
+            .ToList();
+
+        if (missingRequiredTargetFields.Count > 0)
+        {
+            AddError(
+                errors,
+                "mappings",
+                $"Zorunlu hedef alanlar eslestirilmeden devam edilemez: {string.Join(", ", missingRequiredTargetFields)}.");
         }
 
         return ToValidationErrors(errors);

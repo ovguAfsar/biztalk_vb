@@ -33,11 +33,13 @@
               type="button"
               *ngFor="let field of sourceFields"
               [class.schema-field--selected]="selectedSourceField === field.name"
-              [class.schema-field--mapped]="isSourceMapped(field.name)"
               (click)="selectSourceField(field.name)"
             >
               <span class="field-name">{{ getSourceFieldLabel(field) }}</span>
               <span class="field-meta">{{ field.type }}<span *ngIf="field.required"> · required</span></span>
+              <span class="source-usage" *ngIf="getSourceMappingCount(field.name) as usageCount">
+                {{ usageCount }} eşleşme
+              </span>
             </button>
           </div>
         </aside>
@@ -112,7 +114,7 @@
                 type="button"
                 *ngFor="let field of sourceFields"
                 [class.canvas-node--selected]="selectedSourceField === field.name"
-                [class.canvas-node--mapped]="isSourceMapped(field.name)"
+                [attr.title]="getSourceUsageLabel(field.name)"
                 (click)="selectSourceField(field.name)"
               >
                 <span class="canvas-node__label">{{ field.name }}</span>
@@ -127,51 +129,101 @@
             </div>
 
             <div class="canvas-column canvas-column--target">
-              <div
-                class="target-drop-zone"
-                *ngFor="let field of orderedTargetFields"
-                [class.target-drop-zone--active]="dragTargetField === field.name"
-                [class.target-drop-zone--pending]="isPendingTarget(field.name)"
-                (dragenter)="enterTargetDropZone($event, field.name)"
-                (dragover)="enterTargetDropZone($event, field.name)"
-                (dragleave)="leaveTargetDropZone(field.name)"
-                (drop)="dropOnTarget($event, field.name)"
-              >
-                <button
-                  class="canvas-node"
-                  type="button"
-                  [class.canvas-node--selected]="selectedTargetField === field.name"
-                  [class.canvas-node--mapped]="isTargetMapped(field.name)"
-                  [class.canvas-node--required]="field.required"
-                  [class.canvas-node--required-missing]="isRequiredTargetUnmapped(field.name)"
-                  (click)="selectTargetField(field.name)"
-                >
-                  <span
-                    class="connector-port connector-port--target"
-                    title="Bağlantıyı buraya bırak"
-                  ></span>
-                  <span class="canvas-node__label">{{ field.name }}</span>
-                  <span class="canvas-node__badge" *ngIf="field.required">required</span>
-                </button>
+              <section class="canvas-field-group" *ngIf="requiredTargetFields.length > 0">
+                <div class="canvas-field-group__header canvas-field-group__header--required">Zorunlu</div>
 
-                <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
-                  <div class="drop-transform-palette__summary">
-                    <span>{{ getSourceLabelByName(pending.sourceField) }}</span>
-                    <strong>{{ getTargetLabelByName(pending.targetField) }}</strong>
-                  </div>
+                <div
+                  class="target-drop-zone"
+                  *ngFor="let field of requiredTargetFields"
+                  [class.target-drop-zone--active]="dragTargetField === field.name"
+                  [class.target-drop-zone--pending]="isPendingTarget(field.name)"
+                  (dragenter)="enterTargetDropZone($event, field.name)"
+                  (dragover)="enterTargetDropZone($event, field.name)"
+                  (dragleave)="leaveTargetDropZone(field.name)"
+                  (drop)="dropOnTarget($event, field.name)"
+                >
                   <button
+                    class="canvas-node canvas-node--required"
                     type="button"
-                    *ngFor="let transform of transformOptions"
-                    [class.drop-transform-palette__option--active]="selectedTransformType === transform"
-                    (click)="choosePendingTransform(transform)"
+                    [class.canvas-node--selected]="selectedTargetField === field.name"
+                    [class.canvas-node--mapped]="isTargetMapped(field.name)"
+                    [class.canvas-node--required-missing]="isRequiredTargetUnmapped(field.name)"
+                    (click)="selectTargetField(field.name)"
                   >
-                    {{ transform }}
+                    <span
+                      class="connector-port connector-port--target"
+                      title="Bağlantıyı buraya bırak"
+                    ></span>
+                    <span class="canvas-node__label">{{ field.name }}</span>
+                    <span class="canvas-node__badge">required</span>
                   </button>
-                  <button class="drop-transform-palette__cancel" type="button" (click)="cancelPendingConnection()">
-                    Vazgeç
-                  </button>
+
+                  <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
+                    <div class="drop-transform-palette__summary">
+                      <span>{{ getSourceLabelByName(pending.sourceField) }}</span>
+                      <strong>{{ getTargetLabelByName(pending.targetField) }}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      *ngFor="let transform of transformOptions"
+                      [class.drop-transform-palette__option--active]="selectedTransformType === transform"
+                      (click)="choosePendingTransform(transform)"
+                    >
+                      {{ transform }}
+                    </button>
+                    <button class="drop-transform-palette__cancel" type="button" (click)="cancelPendingConnection()">
+                      Vazgeç
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </section>
+
+              <section class="canvas-field-group" *ngIf="optionalTargetFields.length > 0">
+                <div class="canvas-field-group__header">Diğer</div>
+
+                <div
+                  class="target-drop-zone"
+                  *ngFor="let field of optionalTargetFields"
+                  [class.target-drop-zone--active]="dragTargetField === field.name"
+                  [class.target-drop-zone--pending]="isPendingTarget(field.name)"
+                  (dragenter)="enterTargetDropZone($event, field.name)"
+                  (dragover)="enterTargetDropZone($event, field.name)"
+                  (dragleave)="leaveTargetDropZone(field.name)"
+                  (drop)="dropOnTarget($event, field.name)"
+                >
+                  <button
+                    class="canvas-node"
+                    type="button"
+                    [class.canvas-node--selected]="selectedTargetField === field.name"
+                    [class.canvas-node--mapped]="isTargetMapped(field.name)"
+                    (click)="selectTargetField(field.name)"
+                  >
+                    <span
+                      class="connector-port connector-port--target"
+                      title="Bağlantıyı buraya bırak"
+                    ></span>
+                    <span class="canvas-node__label">{{ field.name }}</span>
+                  </button>
+
+                  <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
+                    <div class="drop-transform-palette__summary">
+                      <span>{{ getSourceLabelByName(pending.sourceField) }}</span>
+                      <strong>{{ getTargetLabelByName(pending.targetField) }}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      *ngFor="let transform of transformOptions"
+                      [class.drop-transform-palette__option--active]="selectedTransformType === transform"
+                      (click)="choosePendingTransform(transform)"
+                    >
+                      {{ transform }}
+                    </button>
+                    <button class="drop-transform-palette__cancel" type="button" (click)="cancelPendingConnection()">
+                      Vazgeç
+                    </button>
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
 
@@ -223,7 +275,7 @@
                 (click)="selectTargetField(field.name)"
               >
                 <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
-                <span class="field-meta">{{ field.type }} · required</span>
+                <span class="field-meta">{{ field.type }} · zorunlu</span>
                 <span class="mapped-from" *ngIf="getMappingForTarget(field.name) as mappingDefinition">
                   {{ getMappingSourceLabel(mappingDefinition) }}
                 </span>

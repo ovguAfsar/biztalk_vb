@@ -185,14 +185,17 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
     throw new Error('Excel dosyasında kolon başlıkları bulunamadı.');
   }
 
-  const sampleRow = rows[1];
+  const headerColumnIndexes = headerRow.map(cell => cell.columnIndex);
+  const dataRows = rows.slice(1);
+  const sampleRow = dataRows.find(row => rowHasDataInColumns(row, headerColumnIndexes));
+
   if (!sampleRow) {
-    throw new Error('Excel dosyasında veri satırı bulunamadı.');
+    throw new Error('Excel dosyasında başlıklardan sonra veri satırı bulunamadı.');
   }
 
   validateHeaderCells(headerRow, 'Excel', Math.max(
     ...headerRow.map(cell => cell.columnIndex),
-    ...sampleRow.map(cell => cell.columnIndex)
+    ...dataRows.flatMap(row => row.filter(cell => cell.value.trim()).map(cell => cell.columnIndex))
   ));
 
   const sampleByColumn = new Map(sampleRow.map(cell => [cell.columnIndex, cell.value]));
@@ -256,6 +259,14 @@ function parseWorksheetRow(row: Element, sharedStrings: string[]): Array<{
     .sort((left, right) => left.columnIndex - right.columnIndex);
 }
 
+function rowHasDataInColumns(
+  row: Array<{ columnIndex: number; value: string }>,
+  columnIndexes: number[]
+): boolean {
+  const allowedColumns = new Set(columnIndexes);
+  return row.some(cell => allowedColumns.has(cell.columnIndex) && cell.value.trim());
+}
+
 function readCellValue(cell: Element, sharedStrings: string[]): string {
   const type = cell.getAttribute('t');
 
@@ -288,12 +299,18 @@ function readCsvColumns(text: string): ExcelColumnImport[] {
     columnIndex: index + 1,
     value: header
   }));
-  const sampleRow = rows[1];
+  const dataRows = rows.slice(1);
+  const sampleRow = dataRows
+    .find(row => row.some((cell, index) => index < headerRow.length && cell.trim()));
+
   if (!sampleRow) {
-    throw new Error('CSV dosyasında veri satırı bulunamadı.');
+    throw new Error('CSV dosyasında başlıklardan sonra veri satırı bulunamadı.');
   }
 
-  validateHeaderCells(headerCells, 'CSV', Math.max(headerCells.length, sampleRow.length));
+  validateHeaderCells(headerCells, 'CSV', Math.max(
+    headerCells.length,
+    ...dataRows.map(row => row.length)
+  ));
 
   const columns = headerRow
     .map((header, index) => ({
