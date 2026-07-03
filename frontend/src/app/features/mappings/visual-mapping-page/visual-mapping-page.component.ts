@@ -112,13 +112,12 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected get warnings(): string[] {
-    if (!this.mapping?.targetSchema) {
-      return [];
-    }
-
-    return this.targetFields
-      .filter(field => field.required && !this.isTargetMapped(field.name))
+    return this.missingRequiredTargetFields
       .map(field => `${this.getTargetFieldLabel(field)} zorunlu ama henüz eşleşmedi.`);
+  }
+
+  protected get missingRequiredTargetFields(): TargetField[] {
+    return this.targetFields.filter(field => this.isRequiredTargetUnmapped(field.name));
   }
 
   protected get selectedSourceFieldDetails(): SourceField | undefined {
@@ -305,6 +304,14 @@ export class VisualMappingPageComponent implements OnInit {
       return;
     }
 
+    if (this.missingRequiredTargetFields.length > 0) {
+      this.activeBottomTab = 'warnings';
+      this.saveError = `Zorunlu hedef alanlar eşleştirilmeden devam edilemez: ${this.missingRequiredTargetFields
+        .map(field => this.getTargetFieldLabel(field))
+        .join(', ')}.`;
+      return;
+    }
+
     this.isSaving = true;
 
     this.mappingApi.saveMappings(this.mappingId, { mappings: this.mappingDefinitions })
@@ -344,6 +351,11 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected isTargetMapped(fieldName: string): boolean {
     return this.mappingDefinitions.some(mapping => mapping.targetField === fieldName);
+  }
+
+  protected isRequiredTargetUnmapped(fieldName: string): boolean {
+    const field = this.getTargetField(fieldName);
+    return Boolean(field?.required && !this.isTargetMapped(fieldName));
   }
 
   protected getMappingForTarget(fieldName: string): MappingDefinition | undefined {
