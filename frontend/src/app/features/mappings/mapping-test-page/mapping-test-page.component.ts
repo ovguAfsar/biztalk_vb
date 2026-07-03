@@ -39,6 +39,7 @@ export class MappingTestPageComponent implements OnInit {
   protected noticeMessage = '';
   protected hasSuccessfulRun = false;
   protected showCompletionModal = false;
+  protected showNewMappingConfirmModal = false;
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -105,14 +106,24 @@ export class MappingTestPageComponent implements OnInit {
     this.noticeMessage = '';
     this.showCompletionModal = true;
   }
-protected closeCompletionModal(): void {
+  protected closeCompletionModal(): void {
     this.showCompletionModal = false;
+  }
+
+  protected openNewMappingConfirmModal(): void {
+    this.showNewMappingConfirmModal = true;
+  }
+
+  protected closeNewMappingConfirmModal(): void {
+    this.showNewMappingConfirmModal = false;
   }
 
   protected goToNewMapping(): void {
     this.showCompletionModal = false;
+    this.showNewMappingConfirmModal = false;
     void this.router.navigate(['/mappings/create']);
   }
+
   private loadMapping(mappingId: string): void {
     this.isLoading = true;
     this.loadError = '';

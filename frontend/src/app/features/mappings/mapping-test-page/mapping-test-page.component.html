@@ -86,7 +86,7 @@
           <button class="primary-action" type="button" (click)="continueNext()" [disabled]="isRunning">
             Testi Tamamla
           </button>
-          <button class="secondary-action" type="button" (click)="goToNewMapping()">
+          <button class="secondary-action" type="button" (click)="openNewMappingConfirmModal()">
             Yeni Mapping Oluştur
           </button>
         </div>
@@ -94,13 +94,26 @@
     </section>
   </section>
   <div class="completion-overlay" *ngIf="showCompletionModal">
-  <div class="completion-modal">
-    <div class="completion-modal__icon">✓</div>
-    <h2 class="completion-modal__title">Test Tamamlandı</h2>
-    <p class="completion-modal__text">Mapping tanımı test edildi ve kullanıma hazır.</p>
-    <div class="completion-modal__actions">
-      <button type="button" class="completion-modal__btn" (click)="closeCompletionModal()">Kapat</button>
+    <div class="completion-modal">
+      <div class="completion-modal__icon">✓</div>
+      <h2 class="completion-modal__title">Test Tamamlandı</h2>
+      <p class="completion-modal__text">Mapping tanımı test edildi ve kullanıma hazır.</p>
+      <div class="completion-modal__actions">
+        <button type="button" class="completion-modal__btn" (click)="closeCompletionModal()">Kapat</button>
+      </div>
     </div>
   </div>
-</div>
+
+  <div class="completion-overlay" *ngIf="showNewMappingConfirmModal">
+    <div class="completion-modal">
+      <h2 class="completion-modal__title">Yeni Mapping Oluşturulsun mu?</h2>
+      <p class="completion-modal__text">Bu test ekranından çıkıp yeni mapping adımına dönmek üzeresiniz.</p>
+      <div class="completion-modal__actions">
+        <button type="button" class="completion-modal__btn completion-modal__btn--secondary" (click)="closeNewMappingConfirmModal()">
+          Vazgeç
+        </button>
+        <button type="button" class="completion-modal__btn" (click)="goToNewMapping()">Eminim</button>
+      </div>
+    </div>
+  </div>
 </main>

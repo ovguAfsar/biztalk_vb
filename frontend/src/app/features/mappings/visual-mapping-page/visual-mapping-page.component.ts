@@ -143,6 +143,12 @@ export class VisualMappingPageComponent implements OnInit {
   protected saveMappings(): void {
     this.successMessage = '';
     this.saveError = '';
+
+    if (this.mappingDefinitions.length === 0) {
+      this.saveError = 'Devam etmeden önce en az bir alan eşleştirmesi yapın.';
+      return;
+    }
+
     this.isSaving = true;
 
     this.mappingApi.saveMappings(this.mappingId, { mappings: this.mappingDefinitions })
