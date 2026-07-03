@@ -44,6 +44,9 @@ export class VisualMappingPageComponent implements OnInit {
   protected selectedSourceField = '';
   protected selectedTargetField = '';
   protected selectedTransformType: MappingTransformType = 'direct';
+  protected draggedSourceField = '';
+  protected dragTargetField = '';
+  protected dragTransformType: MappingTransformType = 'direct';
   protected activeBottomTab: BottomPanelTab = 'properties';
   protected isLoading = true;
   protected isSaving = false;
@@ -113,18 +116,83 @@ export class VisualMappingPageComponent implements OnInit {
     this.selectedTransformType = (event.target as HTMLSelectElement).value as MappingTransformType;
   }
 
+  protected startSourceDrag(event: DragEvent, fieldName: string): void {
+    this.draggedSourceField = fieldName;
+    this.selectedSourceField = fieldName;
+    this.dragTransformType = 'direct';
+    this.selectedTransformType = 'direct';
+    this.successMessage = '';
+    this.saveError = '';
+
+    event.dataTransfer?.setData('text/plain', fieldName);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+    }
+  }
+
+  protected enterTargetDropZone(event: DragEvent, fieldName: string): void {
+    if (!this.draggedSourceField) {
+      return;
+    }
+
+    event.preventDefault();
+    this.dragTargetField = fieldName;
+    this.selectedTargetField = fieldName;
+  }
+
+  protected leaveTargetDropZone(fieldName: string): void {
+    if (!this.draggedSourceField && this.dragTargetField === fieldName) {
+      this.dragTargetField = '';
+    }
+  }
+
+  protected updateDragTransform(transformType: MappingTransformType): void {
+    this.dragTransformType = transformType;
+    this.selectedTransformType = transformType;
+  }
+
+  protected dropOnTarget(event: DragEvent, targetField: string): void {
+    event.preventDefault();
+    const sourceField = this.draggedSourceField || event.dataTransfer?.getData('text/plain') || '';
+
+    this.connectFields(sourceField, targetField, this.dragTransformType);
+    this.clearDragState();
+  }
+
+  protected endSourceDrag(): void {
+    this.clearDragState();
+  }
+
   protected connectSelectedFields(): void {
-    if (!this.selectedSourceField || !this.selectedTargetField) {
+    this.connectFields(this.selectedSourceField, this.selectedTargetField, this.selectedTransformType);
+  }
+
+  protected getMappingSourceLabel(mappingDefinition: MappingDefinition): string {
+    return this.getSourceFieldNames(mappingDefinition.sourceField)
+      .map(fieldName => this.getSourceLabelByName(fieldName))
+      .join(' + ');
+  }
+
+  private connectFields(
+    sourceField: string,
+    targetField: string,
+    transformType: MappingTransformType
+  ): void {
+    if (!sourceField || !targetField) {
       return;
     }
 
     const existingIndex = this.mappingDefinitions.findIndex(
-      mapping => mapping.targetField === this.selectedTargetField
+      mapping => mapping.targetField === targetField
     );
+    const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
+    const sourceFieldValue = transformType === 'concat' && existingMapping?.transformType === 'concat'
+      ? this.mergeSourceFields(existingMapping.sourceField, sourceField)
+      : sourceField;
     const mappingDefinition: MappingDefinition = {
-      sourceField: this.selectedSourceField,
-      targetField: this.selectedTargetField,
-      transformType: this.selectedTransformType
+      sourceField: sourceFieldValue,
+      targetField,
+      transformType
     };
 
     if (existingIndex >= 0) {
@@ -191,7 +259,7 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected isSourceMapped(fieldName: string): boolean {
-    return this.mappingDefinitions.some(mapping => mapping.sourceField === fieldName);
+    return this.mappingDefinitions.some(mapping => this.getSourceFieldNames(mapping.sourceField).includes(fieldName));
   }
 
   protected isTargetMapped(fieldName: string): boolean {
@@ -203,7 +271,8 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected getSourceLineY(sourceField: string): number {
-    const index = Math.max(this.sourceFields.findIndex(field => field.name === sourceField), 0);
+    const firstSourceField = this.getSourceFieldNames(sourceField)[0] ?? sourceField;
+    const index = Math.max(this.sourceFields.findIndex(field => field.name === firstSourceField), 0);
     return 94 + index * 58;
   }
 
@@ -265,6 +334,27 @@ export class VisualMappingPageComponent implements OnInit {
 
   private getTargetField(fieldName: string): TargetField | undefined {
     return this.targetFields.find(field => field.name === fieldName);
+  }
+
+  private clearDragState(): void {
+    this.draggedSourceField = '';
+    this.dragTargetField = '';
+    this.dragTransformType = this.selectedTransformType;
+  }
+
+  private mergeSourceFields(existingSourceField: string, nextSourceField: string): string {
+    const sourceFields = [...this.getSourceFieldNames(existingSourceField), nextSourceField]
+      .map(fieldName => fieldName.trim())
+      .filter(Boolean);
+
+    return Array.from(new Set(sourceFields)).join(', ');
+  }
+
+  private getSourceFieldNames(sourceField: string): string[] {
+    return sourceField
+      .split(',')
+      .map(fieldName => fieldName.trim())
+      .filter(Boolean);
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {

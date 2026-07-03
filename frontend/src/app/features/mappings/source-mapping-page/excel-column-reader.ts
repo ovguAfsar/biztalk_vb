@@ -185,7 +185,13 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
     throw new Error('Excel dosyasında kolon başlığı bulunamadı.');
   }
 
-  const sampleRow = rows[1] ?? [];
+  const sampleRow = rows[1];
+  if (!sampleRow) {
+    throw new Error('Excel dosyasında en az bir veri satırı bulunmalıdır.');
+  }
+
+  validateHeaderRow(headerRow, sampleRow, 'Kolon');
+
   const sampleByColumn = new Map(sampleRow.map(cell => [cell.columnIndex, cell.value]));
   const columns = headerRow
     .filter(cell => cell.value.trim())
@@ -248,7 +254,13 @@ function readCsvColumns(text: string): ExcelColumnImport[] {
     throw new Error('CSV dosyasında kolon başlığı bulunamadı.');
   }
 
-  const sampleRow = rows[1] ?? [];
+  const sampleRow = rows[1];
+  if (!sampleRow) {
+    throw new Error('CSV dosyasında en az bir veri satırı bulunmalıdır.');
+  }
+
+  validateCsvHeaderRow(headerRow, sampleRow);
+
   const columns = headerRow
     .map((header, index) => ({
       column: getColumnNameFromIndex(index + 1),
@@ -262,6 +274,52 @@ function readCsvColumns(text: string): ExcelColumnImport[] {
   }
 
   return columns;
+}
+
+function validateHeaderRow(
+  headerRow: Array<{ column: string; columnIndex: number; value: string }>,
+  sampleRow: Array<{ columnIndex: number; value: string }>,
+  label: string
+): void {
+  const maxColumnIndex = Math.max(
+    ...headerRow.map(cell => cell.columnIndex),
+    ...sampleRow.map(cell => cell.columnIndex)
+  );
+  const headerByColumn = new Map(headerRow.map(cell => [cell.columnIndex, cell.value.trim()]));
+  const seenHeaders = new Set<string>();
+
+  for (let columnIndex = 1; columnIndex <= maxColumnIndex; columnIndex += 1) {
+    const header = headerByColumn.get(columnIndex) ?? '';
+    if (!header) {
+      throw new Error(`${label} adı boş olamaz.`);
+    }
+
+    const normalizedHeader = header.toLocaleLowerCase('tr-TR');
+    if (seenHeaders.has(normalizedHeader)) {
+      throw new Error(`Tekrarlı ${label.toLocaleLowerCase('tr-TR')} başlığı var: ${header}.`);
+    }
+
+    seenHeaders.add(normalizedHeader);
+  }
+}
+
+function validateCsvHeaderRow(headerRow: string[], sampleRow: string[]): void {
+  const maxColumnCount = Math.max(headerRow.length, sampleRow.length);
+  const seenHeaders = new Set<string>();
+
+  for (let index = 0; index < maxColumnCount; index += 1) {
+    const header = headerRow[index]?.trim() ?? '';
+    if (!header) {
+      throw new Error('Kolon adı boş olamaz.');
+    }
+
+    const normalizedHeader = header.toLocaleLowerCase('tr-TR');
+    if (seenHeaders.has(normalizedHeader)) {
+      throw new Error(`Tekrarlı kolon başlığı var: ${header}.`);
+    }
+
+    seenHeaders.add(normalizedHeader);
+  }
 }
 
 function parseCsvRows(text: string): string[][] {
