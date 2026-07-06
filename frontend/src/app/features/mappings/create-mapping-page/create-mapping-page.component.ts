@@ -45,6 +45,7 @@ export class CreateMappingPageComponent {
   protected detectedSourceType: MappingSourceType | '' = '';
   protected sourceFields: SourceField[] = [];
   protected createdMapping?: MappingCreateResponse;
+  protected isSourceDragActive = false;
 
   protected get nameInvalid(): boolean {
     const control = this.form.controls.name;
@@ -79,6 +80,49 @@ export class CreateMappingPageComponent {
       return;
     }
 
+    await this.importSourceFile(file);
+    input.value = '';
+  }
+
+  protected onSourceFileDragOver(event: DragEvent): void {
+    if (this.isSubmitting) {
+      return;
+    }
+
+    event.preventDefault();
+    this.isSourceDragActive = true;
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  protected onSourceFileDragLeave(event: DragEvent): void {
+    const currentTarget = event.currentTarget as HTMLElement | null;
+    const nextTarget = event.relatedTarget as Node | null;
+    if (currentTarget && nextTarget && currentTarget.contains(nextTarget)) {
+      return;
+    }
+
+    this.isSourceDragActive = false;
+  }
+
+  protected async onSourceFileDropped(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    this.isSourceDragActive = false;
+
+    if (this.isSubmitting) {
+      return;
+    }
+
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    await this.importSourceFile(file);
+  }
+
+  private async importSourceFile(file: File): Promise<void> {
     this.sourceFileName = file.name;
     this.sourceFileError = '';
     this.errorMessage = '';
@@ -96,7 +140,6 @@ export class CreateMappingPageComponent {
       this.sourceFields = [];
       this.sourceFileError = error instanceof Error ? error.message : 'Dosya okunamadı.';
     } finally {
-      input.value = '';
       this.changeDetector.detectChanges();
     }
   }

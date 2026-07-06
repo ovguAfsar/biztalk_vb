@@ -31,15 +31,25 @@
       </div>
 
       <fieldset class="option-section" aria-label="Kaynak dosya yükleme">
-        <label class="source-upload" [class.source-upload--ready]="hasSourceFile" [class.source-upload--disabled]="isSubmitting">
+        <label
+          class="source-upload"
+          [class.source-upload--ready]="hasSourceFile"
+          [class.source-upload--active]="isSourceDragActive"
+          [class.source-upload--disabled]="isSubmitting"
+          (dragover)="onSourceFileDragOver($event)"
+          (dragleave)="onSourceFileDragLeave($event)"
+          (drop)="onSourceFileDropped($event)"
+        >
           <input
             type="file"
             accept=".xlsx,.xls,.csv,.txt"
             (change)="onSourceFileSelected($event)"
             [disabled]="isSubmitting"
           >
-          <span class="source-upload__title">Dosya Yükle</span>
-          <span class="source-upload__description">Excel, CSV veya TXT dosyası seçin.</span>
+          <span class="source-upload__icon" aria-hidden="true"></span>
+          <span class="source-upload__title">Dosyanızı buraya sürükleyin veya</span>
+          <span class="source-upload__button">Dosya Seç</span>
+          <span class="source-upload__description">Desteklenen dosya türleri: Excel (.xlsx, .xls), CSV (.csv), TXT (.txt)</span>
           <span class="source-upload__meta" *ngIf="hasSourceFile">
             {{ sourceFileName }} · {{ sourceFields.length }} alan · {{ detectedSourceTypeLabel }}
           </span>

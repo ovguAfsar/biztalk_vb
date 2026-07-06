@@ -33,13 +33,18 @@
       </div>
 
       <section class="file-import" *ngIf="isFileSource">
-        <div class="file-import__summary" [class.file-import__summary--ready]="hasImportedFields">
-          <div>
-            <h2>{{ sourceFileTitle }}</h2>
-            <p *ngIf="!hasImportedFields">{{ sourceFileDescription }}</p>
-            <p *ngIf="hasImportedFields">{{ sourceFileName }} · {{ fields.length }} {{ importCountLabel }}</p>
-            <p class="detected-format" *ngIf="detectedSourceTypeLabel">Algılanan format: {{ detectedSourceTypeLabel }}</p>
-          </div>
+        <div
+          class="file-import__summary"
+          [class.file-import__summary--ready]="hasImportedFields"
+          [class.file-import__summary--active]="isFileDragActive"
+          [class.file-import__summary--disabled]="isSaving || isFileParsing"
+          (dragover)="onSourceFileDragOver($event)"
+          (dragleave)="onSourceFileDragLeave($event)"
+          (drop)="onSourceFileDropped($event)"
+        >
+          <span class="file-import__icon" aria-hidden="true"></span>
+          <h2>{{ sourceFileTitle }}</h2>
+          <p class="file-import__title">Dosyanızı buraya sürükleyin veya</p>
 
           <label class="file-picker" [class.file-picker--disabled]="isSaving || isFileParsing">
             <span *ngIf="!hasImportedFields">Dosya Seç</span>
@@ -51,6 +56,15 @@
               [disabled]="isSaving || isFileParsing"
             >
           </label>
+
+          <p class="file-import__description">
+            Desteklenen dosya türleri: Excel (.xlsx, .xls), CSV (.csv), TXT (.txt)
+          </p>
+          <p class="file-import__description" *ngIf="!hasImportedFields">{{ sourceFileDescription }}</p>
+          <p class="file-import__meta" *ngIf="hasImportedFields">
+            {{ sourceFileName }} · {{ fields.length }} {{ importCountLabel }}
+          </p>
+          <p class="detected-format" *ngIf="detectedSourceTypeLabel">Algılanan format: {{ detectedSourceTypeLabel }}</p>
         </div>
 
         <p class="state-message" *ngIf="isFileParsing">Dosya alanları okunuyor...</p>
