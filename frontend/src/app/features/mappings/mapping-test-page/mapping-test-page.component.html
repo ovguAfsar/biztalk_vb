@@ -83,9 +83,6 @@
             <span *ngIf="!isRunning">Mapping'i Çalıştır</span>
             <span *ngIf="isRunning">Çalıştırılıyor...</span>
           </button>
-          <button class="primary-action" type="button" (click)="continueNext()" [disabled]="isRunning">
-            Testi Tamamla
-          </button>
           <button class="secondary-action" type="button" (click)="openNewMappingConfirmModal()">
             Yeni Mapping Oluştur
           </button>
@@ -93,6 +90,44 @@
       </div>
     </section>
   </section>
+
+  <div class="completion-overlay" *ngIf="showTestResultModal">
+    <div class="completion-modal completion-modal--wide">
+      <div class="completion-modal__icon" [class.completion-modal__icon--error]="errors.length > 0">
+        {{ errors.length > 0 ? '!' : '✓' }}
+      </div>
+      <h2 class="completion-modal__title">Test Sonucu</h2>
+      <p class="completion-modal__text" *ngIf="errors.length === 0 && warnings.length === 0">
+        Mapping başarıyla çalıştırıldı. Hata veya uyarı bulunamadı.
+      </p>
+
+      <div class="result-summary" *ngIf="warnings.length > 0 || errors.length > 0">
+        <div class="result-summary__column" *ngIf="warnings.length > 0">
+          <h3>Warnings</h3>
+          <ul>
+            <li *ngFor="let warning of warnings">{{ warning }}</li>
+          </ul>
+        </div>
+
+        <div class="result-summary__column result-summary__column--error" *ngIf="errors.length > 0">
+          <h3>Errors</h3>
+          <ul>
+            <li *ngFor="let error of errors">{{ error }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="completion-modal__actions">
+        <button type="button" class="completion-modal__btn completion-modal__btn--secondary" (click)="closeTestResultModal()">
+          Kapat
+        </button>
+        <button type="button" class="completion-modal__btn" (click)="continueNext()" [disabled]="!hasSuccessfulRun">
+          Testi Tamamla
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="completion-overlay" *ngIf="showCompletionModal">
     <div class="completion-modal">
       <div class="completion-modal__icon">✓</div>
