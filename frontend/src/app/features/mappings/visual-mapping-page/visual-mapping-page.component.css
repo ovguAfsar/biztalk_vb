@@ -201,6 +201,7 @@
 .schema-field {
   display: grid;
   gap: 4px;
+  align-content: center;
   min-height: 58px;
   padding: 10px 12px;
 }
@@ -249,6 +250,8 @@
   overflow-wrap: anywhere;
   font-size: 0.9rem;
   font-weight: 760;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .field-meta,
@@ -257,6 +260,8 @@
   color: #64748b;
   font-size: 0.78rem;
   font-weight: 650;
+  line-height: 1.25;
+  word-break: break-word;
 }
 
 .mapped-from {
@@ -373,7 +378,7 @@
   display: grid;
   align-content: start;
   gap: 14px;
-  width: 190px;
+  width: 210px;
 }
 
 .canvas-column--source {
@@ -382,11 +387,13 @@
 
 .canvas-column--target {
   right: 24px;
+  width: 235px;
 }
 
 .canvas-node {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 58px;
@@ -397,14 +404,16 @@
 }
 
 .canvas-column--target .canvas-node {
+  grid-template-columns: minmax(0, 1fr) max-content;
   padding-left: 30px;
-  padding-right: 10px;
+  padding-right: 12px;
 }
 
 .canvas-node__content {
   display: grid;
   gap: 3px;
   min-width: 0;
+  align-content: center;
 }
 
 .canvas-node__label {
@@ -412,8 +421,9 @@
   color: #172033;
   font-size: 0.9rem;
   font-weight: 760;
-  line-height: 1.15;
+  line-height: 1.22;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .canvas-node__meta {
@@ -431,7 +441,7 @@
   justify-content: flex-end;
   gap: 5px;
   margin-left: auto;
-  max-width: 96px;
+  max-width: 104px;
 }
 
 .canvas-node__type {
@@ -444,6 +454,7 @@
   line-height: 1;
   padding: 4px 7px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .canvas-node__badge {
@@ -456,6 +467,7 @@
   line-height: 1;
   padding: 2px 6px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .connector-port {
