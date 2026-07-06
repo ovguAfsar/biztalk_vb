@@ -1,0 +1,16 @@
+<nav class="wizard-stepper" aria-label="Mapping adımları">
+  <ol class="wizard-stepper__list">
+    <li
+      class="wizard-stepper__item"
+      *ngFor="let step of steps; let isLast = last"
+      [class.wizard-stepper__item--completed]="getStepState(step.number) === 'completed'"
+      [class.wizard-stepper__item--active]="getStepState(step.number) === 'active'"
+      [class.wizard-stepper__item--upcoming]="getStepState(step.number) === 'upcoming'"
+      [attr.aria-current]="getStepState(step.number) === 'active' ? 'step' : null"
+    >
+      <span class="wizard-stepper__marker">{{ step.number }}</span>
+      <span class="wizard-stepper__label">{{ step.label }}</span>
+      <span class="wizard-stepper__line" *ngIf="!isLast"></span>
+    </li>
+  </ol>
+</nav>

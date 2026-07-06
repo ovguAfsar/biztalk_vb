@@ -12,6 +12,7 @@ import {
   TargetField
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
+import { WizardStepperComponent } from '../../../shared/wizard-stepper/wizard-stepper.component';
 
 type BottomPanelTab = 'properties' | 'output' | 'warnings';
 
@@ -23,7 +24,7 @@ interface PendingConnection {
 @Component({
   selector: 'app-visual-mapping-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, WizardStepperComponent],
   templateUrl: './visual-mapping-page.component.html',
   styleUrl: './visual-mapping-page.component.css'
 })

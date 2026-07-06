@@ -1,8 +1,8 @@
 <main class="create-page">
   <section class="wizard-shell" aria-labelledby="create-mapping-title">
     <header class="wizard-header">
-      <p class="wizard-header__step">Adım 1 / 3 — Kaynak Dosya</p>
       <h1 id="create-mapping-title">Yeni Mapping Oluştur</h1>
+      <app-wizard-stepper [currentStep]="1"></app-wizard-stepper>
     </header>
 
     <form class="mapping-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>

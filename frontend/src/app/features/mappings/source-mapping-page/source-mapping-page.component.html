@@ -1,8 +1,8 @@
 <main class="source-page">
   <section class="wizard-shell" aria-labelledby="source-title">
     <header class="wizard-header">
-      <p class="wizard-header__step">Adım 1 / 3 — Kaynak Veri Tanımlama</p>
       <h1 id="source-title">Yeni Mapping Oluştur</h1>
+      <app-wizard-stepper [currentStep]="1"></app-wizard-stepper>
 
       <div class="mapping-summary" *ngIf="mapping">
         <span class="mapping-summary__name">{{ mapping.name }}</span>

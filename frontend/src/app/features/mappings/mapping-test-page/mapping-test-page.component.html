@@ -1,8 +1,8 @@
 <main class="test-page">
   <section class="wizard-shell" aria-labelledby="test-title">
     <header class="wizard-header">
-      <p class="wizard-header__step">Adım 3 / 3 — Mapping Test</p>
       <h1 id="test-title">Yeni Mapping Oluştur</h1>
+      <app-wizard-stepper [currentStep]="3"></app-wizard-stepper>
 
       <div class="mapping-summary" *ngIf="mapping">
         <span class="mapping-summary__name">{{ mapping.name }}</span>
