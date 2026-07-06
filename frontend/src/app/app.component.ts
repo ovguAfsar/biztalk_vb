@@ -5,7 +5,11 @@ import { RouterOutlet } from '@angular/router';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet],
-  template: '<router-outlet />'
+  template: `
+    <div class="app-brand-logo" aria-label="VakıfBank">
+      VakıfBank
+    </div>
+    <router-outlet />
+  `
 })
 export class AppComponent {}
-

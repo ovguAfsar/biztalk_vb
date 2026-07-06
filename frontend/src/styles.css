@@ -1,8 +1,10 @@
 :root {
   color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f5f7fb;
-  color: #172033;
+  --brand-background: radial-gradient(ellipse 58% 118% at 112% 72%, #ffd166 0 42%, transparent 43%), #fdb515;
+  --brand-yellow: #ffd166;
+  background: var(--brand-background);
+  color: #000000;
 }
 
 * {
@@ -16,7 +18,9 @@ body {
 }
 
 body {
-  background: #f5f7fb;
+  background: var(--brand-background);
+  background-attachment: fixed;
+  color: #000000;
 }
 
 button,
@@ -25,3 +29,110 @@ textarea {
   font: inherit;
 }
 
+html,
+body,
+app-root {
+  background: var(--brand-background) !important;
+  color: #000000 !important;
+}
+
+app-root {
+  position: relative;
+  display: block;
+  min-height: 100vh;
+}
+
+body * {
+  color: #000000 !important;
+}
+
+.app-brand-logo {
+  position: absolute;
+  z-index: 30;
+  top: 22px;
+  right: 28px;
+  font-size: clamp(1.55rem, 3vw, 2.75rem);
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  background: transparent !important;
+  padding: 0;
+  pointer-events: none;
+}
+
+main,
+.create-page,
+.source-page,
+.target-page,
+.map-page,
+.test-page {
+  background: var(--brand-background) !important;
+  background-attachment: fixed !important;
+}
+
+.schema-field,
+.canvas-node,
+.mapping-row,
+.mapping-list,
+.bottom-panel,
+.tab-panel,
+.source-upload,
+.file-import__summary,
+.source-field-card,
+.target-field-row,
+.field-row,
+.test-card,
+.json-panel,
+.messages-panel,
+.message-body,
+.completion-modal,
+.result-summary,
+.modal-card,
+.required-fields-modal,
+input,
+textarea,
+select {
+  background-color: #ffffff !important;
+}
+
+.schema-field--required,
+.schema-field--required-missing,
+.canvas-node--required,
+.canvas-node--required-missing,
+.schema-field-group__header--required strong,
+.canvas-field-group__header--required,
+.canvas-node__badge,
+.required-toggle input:checked + span {
+  border-color: #000000 !important;
+  background-color: var(--brand-yellow) !important;
+  color: #000000 !important;
+}
+
+.required-toggle span {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d7deea !important;
+  border-radius: 8px;
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  padding: 6px 10px;
+}
+
+.schema-field--required *,
+.schema-field--required-missing *,
+.canvas-node--required *,
+.canvas-node--required-missing *,
+.canvas-field-group__header--required *,
+.canvas-node__badge *,
+.required-toggle input:checked + span * {
+  color: #000000 !important;
+}
+
+@media (max-width: 720px) {
+  .app-brand-logo {
+    top: 12px;
+    right: 12px;
+    font-size: 1.35rem;
+  }
+}

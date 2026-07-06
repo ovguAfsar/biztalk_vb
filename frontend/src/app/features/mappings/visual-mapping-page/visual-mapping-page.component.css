@@ -15,7 +15,7 @@
 .wizard-header h1 {
   margin: 0;
   color: #111827;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(1.65rem, 3.2vw, 2.35rem);
   font-weight: 760;
   letter-spacing: 0;
   line-height: 1.08;
@@ -325,7 +325,7 @@
 }
 
 .connection-line {
-  stroke: #2563eb;
+  stroke: #000000;
   stroke-linecap: round;
   stroke-width: 3;
 }
@@ -335,29 +335,29 @@
 }
 
 .connection-line--preview {
-  stroke: #0f766e;
+  stroke: #000000;
   stroke-dasharray: 10 8;
   stroke-width: 4;
 }
 
 .connection-preview-end {
-  fill: #0f766e;
+  fill: #000000;
   stroke: #ffffff;
   stroke-width: 3;
 }
 
 .connection-arrowhead {
-  fill: #2563eb;
+  fill: #000000;
 }
 
 .connection-function rect {
   fill: #ffffff;
-  stroke: #2563eb;
+  stroke: #000000;
   stroke-width: 2;
 }
 
 .connection-function text {
-  fill: #1d4ed8;
+  fill: #000000;
   font-size: 20px;
   font-weight: 760;
   paint-order: stroke;
@@ -651,7 +651,7 @@
 }
 
 .mapping-row__arrow {
-  color: #2563eb;
+  color: #000000;
   font-weight: 800;
 }
 
