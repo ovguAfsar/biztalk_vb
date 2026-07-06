@@ -335,6 +335,20 @@ export class VisualMappingPageComponent implements OnInit {
     }
   }
 
+  protected canUsePendingTransform(transformType: MappingTransformType): boolean {
+    if (!this.pendingConnection) {
+      return true;
+    }
+
+    return !this.getMappingForTarget(this.pendingConnection.targetField) || transformType === 'concat';
+  }
+
+  protected getPendingTransformTitle(transformType: MappingTransformType): string {
+    return this.canUsePendingTransform(transformType)
+      ? transformType
+      : 'Bu hedef alan zaten dolu. Aynı hedefe ek kaynak sadece concat ile bağlanabilir.';
+  }
+
   protected cancelPendingConnection(): void {
     this.pendingConnection = undefined;
     this.selectedSourceField = '';
@@ -348,9 +362,13 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected getMappingSourceLabel(mappingDefinition: MappingDefinition): string {
-    return this.getSourceFieldNames(mappingDefinition.sourceField)
+    return this.getConnectionSourceFields(mappingDefinition)
       .map(fieldName => this.getSourceLabelByName(fieldName))
       .join(' + ');
+  }
+
+  protected getConnectionSourceFields(mappingDefinition: MappingDefinition): string[] {
+    return this.getSourceFieldNames(mappingDefinition.sourceField);
   }
 
   private connectFields(
@@ -366,6 +384,11 @@ export class VisualMappingPageComponent implements OnInit {
       mapping => mapping.targetField === targetField
     );
     const existingMapping = existingIndex >= 0 ? this.mappingDefinitions[existingIndex] : undefined;
+
+    if (existingMapping && transformType !== 'concat') {
+      this.saveError = 'Bu hedef alan zaten eşleşmiş. Aynı hedefe ek kaynak sadece concat ile bağlanabilir.';
+      return false;
+    }
 
     const sourceFieldValue = transformType === 'concat' && existingMapping
       ? this.mergeSourceFields(existingMapping.sourceField, sourceField)
@@ -517,7 +540,12 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
-    return (this.getSourceLineY(mappingDefinition.sourceField) + this.getTargetLineY(mappingDefinition.targetField)) / 2 - 8;
+    const sourceFields = this.getConnectionSourceFields(mappingDefinition);
+    const sourceAverageY = sourceFields.length > 0
+      ? sourceFields.reduce((total, sourceField) => total + this.getSourceLineY(sourceField), 0) / sourceFields.length
+      : this.getSourceLineY(mappingDefinition.sourceField);
+
+    return (sourceAverageY + this.getTargetLineY(mappingDefinition.targetField)) / 2 - 8;
   }
 
   protected getFunctionNodeLabel(mappingDefinition: MappingDefinition): string {
