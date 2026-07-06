@@ -326,7 +326,7 @@ public sealed class MappingService : IMappingService
             }
         }
 
-        ApplyTargetFieldFormats(output, mapping.TargetSchema!, warnings);
+        ApplyTargetFieldFormats(output, mapping.TargetSchema!, warnings, errors);
 
         return new TestMappingResponse
         {
@@ -849,7 +849,8 @@ public sealed class MappingService : IMappingService
     private static void ApplyTargetFieldFormats(
         IDictionary<string, object?> output,
         TargetSchemaDocument targetSchema,
-        ICollection<string> warnings)
+        ICollection<string> warnings,
+        ICollection<string> errors)
     {
         foreach (var field in targetSchema.Fields)
         {
@@ -857,7 +858,7 @@ public sealed class MappingService : IMappingService
             {
                 if (field.FixedValue is not null)
                 {
-                    output[field.Name] = FormatTargetFieldValue(null, field, warnings);
+                    output[field.Name] = FormatTargetFieldValue(null, field, warnings, errors);
                     continue;
                 }
 
@@ -874,7 +875,7 @@ public sealed class MappingService : IMappingService
                 continue;
             }
 
-            output[field.Name] = FormatTargetFieldValue(value, field, warnings);
+            output[field.Name] = FormatTargetFieldValue(value, field, warnings, errors);
         }
     }
 
@@ -890,7 +891,8 @@ public sealed class MappingService : IMappingService
     private static string FormatTargetFieldValue(
         object? value,
         TargetFieldDocument field,
-        ICollection<string> warnings)
+        ICollection<string> warnings,
+        ICollection<string> errors)
     {
         var text = field.FixedValue is not null ? field.FixedValue : ObjectValueToText(value);
         var format = field.Format?.Trim();
@@ -910,22 +912,22 @@ public sealed class MappingService : IMappingService
         }
 
         return field.Length.HasValue
-            ? ApplyFixedLength(text, field, warnings)
+            ? ApplyFixedLength(text, field, errors)
             : text;
     }
 
     private static string ApplyFixedLength(
         string value,
         TargetFieldDocument field,
-        ICollection<string> warnings)
+        ICollection<string> errors)
     {
         var length = field.Length!.Value;
         var normalizedValue = value;
 
         if (normalizedValue.Length > length)
         {
-            warnings.Add($"Target field '{field.Name}' exceeded length {length}; value was truncated.");
-            normalizedValue = normalizedValue[..length];
+            errors.Add($"Target field '{field.Name}' expects length {length} but received value of length {normalizedValue.Length}. Value was not truncated.");
+            return normalizedValue;
         }
 
         if (normalizedValue.Length == length)

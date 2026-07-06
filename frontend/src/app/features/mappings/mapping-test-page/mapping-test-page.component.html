@@ -97,8 +97,9 @@
         {{ errors.length > 0 ? '!' : '✓' }}
       </div>
       <h2 class="completion-modal__title">Test Sonucu</h2>
-      <p class="completion-modal__text" *ngIf="errors.length === 0 && warnings.length === 0">
-        Mapping başarıyla çalıştırıldı. Hata veya uyarı bulunamadı.
+      <p class="completion-modal__text" *ngIf="errors.length === 0">
+        Mapping başarıyla çalıştırıldı.
+        <span *ngIf="warnings.length === 0">Hata veya uyarı bulunamadı.</span>
       </p>
 
       <div class="result-summary" *ngIf="warnings.length > 0 || errors.length > 0">
