@@ -14,13 +14,14 @@ import {
   SourceField
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
+import { WizardStepperComponent } from '../../../shared/wizard-stepper/wizard-stepper.component';
 import { createDefaultTargetSchemaRequest } from '../default-target-schema';
 import { SourceFieldImport, readSourceFile } from '../source-mapping-page/source-file-reader';
 
 @Component({
   selector: 'app-create-mapping-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, WizardStepperComponent],
   templateUrl: './create-mapping-page.component.html',
   styleUrl: './create-mapping-page.component.css'
 })
