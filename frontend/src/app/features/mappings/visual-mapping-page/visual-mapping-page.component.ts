@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs';
 
@@ -29,10 +29,20 @@ interface PendingConnection {
   styleUrl: './visual-mapping-page.component.css'
 })
 export class VisualMappingPageComponent implements OnInit {
+  private readonly hostElement = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly mappingApi = inject(MappingApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  protected readonly sourcePortX = 204;
+  protected readonly functionInputX = 452;
+  protected readonly functionOutputX = 548;
+  protected readonly targetPortX = 786;
+  private readonly sourceFirstPortY = 93;
+  private readonly sourcePortStepY = 72;
+  private readonly targetFirstPortY = 119;
+  private readonly targetPortStepY = 66;
+  private readonly targetOptionalFirstPortY = 151;
 
   protected readonly transformOptions: MappingTransformType[] = [
     'direct',
@@ -52,6 +62,8 @@ export class VisualMappingPageComponent implements OnInit {
   protected selectedTransformType: MappingTransformType = 'direct';
   protected draggedSourceField = '';
   protected dragTargetField = '';
+  protected dragPreviewX = this.sourcePortX;
+  protected dragPreviewY = 0;
   protected pendingConnection?: PendingConnection;
   protected activeBottomTab: BottomPanelTab = 'properties';
   protected isLoading = true;
@@ -94,10 +106,14 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   protected get canvasHeight(): number {
-    const sourceHeight = this.sourceFields.length * 58;
-    const targetHeaderHeight = (this.requiredTargetFields.length > 0 ? 40 : 0)
-      + (this.optionalTargetFields.length > 0 ? 40 : 0);
-    const targetHeight = this.targetFields.length * 58 + targetHeaderHeight;
+    const sourceHeight = this.sourceFields.length * this.sourcePortStepY;
+    const requiredHeight = this.requiredTargetFields.length > 0
+      ? 40 + this.requiredTargetFields.length * this.targetPortStepY
+      : 0;
+    const optionalHeight = this.optionalTargetFields.length > 0
+      ? 40 + this.optionalTargetFields.length * this.targetPortStepY
+      : 0;
+    const targetHeight = requiredHeight + optionalHeight;
 
     return Math.max(420, 112 + Math.max(sourceHeight, targetHeight));
   }
@@ -127,6 +143,14 @@ export class VisualMappingPageComponent implements OnInit {
     return Boolean(this.selectedSourceField && this.selectedTargetField);
   }
 
+  protected get dragPreviewEndX(): number {
+    return this.dragTargetField ? this.getTargetPortX(this.dragTargetField) : this.dragPreviewX;
+  }
+
+  protected get dragPreviewEndY(): number {
+    return this.dragTargetField ? this.getTargetLineY(this.dragTargetField) : this.dragPreviewY;
+  }
+
   protected trackByFieldName(_index: number, field: SourceField | TargetField): string {
     return field.name;
   }
@@ -152,6 +176,8 @@ export class VisualMappingPageComponent implements OnInit {
     this.draggedSourceField = fieldName;
     this.selectedSourceField = fieldName;
     this.selectedTransformType = 'direct';
+    this.dragPreviewX = this.sourcePortX;
+    this.dragPreviewY = this.getSourceLineY(fieldName);
     this.pendingConnection = undefined;
     this.successMessage = '';
     this.saveError = '';
@@ -171,12 +197,18 @@ export class VisualMappingPageComponent implements OnInit {
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'copy';
     }
-    this.dragTargetField = fieldName;
-    this.selectedTargetField = fieldName;
+    this.updateDragPreview(event);
+    this.setActiveDragTarget(this.resolveTargetFieldAtPoint(event.clientX, event.clientY) ?? fieldName);
   }
 
-  protected leaveTargetDropZone(fieldName: string): void {
-    if (this.dragTargetField === fieldName) {
+  protected leaveTargetDropZone(event: DragEvent, fieldName: string): void {
+    const nextTargetField = this.resolveTargetFieldAtPoint(event.clientX, event.clientY);
+    if (nextTargetField && nextTargetField !== fieldName) {
+      this.setActiveDragTarget(nextTargetField);
+      return;
+    }
+
+    if (!nextTargetField && this.dragTargetField === fieldName) {
       this.dragTargetField = '';
     }
   }
@@ -187,18 +219,47 @@ export class VisualMappingPageComponent implements OnInit {
     }
 
     event.preventDefault();
+    this.updateDragPreview(event);
+    const targetField = this.resolveTargetFieldAtPoint(event.clientX, event.clientY);
+    if (targetField) {
+      this.setActiveDragTarget(targetField);
+    } else {
+      this.dragTargetField = '';
+    }
+
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'copy';
     }
   }
 
+  protected updateDragPreview(event: DragEvent): void {
+    if (!this.draggedSourceField) {
+      return;
+    }
+
+    const canvas = (event.target as HTMLElement | null)?.closest('.canvas-grid');
+    if (!canvas) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    const width = Math.max(rect.width, 1);
+    const height = Math.max(rect.height, 1);
+    const x = ((event.clientX - rect.left) / width) * 1000;
+    const y = ((event.clientY - rect.top) / height) * this.canvasHeight;
+
+    this.dragPreviewX = Math.min(960, Math.max(this.sourcePortX, x));
+    this.dragPreviewY = Math.min(this.canvasHeight - 24, Math.max(24, y));
+  }
+
   protected dropOnNearestTarget(event: DragEvent): void {
-    if ((event.target as HTMLElement)?.closest('.target-drop-zone')) {
+    if ((event.target as HTMLElement)?.closest('.target-drop-zone, .schema-target-drop')) {
       return;
     }
 
     event.preventDefault();
-    const targetField = this.resolveNearestTargetField(event.clientY);
+    const targetField = this.resolveTargetFieldAtPoint(event.clientX, event.clientY)
+      ?? this.resolveNearestTargetField(event.clientY);
     if (!targetField) {
       this.clearDragState();
       return;
@@ -237,17 +298,18 @@ export class VisualMappingPageComponent implements OnInit {
     event.preventDefault();
     event.stopPropagation();
     const sourceField = this.draggedSourceField || event.dataTransfer?.getData('text/plain') || '';
+    const resolvedTargetField = this.resolveTargetFieldAtPoint(event.clientX, event.clientY) ?? targetField;
 
-    if (!sourceField) {
+    if (!sourceField || !resolvedTargetField) {
       this.clearDragState();
       return;
     }
 
     this.selectedSourceField = sourceField;
-    this.selectedTargetField = targetField;
-    const existingMapping = this.getMappingForTarget(targetField);
+    this.selectedTargetField = resolvedTargetField;
+    const existingMapping = this.getMappingForTarget(resolvedTargetField);
     this.selectedTransformType = existingMapping ? 'concat' : 'direct';
-    this.pendingConnection = { sourceField, targetField };
+    this.pendingConnection = { sourceField, targetField: resolvedTargetField };
     this.clearDragState(false);
   }
 
@@ -417,22 +479,41 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected getSourceLineY(sourceField: string): number {
     const firstSourceField = this.getSourceFieldNames(sourceField)[0] ?? sourceField;
+    const portCenter = this.getPortCenter('.connector-port--source', firstSourceField);
+    if (portCenter) {
+      return portCenter.y;
+    }
+
     const index = Math.max(this.sourceFields.findIndex(field => field.name === firstSourceField), 0);
-    return 94 + index * 58;
+    return this.sourceFirstPortY + index * this.sourcePortStepY;
+  }
+
+  protected getSourcePortX(sourceField: string): number {
+    const firstSourceField = this.getSourceFieldNames(sourceField)[0] ?? sourceField;
+    return this.getPortCenter('.connector-port--source', firstSourceField)?.x ?? this.sourcePortX;
   }
 
   protected getTargetLineY(targetField: string): number {
+    const portCenter = this.getPortCenter('.connector-port--target', targetField);
+    if (portCenter) {
+      return portCenter.y;
+    }
+
     const requiredIndex = this.requiredTargetFields.findIndex(field => field.name === targetField);
     if (requiredIndex >= 0) {
-      return 113 + requiredIndex * 58;
+      return this.targetFirstPortY + requiredIndex * this.targetPortStepY;
     }
 
     const optionalIndex = Math.max(this.optionalTargetFields.findIndex(field => field.name === targetField), 0);
     const optionalBaseY = this.requiredTargetFields.length > 0
-      ? 153 + this.requiredTargetFields.length * 58
-      : 113;
+      ? this.targetOptionalFirstPortY + this.requiredTargetFields.length * this.targetPortStepY
+      : this.targetFirstPortY;
 
-    return optionalBaseY + optionalIndex * 58;
+    return optionalBaseY + optionalIndex * this.targetPortStepY;
+  }
+
+  protected getTargetPortX(targetField: string): number {
+    return this.getPortCenter('.connector-port--target', targetField)?.x ?? this.targetPortX;
   }
 
   protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
@@ -459,6 +540,10 @@ export class VisualMappingPageComponent implements OnInit {
   protected getTargetLabelByName(fieldName: string): string {
     const field = this.getTargetField(fieldName);
     return field ? this.getTargetFieldLabel(field) : fieldName;
+  }
+
+  protected getCanvasFieldName(field: SourceField | TargetField): string {
+    return field.displayName || this.splitFieldName(field.name);
   }
 
   private loadMapping(mappingId: string): void {
@@ -498,9 +583,65 @@ export class VisualMappingPageComponent implements OnInit {
     return this.targetFields.find(field => field.name === fieldName);
   }
 
+  private setActiveDragTarget(fieldName: string): void {
+    this.dragTargetField = fieldName;
+    this.selectedTargetField = fieldName;
+  }
+
+  private resolveTargetFieldAtPoint(clientX: number, clientY: number): string | undefined {
+    if (!clientX && !clientY) {
+      return undefined;
+    }
+
+    const elements = document.elementsFromPoint(clientX, clientY);
+    for (const element of elements) {
+      const targetElement = element.closest<HTMLElement>('.target-drop-zone[data-field-name], .schema-target-drop[data-field-name]');
+      const fieldName = targetElement?.dataset['fieldName'];
+      if (fieldName) {
+        return fieldName;
+      }
+    }
+
+    return undefined;
+  }
+
+  private splitFieldName(fieldName: string): string {
+    return fieldName
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+      .replace(/\bIban\b/g, 'IBAN')
+      .replace(/\bTc\b/g, 'TC')
+      .trim();
+  }
+
+  private getPortCenter(selector: string, fieldName: string): { x: number; y: number } | undefined {
+    const canvas = this.hostElement.nativeElement.querySelector<HTMLElement>('.canvas-grid');
+    if (!canvas) {
+      return undefined;
+    }
+
+    const ports = Array.from(this.hostElement.nativeElement.querySelectorAll<HTMLElement>(selector));
+    const port = ports.find(element => element.dataset['fieldName'] === fieldName);
+    if (!port) {
+      return undefined;
+    }
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const portRect = port.getBoundingClientRect();
+    const canvasWidth = Math.max(canvasRect.width, 1);
+    const canvasHeight = Math.max(canvasRect.height, 1);
+
+    return {
+      x: ((portRect.left + portRect.width / 2 - canvasRect.left) / canvasWidth) * 1000,
+      y: ((portRect.top + portRect.height / 2 - canvasRect.top) / canvasHeight) * this.canvasHeight
+    };
+  }
+
   private clearDragState(clearPendingConnection = false): void {
     this.draggedSourceField = '';
     this.dragTargetField = '';
+    this.dragPreviewX = this.sourcePortX;
+    this.dragPreviewY = 0;
     if (clearPendingConnection) {
       this.pendingConnection = undefined;
     }

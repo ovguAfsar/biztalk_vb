@@ -60,7 +60,11 @@
             </span>
           </div>
 
-          <div class="canvas-grid" [style.min-height.px]="canvasHeight">
+          <div
+            class="canvas-grid"
+            [style.min-height.px]="canvasHeight"
+            (dragover)="allowDragOverGap($event)"
+          >
             <svg
               class="connection-layer"
               [attr.viewBox]="'0 0 1000 ' + canvasHeight"
@@ -84,17 +88,17 @@
               <line
                 class="connection-line"
                 *ngFor="let mappingDefinition of mappingDefinitions"
-                x1="220"
+                [attr.x1]="getSourcePortX(mappingDefinition.sourceField)"
                 [attr.y1]="getSourceLineY(mappingDefinition.sourceField)"
-                x2="452"
+                [attr.x2]="functionInputX"
                 [attr.y2]="getConnectionLabelY(mappingDefinition)"
               />
               <line
                 class="connection-line connection-line--arrow"
                 *ngFor="let mappingDefinition of mappingDefinitions"
-                x1="548"
+                [attr.x1]="functionOutputX"
                 [attr.y1]="getConnectionLabelY(mappingDefinition)"
-                x2="780"
+                [attr.x2]="getTargetPortX(mappingDefinition.targetField)"
                 [attr.y2]="getTargetLineY(mappingDefinition.targetField)"
               />
 
@@ -106,6 +110,22 @@
                 <rect x="-48" y="-18" width="96" height="36" rx="8" />
                 <text text-anchor="middle" y="5">{{ getFunctionNodeLabel(mappingDefinition) }}</text>
               </g>
+
+              <line
+                class="connection-line connection-line--preview"
+                *ngIf="draggedSourceField"
+                [attr.x1]="getSourcePortX(draggedSourceField)"
+                [attr.y1]="getSourceLineY(draggedSourceField)"
+                [attr.x2]="dragPreviewEndX"
+                [attr.y2]="dragPreviewEndY"
+              />
+              <circle
+                class="connection-preview-end"
+                *ngIf="draggedSourceField"
+                [attr.cx]="dragPreviewEndX"
+                [attr.cy]="dragPreviewEndY"
+                r="7"
+              />
             </svg>
 
             <div class="canvas-column canvas-column--source">
@@ -117,9 +137,13 @@
                 [attr.title]="getSourceUsageLabel(field.name)"
                 (click)="selectSourceField(field.name)"
               >
-                <span class="canvas-node__label">{{ field.name }}</span>
+                <span class="canvas-node__content">
+                  <span class="canvas-node__label">{{ getCanvasFieldName(field) }}</span>
+                  <span class="canvas-node__meta">{{ field.type }}</span>
+                </span>
                 <span
                   class="connector-port connector-port--source"
+                  [attr.data-field-name]="field.name"
                   draggable="true"
                   title="Bağlantı başlat"
                   (dragstart)="startSourceDrag($event, field.name)"
@@ -144,7 +168,7 @@
                   [class.target-drop-zone--pending]="isPendingTarget(field.name)"
                   (dragenter)="enterTargetDropZone($event, field.name)"
                   (dragover)="enterTargetDropZone($event, field.name)"
-                  (dragleave)="leaveTargetDropZone(field.name)"
+                  (dragleave)="leaveTargetDropZone($event, field.name)"
                   (drop)="dropOnTarget($event, field.name)"
                 >
                   <button
@@ -160,13 +184,19 @@
                   >
                     <span
                       class="connector-port connector-port--target"
+                      [attr.data-field-name]="field.name"
                       title="Bağlantıyı buraya bırak"
                       (dragenter)="enterTargetDropZone($event, field.name)"
                       (dragover)="enterTargetDropZone($event, field.name)"
                       (drop)="dropOnTarget($event, field.name)"
                     ></span>
-                    <span class="canvas-node__label">{{ field.name }}</span>
-                    <span class="canvas-node__badge">required</span>
+                    <span class="canvas-node__content">
+                      <span class="canvas-node__label">{{ getCanvasFieldName(field) }}</span>
+                    </span>
+                    <span class="canvas-node__badges">
+                      <span class="canvas-node__type">{{ field.type }}</span>
+                      <span class="canvas-node__badge">required</span>
+                    </span>
                   </button>
 
                   <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
@@ -200,7 +230,7 @@
                   [class.target-drop-zone--pending]="isPendingTarget(field.name)"
                   (dragenter)="enterTargetDropZone($event, field.name)"
                   (dragover)="enterTargetDropZone($event, field.name)"
-                  (dragleave)="leaveTargetDropZone(field.name)"
+                  (dragleave)="leaveTargetDropZone($event, field.name)"
                   (drop)="dropOnTarget($event, field.name)"
                 >
                   <button
@@ -215,12 +245,18 @@
                   >
                     <span
                       class="connector-port connector-port--target"
+                      [attr.data-field-name]="field.name"
                       title="Bağlantıyı buraya bırak"
                       (dragenter)="enterTargetDropZone($event, field.name)"
                       (dragover)="enterTargetDropZone($event, field.name)"
                       (drop)="dropOnTarget($event, field.name)"
                     ></span>
-                    <span class="canvas-node__label">{{ field.name }}</span>
+                    <span class="canvas-node__content">
+                      <span class="canvas-node__label">{{ getCanvasFieldName(field) }}</span>
+                    </span>
+                    <span class="canvas-node__badges">
+                      <span class="canvas-node__type">{{ field.type }}</span>
+                    </span>
                   </button>
 
                   <div class="drop-transform-palette" *ngIf="isPendingTarget(field.name) && pendingConnection as pending">
@@ -284,13 +320,18 @@
               </div>
 
               <button
-                class="schema-field schema-field--required"
+                class="schema-field schema-field--required schema-target-drop"
                 type="button"
                 *ngFor="let field of requiredTargetFields; trackBy: trackByFieldName"
+                [attr.data-field-name]="field.name"
                 [class.schema-field--selected]="selectedTargetField === field.name"
                 [class.schema-field--mapped]="isTargetMapped(field.name)"
                 [class.schema-field--required-missing]="isRequiredTargetUnmapped(field.name)"
                 (click)="selectTargetField(field.name)"
+                (dragenter)="enterTargetDropZone($event, field.name)"
+                (dragover)="enterTargetDropZone($event, field.name)"
+                (dragleave)="leaveTargetDropZone($event, field.name)"
+                (drop)="dropOnTarget($event, field.name)"
               >
                 <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
                 <span class="field-meta">{{ field.type }} · zorunlu</span>
@@ -307,12 +348,17 @@
               </div>
 
               <button
-                class="schema-field"
+                class="schema-field schema-target-drop"
                 type="button"
                 *ngFor="let field of optionalTargetFields; trackBy: trackByFieldName"
+                [attr.data-field-name]="field.name"
                 [class.schema-field--selected]="selectedTargetField === field.name"
                 [class.schema-field--mapped]="isTargetMapped(field.name)"
                 (click)="selectTargetField(field.name)"
+                (dragenter)="enterTargetDropZone($event, field.name)"
+                (dragover)="enterTargetDropZone($event, field.name)"
+                (dragleave)="leaveTargetDropZone($event, field.name)"
+                (drop)="dropOnTarget($event, field.name)"
               >
                 <span class="field-name">{{ getTargetFieldLabel(field) }}</span>
                 <span class="field-meta">{{ field.type }}</span>

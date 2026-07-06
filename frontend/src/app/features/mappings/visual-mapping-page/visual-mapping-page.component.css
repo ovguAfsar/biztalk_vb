@@ -318,6 +318,7 @@
 .connection-layer {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -331,6 +332,18 @@
 
 .connection-line--arrow {
   marker-end: url("#connection-arrow");
+}
+
+.connection-line--preview {
+  stroke: #0f766e;
+  stroke-dasharray: 10 8;
+  stroke-width: 4;
+}
+
+.connection-preview-end {
+  fill: #0f766e;
+  stroke: #ffffff;
+  stroke-width: 3;
 }
 
 .connection-arrowhead {
@@ -355,6 +368,7 @@
 
 .canvas-column {
   position: absolute;
+  z-index: 2;
   top: 64px;
   display: grid;
   align-content: start;
@@ -375,33 +389,71 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 46px;
-  overflow: hidden;
+  min-height: 58px;
+  overflow: visible;
   padding: 9px 34px 9px 11px;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .canvas-column--target .canvas-node {
-  padding-left: 34px;
-  padding-right: 11px;
+  padding-left: 30px;
+  padding-right: 10px;
+}
+
+.canvas-node__content {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
 .canvas-node__label {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #172033;
+  font-size: 0.9rem;
+  font-weight: 760;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.canvas-node__meta {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 760;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.canvas-node__badges {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-left: auto;
+  max-width: 96px;
+}
+
+.canvas-node__type {
+  border: 1px solid #cfd8e6;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.66rem;
+  font-weight: 850;
+  line-height: 1;
+  padding: 4px 7px;
+  text-transform: uppercase;
 }
 
 .canvas-node__badge {
-  margin-left: auto;
   border: 1px solid #fecaca;
   border-radius: 999px;
   background: #ffffff;
   color: #b91c1c;
-  flex: 0 0 auto;
   font-size: 0.68rem;
   font-weight: 800;
+  line-height: 1;
   padding: 2px 6px;
   text-transform: uppercase;
 }
@@ -409,7 +461,7 @@
 .connector-port {
   position: absolute;
   top: 50%;
-  z-index: 2;
+  z-index: 3;
   width: 16px;
   height: 16px;
   border: 2px solid #2563eb;
@@ -420,7 +472,7 @@
 }
 
 .connector-port--source {
-  right: 8px;
+  right: -9px;
   cursor: grab;
 }
 
@@ -448,7 +500,7 @@
 }
 
 .connector-port--target {
-  left: 8px;
+  left: -9px;
   border-color: #0f6654;
   box-shadow: 0 0 0 3px rgb(15 102 84 / 10%);
 }
