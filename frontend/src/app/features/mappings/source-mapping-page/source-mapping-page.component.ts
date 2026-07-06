@@ -134,6 +134,7 @@ export class SourceMappingPageComponent implements OnInit {
   protected fileImportError = '';
   protected isFileParsing = false;
   protected detectedSourceType: MappingSourceType | '' = '';
+  protected isFileDragActive = false;
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -266,6 +267,49 @@ export class SourceMappingPageComponent implements OnInit {
       return;
     }
 
+    await this.importSourceFile(file);
+    input.value = '';
+  }
+
+  protected onSourceFileDragOver(event: DragEvent): void {
+    if (this.isSaving || this.isFileParsing) {
+      return;
+    }
+
+    event.preventDefault();
+    this.isFileDragActive = true;
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  protected onSourceFileDragLeave(event: DragEvent): void {
+    const currentTarget = event.currentTarget as HTMLElement | null;
+    const nextTarget = event.relatedTarget as Node | null;
+    if (currentTarget && nextTarget && currentTarget.contains(nextTarget)) {
+      return;
+    }
+
+    this.isFileDragActive = false;
+  }
+
+  protected async onSourceFileDropped(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    this.isFileDragActive = false;
+
+    if (this.isSaving || this.isFileParsing) {
+      return;
+    }
+
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    await this.importSourceFile(file);
+  }
+
+  private async importSourceFile(file: File): Promise<void> {
     this.sourceFileName = file.name;
     this.fileImportError = '';
     this.detectedSourceType = '';
@@ -292,7 +336,6 @@ export class SourceMappingPageComponent implements OnInit {
       this.fields.updateValueAndValidity();
     } finally {
       this.isFileParsing = false;
-      input.value = '';
       this.changeDetector.detectChanges();
     }
   }
