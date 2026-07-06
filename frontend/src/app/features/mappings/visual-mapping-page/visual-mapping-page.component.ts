@@ -58,6 +58,7 @@ export class VisualMappingPageComponent implements OnInit {
   protected loadError = '';
   protected saveError = '';
   protected successMessage = '';
+  protected requiredFieldsPopupMessage = '';
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -338,16 +339,19 @@ export class VisualMappingPageComponent implements OnInit {
     this.successMessage = '';
     this.saveError = '';
 
-    if (this.mappingDefinitions.length === 0) {
-      this.saveError = 'Devam etmeden önce en az bir alan eşleştirmesi yapın.';
-      return;
-    }
-
     if (this.missingRequiredTargetFields.length > 0) {
       this.activeBottomTab = 'warnings';
+      this.requiredFieldsPopupMessage = `Zorunlu alanlar boş bırakılamaz: ${this.missingRequiredTargetFields
+        .map(field => this.getTargetFieldLabel(field))
+        .join(', ')}.`;
       this.saveError = `Zorunlu hedef alanlar eşleştirilmeden devam edilemez: ${this.missingRequiredTargetFields
         .map(field => this.getTargetFieldLabel(field))
         .join(', ')}.`;
+      return;
+    }
+
+    if (this.mappingDefinitions.length === 0) {
+      this.saveError = 'Devam etmeden önce en az bir alan eşleştirmesi yapın.';
       return;
     }
 
@@ -378,6 +382,10 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected continueNext(): void {
     this.saveMappings();
+  }
+
+  protected closeRequiredFieldsPopup(): void {
+    this.requiredFieldsPopupMessage = '';
   }
 
   protected setActiveBottomTab(tab: BottomPanelTab): void {

@@ -401,5 +401,24 @@
         </div>
       </div>
     </section>
+
+    <div
+      class="modal-backdrop"
+      *ngIf="requiredFieldsPopupMessage"
+      role="presentation"
+      (click)="closeRequiredFieldsPopup()"
+    >
+      <section
+        class="required-fields-modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="required-fields-modal-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="required-fields-modal-title">Zorunlu Alanlar</h2>
+        <p>{{ requiredFieldsPopupMessage }}</p>
+        <button class="primary-action" type="button" (click)="closeRequiredFieldsPopup()">Tamam</button>
+      </section>
+    </div>
   </section>
 </main>

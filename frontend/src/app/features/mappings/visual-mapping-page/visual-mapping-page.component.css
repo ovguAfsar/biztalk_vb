@@ -739,6 +739,46 @@
   gap: 10px;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  background: rgb(15 23 42 / 34%);
+  padding: 20px;
+}
+
+.required-fields-modal {
+  display: grid;
+  gap: 14px;
+  width: min(460px, 100%);
+  border: 1px solid #f0a8a0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 60px rgb(23 32 51 / 24%);
+  padding: 22px;
+}
+
+.required-fields-modal h2 {
+  margin: 0;
+  color: #9f2418;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.required-fields-modal p {
+  margin: 0;
+  color: #172033;
+  font-weight: 680;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.required-fields-modal .primary-action {
+  justify-self: end;
+}
+
 .primary-action,
 .secondary-action,
 .back-action,
