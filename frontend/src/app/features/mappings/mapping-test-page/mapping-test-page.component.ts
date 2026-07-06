@@ -38,6 +38,7 @@ export class MappingTestPageComponent implements OnInit {
   protected successMessage = '';
   protected noticeMessage = '';
   protected hasSuccessfulRun = false;
+  protected showTestResultModal = false;
   protected showCompletionModal = false;
   protected showNewMappingConfirmModal = false;
 
@@ -76,6 +77,7 @@ export class MappingTestPageComponent implements OnInit {
         error: (error: unknown) => {
           this.hasSuccessfulRun = false;
           this.errors = [this.getErrorMessage(error, 'Mapping testi çalıştırılamadı.')];
+          this.showTestResultModal = true;
           this.changeDetector.detectChanges();
         }
       });
@@ -104,8 +106,14 @@ export class MappingTestPageComponent implements OnInit {
     }
 
     this.noticeMessage = '';
+    this.showTestResultModal = false;
     this.showCompletionModal = true;
   }
+
+  protected closeTestResultModal(): void {
+    this.showTestResultModal = false;
+  }
+
   protected closeCompletionModal(): void {
     this.showCompletionModal = false;
   }
@@ -239,6 +247,7 @@ export class MappingTestPageComponent implements OnInit {
     this.hasSuccessfulRun = response.errors.length === 0;
     this.noticeMessage = '';
     this.successMessage = this.hasSuccessfulRun ? 'Mapping başarıyla çalıştırıldı.' : '';
+    this.showTestResultModal = true;
     this.changeDetector.detectChanges();
   }
 
