@@ -11,11 +11,12 @@ import {
   TestMappingResponse
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
+import { WizardStepperComponent } from '../../../shared/wizard-stepper/wizard-stepper.component';
 
 @Component({
   selector: 'app-mapping-test-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, WizardStepperComponent],
   templateUrl: './mapping-test-page.component.html',
   styleUrl: './mapping-test-page.component.css'
 })

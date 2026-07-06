@@ -23,6 +23,7 @@ import {
   TargetField
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
+import { WizardStepperComponent } from '../../../shared/wizard-stepper/wizard-stepper.component';
 
 interface TargetTypeCopy {
   title: string;
@@ -85,7 +86,7 @@ function uniqueFieldNamesValidator(control: AbstractControl): ValidationErrors |
 @Component({
   selector: 'app-target-mapping-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, WizardStepperComponent],
   templateUrl: './target-mapping-page.component.html',
   styleUrl: './target-mapping-page.component.css'
 })

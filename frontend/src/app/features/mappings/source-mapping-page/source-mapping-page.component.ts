@@ -21,6 +21,7 @@ import {
   SourceFieldType
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
+import { WizardStepperComponent } from '../../../shared/wizard-stepper/wizard-stepper.component';
 import { SourceFieldImport, readSourceFile } from './source-file-reader';
 
 interface SourceTypeCopy {
@@ -103,7 +104,7 @@ function uniqueFieldNamesValidator(control: AbstractControl): ValidationErrors |
 @Component({
   selector: 'app-source-mapping-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, WizardStepperComponent],
   templateUrl: './source-mapping-page.component.html',
   styleUrl: './source-mapping-page.component.css'
 })

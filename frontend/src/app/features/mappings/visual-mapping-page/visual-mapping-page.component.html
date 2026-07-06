@@ -1,8 +1,8 @@
 <main class="map-page">
   <section class="wizard-shell" aria-labelledby="map-title">
     <header class="wizard-header">
-      <p class="wizard-header__step">Adım 2 / 3 — Alan Eşleştirme</p>
       <h1 id="map-title">Yeni Mapping Oluştur</h1>
+      <app-wizard-stepper [currentStep]="2"></app-wizard-stepper>
 
       <div class="mapping-summary" *ngIf="mapping">
         <span class="mapping-summary__name">{{ mapping.name }}</span>

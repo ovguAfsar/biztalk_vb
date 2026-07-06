@@ -9,15 +9,7 @@
 }
 
 .wizard-header {
-  max-width: 760px;
   margin-bottom: 34px;
-}
-
-.wizard-header__step {
-  margin: 0 0 12px;
-  color: #2563eb;
-  font-size: 0.92rem;
-  font-weight: 700;
 }
 
 .wizard-header h1 {

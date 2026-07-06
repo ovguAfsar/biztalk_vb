@@ -1,0 +1,105 @@
+.wizard-stepper {
+  margin: 22px 0 0;
+}
+
+.wizard-stepper__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard-stepper__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: #64748b;
+  font-weight: 760;
+}
+
+.wizard-stepper__marker {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #cfd8e6;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.wizard-stepper__label {
+  min-width: 0;
+  margin-left: 10px;
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.92rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wizard-stepper__line {
+  height: 2px;
+  min-width: 18px;
+  flex: 1 1 auto;
+  margin: 0 18px;
+  background: #dfe5ef;
+}
+
+.wizard-stepper__item--completed {
+  color: #0f6654;
+}
+
+.wizard-stepper__item--completed .wizard-stepper__marker {
+  border-color: #8bd2bd;
+  background: #eaf8f3;
+  color: #0f6654;
+}
+
+.wizard-stepper__item--completed .wizard-stepper__line {
+  background: #8bd2bd;
+}
+
+.wizard-stepper__item--active {
+  color: #1d4ed8;
+}
+
+.wizard-stepper__item--active .wizard-stepper__marker {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 14%);
+}
+
+.wizard-stepper__item--upcoming {
+  color: #94a3b8;
+}
+
+@media (max-width: 720px) {
+  .wizard-stepper__list {
+    gap: 12px;
+  }
+
+  .wizard-stepper__item {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .wizard-stepper__label {
+    margin: 8px 0 0;
+    white-space: normal;
+  }
+
+  .wizard-stepper__line {
+    display: none;
+  }
+}
