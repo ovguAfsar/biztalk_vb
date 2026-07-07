@@ -131,6 +131,12 @@ export class VisualMappingPageComponent implements OnInit {
     return this.targetFields.filter(field => this.isRequiredTargetUnmapped(field.name));
   }
 
+  protected get canSubmitMappings(): boolean {
+    return this.mappingDefinitions.length > 0
+      && this.missingRequiredTargetFields.length === 0
+      && !this.isSaving;
+  }
+
   protected get selectedSourceFieldDetails(): SourceField | undefined {
     return this.getSourceField(this.selectedSourceField);
   }

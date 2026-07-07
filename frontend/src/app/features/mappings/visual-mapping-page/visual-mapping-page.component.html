@@ -445,11 +445,11 @@
       <div class="form-actions">
         <button class="back-action" type="button" (click)="goBack()" [disabled]="isSaving">Geri</button>
         <div class="form-actions__right">
-          <button class="secondary-action" type="button" (click)="saveMappings()" [disabled]="isSaving">
+          <button class="secondary-action" type="button" (click)="saveMappings()" [disabled]="!canSubmitMappings">
             <span *ngIf="!isSaving">Kaydet</span>
             <span *ngIf="isSaving">Kaydediliyor...</span>
           </button>
-          <button class="primary-action" type="button" (click)="continueNext()" [disabled]="isSaving">Devam Et</button>
+          <button class="primary-action" type="button" (click)="continueNext()" [disabled]="!canSubmitMappings">Devam Et</button>
         </div>
       </div>
     </section>

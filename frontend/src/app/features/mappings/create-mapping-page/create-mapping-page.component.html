@@ -63,7 +63,7 @@
       </div>
 
       <div class="form-actions">
-        <button class="primary-action" type="submit" [disabled]="form.invalid || isSubmitting">
+        <button class="primary-action" type="submit" [disabled]="!canContinue">
           <span *ngIf="!isSubmitting">Devam Et</span>
           <span *ngIf="isSubmitting">Kaydediliyor...</span>
         </button>

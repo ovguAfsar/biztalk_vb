@@ -120,8 +120,8 @@
 
 .field input:focus,
 .field select:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 16%);
+  border-color: #fcbd00;
+  box-shadow: 0 0 0 3px rgb(252 189 0 / 16%);
   outline: none;
 }
 
@@ -162,9 +162,9 @@
 
 .file-import__summary:hover:not(.file-import__summary--disabled),
 .file-import__summary--active {
-  border-color: #2563eb;
+  border-color: #fcbd00;
   background: #f8fbff;
-  box-shadow: 0 12px 28px rgb(37 99 235 / 14%);
+  box-shadow: 0 12px 28px rgb(252 189 0 / 14%);
 }
 
 .file-import__summary--ready {
@@ -182,9 +182,9 @@
   position: relative;
   width: 54px;
   height: 64px;
-  border: 2px solid #2563eb;
+  border: 2px solid #fcbd00;
   border-radius: 8px;
-  background: #eff6ff;
+  background: #fff4cf;
 }
 
 .file-import__icon::before {
@@ -193,8 +193,8 @@
   right: -2px;
   width: 18px;
   height: 18px;
-  border-bottom: 2px solid #2563eb;
-  border-left: 2px solid #2563eb;
+  border-bottom: 2px solid #fcbd00;
+  border-left: 2px solid #fcbd00;
   border-radius: 0 8px 0 4px;
   background: #ffffff;
   content: "";
@@ -237,7 +237,7 @@
   overflow: hidden;
   border: 0;
   border-radius: 8px;
-  background: #2563eb;
+  background: #fcbd00;
   color: #ffffff;
   cursor: pointer;
   font-weight: 760;
@@ -246,8 +246,8 @@
 }
 
 .file-picker:hover:not(.file-picker--disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 12px 24px rgb(37 99 235 / 22%);
+  background: #e5a900;
+  box-shadow: 0 12px 24px rgb(252 189 0 / 22%);
 }
 
 .file-picker input {
@@ -285,7 +285,7 @@
 .source-field-meta {
   grid-column: 1 / -1;
   margin: 0;
-  color: #2563eb;
+  color: #fcbd00;
   font-size: 0.88rem;
   font-weight: 760;
 }
@@ -304,7 +304,7 @@
 .required-toggle input {
   width: 18px;
   height: 18px;
-  accent-color: #2563eb;
+  accent-color: #fcbd00;
 }
 
 .validation-message {
@@ -366,14 +366,14 @@
 .primary-action {
   min-width: 176px;
   border: 0;
-  background: #2563eb;
+  background: #fcbd00;
   color: #ffffff;
   padding: 12px 20px;
 }
 
 .primary-action:hover:not(:disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 12px 24px rgb(37 99 235 / 22%);
+  background: #e5a900;
+  box-shadow: 0 12px 24px rgb(252 189 0 / 22%);
   transform: translateY(-1px);
 }
 
@@ -387,7 +387,7 @@
 
 .secondary-action:hover:not(:disabled),
 .back-action:hover:not(:disabled) {
-  border-color: #6b8fd6;
+  border-color: #e5a900;
   box-shadow: 0 8px 20px rgb(23 32 51 / 8%);
 }
 
@@ -408,7 +408,7 @@
 .secondary-action:focus-visible,
 .back-action:focus-visible,
 .delete-action:focus-visible {
-  outline: 3px solid rgb(37 99 235 / 24%);
+  outline: 3px solid rgb(252 189 0 / 24%);
   outline-offset: 2px;
 }
 
