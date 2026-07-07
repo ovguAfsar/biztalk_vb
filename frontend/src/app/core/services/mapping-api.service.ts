@@ -6,6 +6,7 @@ import {
   MappingCreateRequest,
   MappingCreateResponse,
   MappingDetailsResponse,
+  MappingUpdateRequest,
   SaveMappingsRequest,
   SaveMappingsResponse,
   SaveSourceSchemaRequest,
@@ -27,8 +28,16 @@ export class MappingApiService {
     return this.http.post<MappingCreateResponse>(this.baseUrl, request);
   }
 
+  getMappings(): Observable<MappingDetailsResponse[]> {
+    return this.http.get<MappingDetailsResponse[]>(this.baseUrl);
+  }
+
   getMappingById(id: string): Observable<MappingDetailsResponse> {
     return this.http.get<MappingDetailsResponse>(`${this.baseUrl}/${encodeURIComponent(id)}`);
+  }
+
+  updateMapping(id: string, request: MappingUpdateRequest): Observable<MappingDetailsResponse> {
+    return this.http.put<MappingDetailsResponse>(`${this.baseUrl}/${encodeURIComponent(id)}`, request);
   }
 
   saveSourceSchema(id: string, request: SaveSourceSchemaRequest): Observable<SaveSourceSchemaResponse> {

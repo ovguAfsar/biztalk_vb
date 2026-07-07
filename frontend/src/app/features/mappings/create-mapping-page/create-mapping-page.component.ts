@@ -1,14 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { concatMap, finalize, switchMap } from 'rxjs';
+import { concatMap, finalize, of, switchMap } from 'rxjs';
 
 import {
   MappingCreateRequest,
   MappingCreateResponse,
+  MappingDetailsResponse,
   MappingSourceType,
+  MappingStatus,
   MappingTargetType,
   SaveSourceSchemaRequest,
   SourceField
@@ -25,7 +27,7 @@ import { SourceFieldImport, readSourceFile } from '../source-mapping-page/source
   templateUrl: './create-mapping-page.component.html',
   styleUrl: './create-mapping-page.component.css'
 })
-export class CreateMappingPageComponent {
+export class CreateMappingPageComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly mappingApi = inject(MappingApiService);
   private readonly router = inject(Router);
@@ -46,6 +48,14 @@ export class CreateMappingPageComponent {
   protected sourceFields: SourceField[] = [];
   protected createdMapping?: MappingCreateResponse;
   protected isSourceDragActive = false;
+  protected mappings: MappingDetailsResponse[] = [];
+  protected selectedMapping?: MappingDetailsResponse;
+  protected isMappingsLoading = false;
+  protected mappingsError = '';
+
+  ngOnInit(): void {
+    this.loadMappings();
+  }
 
   protected get nameInvalid(): boolean {
     const control = this.form.controls.name;
@@ -65,15 +75,64 @@ export class CreateMappingPageComponent {
     return this.form.valid && this.hasSourceFile && !this.isSubmitting;
   }
 
+  protected get isEditingMapping(): boolean {
+    return Boolean(this.selectedMapping);
+  }
+
   protected get detectedSourceTypeLabel(): string {
     switch (this.detectedSourceType) {
       case 'excel':
         return 'Excel';
       case 'txt':
         return 'TXT';
+      case 'json':
+        return 'JSON';
+      case 'xml':
+        return 'XML';
       default:
-        return '';
+        return this.detectedSourceType ? this.detectedSourceType.toUpperCase() : '';
     }
+  }
+
+  protected getStatusLabel(status: MappingStatus): string {
+    return status === 'completed' ? 'Tamamlandı' : 'Taslak';
+  }
+
+  protected selectMapping(mapping: MappingDetailsResponse): void {
+    this.successMessage = '';
+    this.errorMessage = '';
+    this.sourceFileError = '';
+    this.mappingsError = '';
+    this.isMappingsLoading = true;
+
+    this.mappingApi.getMappingById(mapping.id)
+      .pipe(finalize(() => {
+        this.isMappingsLoading = false;
+      }))
+      .subscribe({
+        next: (details) => {
+          this.applySelectedMapping(details);
+        },
+        error: (error: unknown) => {
+          this.mappingsError = this.getErrorMessage(error);
+        }
+      });
+  }
+
+  protected startNewMapping(): void {
+    this.selectedMapping = undefined;
+    this.createdMapping = undefined;
+    this.successMessage = '';
+    this.errorMessage = '';
+    this.sourceFileError = '';
+    this.form.reset({
+      name: '',
+      description: '',
+      sourceType: 'file'
+    });
+    this.sourceFileName = '';
+    this.detectedSourceType = '';
+    this.sourceFields = [];
   }
 
   protected async onSourceFileSelected(event: Event): Promise<void> {
@@ -172,31 +231,69 @@ export class CreateMappingPageComponent {
     };
     const sourceRequest: SaveSourceSchemaRequest = {
       sourceName: this.getFileBaseName(this.sourceFileName),
-      sourceType: this.detectedSourceType || undefined,
+      sourceType: this.isDetectedFileSourceType(this.detectedSourceType) ? this.detectedSourceType : undefined,
       fields: this.sourceFields
     };
-    let createdMappingId = '';
+    let mappingId = this.selectedMapping?.id ?? '';
+    const metadataRequest = this.selectedMapping
+      ? this.mappingApi.updateMapping(this.selectedMapping.id, { ...request, status: this.selectedMapping.status })
+      : this.mappingApi.createMapping(request);
 
     this.isSubmitting = true;
-    this.mappingApi.createMapping(request)
+    metadataRequest
       .pipe(switchMap((response) => {
         this.createdMapping = response;
-        createdMappingId = response.id;
+        mappingId = response.id;
         return this.mappingApi.saveSourceSchema(response.id, sourceRequest);
       }))
-      .pipe(concatMap(() => this.mappingApi.saveTargetSchema(createdMappingId, createDefaultTargetSchemaRequest())))
+      .pipe(concatMap(() => this.selectedMapping?.targetSchema
+        ? of(null)
+        : this.mappingApi.saveTargetSchema(mappingId, createDefaultTargetSchemaRequest())))
       .pipe(finalize(() => {
         this.isSubmitting = false;
       }))
       .subscribe({
         next: () => {
-          this.successMessage = 'Mapping taslağı, kaynak dosyası ve varsayılan JSON hedefi kaydedildi.';
-          void this.router.navigate(['/mappings', createdMappingId, 'map']);
+          this.successMessage = this.selectedMapping
+            ? 'Mapping güncellendi.'
+            : 'Mapping taslağı, kaynak dosyası ve varsayılan JSON hedefi kaydedildi.';
+          void this.router.navigate(['/mappings', mappingId, 'map']);
         },
         error: (error: unknown) => {
           this.errorMessage = this.getErrorMessage(error);
         }
       });
+  }
+
+  private loadMappings(): void {
+    this.isMappingsLoading = true;
+    this.mappingsError = '';
+
+    this.mappingApi.getMappings()
+      .pipe(finalize(() => {
+        this.isMappingsLoading = false;
+      }))
+      .subscribe({
+        next: (mappings) => {
+          this.mappings = mappings;
+        },
+        error: (error: unknown) => {
+          this.mappingsError = this.getErrorMessage(error);
+        }
+      });
+  }
+
+  private applySelectedMapping(mapping: MappingDetailsResponse): void {
+    this.selectedMapping = mapping;
+    this.form.patchValue({
+      name: mapping.name,
+      description: mapping.description ?? '',
+      sourceType: mapping.sourceType
+    });
+
+    this.sourceFileName = mapping.sourceSchema?.sourceName ?? '';
+    this.detectedSourceType = mapping.sourceSchema ? mapping.sourceType : '';
+    this.sourceFields = mapping.sourceSchema?.fields ?? [];
   }
 
   private toSourceFields(importedFields: SourceFieldImport[]): SourceField[] {
@@ -256,6 +353,10 @@ export class CreateMappingPageComponent {
 
   private getFileBaseName(fileName: string): string {
     return fileName.replace(/\.[^/.]+$/, '') || fileName;
+  }
+
+  private isDetectedFileSourceType(value: MappingSourceType | ''): value is 'excel' | 'txt' {
+    return value === 'excel' || value === 'txt';
   }
 
   private getErrorMessage(error: unknown): string {

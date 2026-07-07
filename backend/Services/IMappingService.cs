@@ -6,7 +6,14 @@ public interface IMappingService
 {
     Task<MappingResponse> CreateAsync(CreateMappingRequest? request, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<MappingResponse>> GetAllAsync(CancellationToken cancellationToken);
+
     Task<MappingResponse> GetByIdAsync(string id, CancellationToken cancellationToken);
+
+    Task<MappingResponse> UpdateAsync(
+        string id,
+        UpdateMappingRequest? request,
+        CancellationToken cancellationToken);
 
     Task<SourceSchemaResponse> SaveSourceSchemaAsync(
         string id,

@@ -11,7 +11,14 @@ namespace MappingStudio.Api.Services;
 public sealed class MappingService : IMappingService
 {
     private const string DraftStatus = "draft";
+    private const string CompletedStatus = "completed";
     private static readonly Regex FieldNamePattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
+
+    private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        DraftStatus,
+        CompletedStatus
+    };
 
     private static readonly HashSet<string> AllowedSourceTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -115,6 +122,12 @@ public sealed class MappingService : IMappingService
         return ToResponse(mapping);
     }
 
+    public async Task<IReadOnlyList<MappingResponse>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        var mappings = await _mappingRepository.GetAllAsync(cancellationToken);
+        return mappings.Select(ToResponse).ToList();
+    }
+
     public async Task<MappingResponse> GetByIdAsync(string id, CancellationToken cancellationToken)
     {
         ValidateMappingId(id);
@@ -126,6 +139,38 @@ public sealed class MappingService : IMappingService
         }
 
         return ToResponse(mapping);
+    }
+
+    public async Task<MappingResponse> UpdateAsync(
+        string id,
+        UpdateMappingRequest? request,
+        CancellationToken cancellationToken)
+    {
+        ValidateMappingId(id);
+
+        var errors = Validate(request);
+        if (errors.Count > 0)
+        {
+            throw new MappingValidationException(errors);
+        }
+
+        var validRequest = request!;
+        var updatedMapping = await _mappingRepository.UpdateAsync(
+            id,
+            validRequest.Name!.Trim(),
+            string.IsNullOrWhiteSpace(validRequest.Description) ? null : validRequest.Description.Trim(),
+            validRequest.SourceType!.Trim().ToLowerInvariant(),
+            validRequest.TargetType!.Trim().ToLowerInvariant(),
+            string.IsNullOrWhiteSpace(validRequest.Status) ? DraftStatus : validRequest.Status.Trim().ToLowerInvariant(),
+            DateTime.UtcNow,
+            cancellationToken);
+
+        if (updatedMapping is null)
+        {
+            throw new MappingNotFoundException(id);
+        }
+
+        return ToResponse(updatedMapping);
     }
 
     public async Task<SourceSchemaResponse> SaveSourceSchemaAsync(
@@ -395,6 +440,48 @@ public sealed class MappingService : IMappingService
         else if (!AllowedTargetTypes.Contains(request.TargetType.Trim()))
         {
             errors["targetType"] = new[] { "Hedef veri tipi json, xml, api, database veya file olmalidir." };
+        }
+
+        return errors;
+    }
+
+    private static IDictionary<string, string[]> Validate(UpdateMappingRequest? request)
+    {
+        var errors = new Dictionary<string, string[]>();
+
+        if (request is null)
+        {
+            errors["request"] = new[] { "Request body zorunludur." };
+            return errors;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            errors["name"] = new[] { "Mapping adi bos olamaz." };
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SourceType))
+        {
+            errors["sourceType"] = new[] { "Kaynak veri tipi bos olamaz." };
+        }
+        else if (!AllowedSourceTypes.Contains(request.SourceType.Trim()))
+        {
+            errors["sourceType"] = new[] { "Kaynak veri tipi file, excel, txt, json, xml, api, database veya manual olmalidir." };
+        }
+
+        if (string.IsNullOrWhiteSpace(request.TargetType))
+        {
+            errors["targetType"] = new[] { "Hedef veri tipi bos olamaz." };
+        }
+        else if (!AllowedTargetTypes.Contains(request.TargetType.Trim()))
+        {
+            errors["targetType"] = new[] { "Hedef veri tipi json, xml, api, database veya file olmalidir." };
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Status)
+            && !AllowedStatuses.Contains(request.Status.Trim()))
+        {
+            errors["status"] = new[] { "Mapping durumu draft veya completed olmalidir." };
         }
 
         return errors;

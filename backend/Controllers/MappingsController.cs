@@ -15,6 +15,14 @@ public sealed class MappingsController : ControllerBase
         _mappingService = mappingService;
     }
 
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<MappingResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<MappingResponse>>> GetAll(CancellationToken cancellationToken)
+    {
+        var response = await _mappingService.GetAllAsync(cancellationToken);
+        return Ok(response);
+    }
+
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(MappingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -62,6 +70,38 @@ public sealed class MappingsController : ControllerBase
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Mapping bilgileri gecersiz."
+            });
+        }
+    }
+
+    [HttpPut("{id}")]
+    [ProducesResponseType(typeof(MappingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<MappingResponse>> Update(
+        string id,
+        [FromBody] UpdateMappingRequest? request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _mappingService.UpdateAsync(id, request, cancellationToken);
+            return Ok(response);
+        }
+        catch (MappingValidationException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(exception.Errors)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Mapping bilgileri gecersiz."
+            });
+        }
+        catch (MappingNotFoundException)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Mapping bulunamadi."
             });
         }
     }
