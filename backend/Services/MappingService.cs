@@ -67,6 +67,20 @@ public sealed class MappingService : IMappingService
         "right"
     };
 
+    private const int AyKodluIbanLineLength = 81;
+
+    private static readonly IReadOnlyList<FixedWidthTargetField> AyKodluIbanFields = new List<FixedWidthTargetField>
+    {
+        new("subeKodu", 1, 3),
+        new("kurumKodu", 4, 2),
+        new("hesapNo", 6, 17),
+        new("tc", 23, 11),
+        new("ayKodu", 35, 2),
+        new("tutar", 37, 18),
+        new("maasTuru", 55, 1),
+        new("iban", 56, 26)
+    };
+
     private readonly IMappingRepository _mappingRepository;
 
     public MappingService(IMappingRepository mappingRepository)
@@ -267,6 +281,14 @@ public sealed class MappingService : IMappingService
         var output = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var warnings = new List<string>();
         var errors = new List<string>();
+        var fixedWidthParsedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fixedWidthPatternApplied = ApplyAyKodluIbanFixedWidthPattern(
+            input,
+            output,
+            mapping.TargetSchema!,
+            fixedWidthParsedTargets,
+            warnings,
+            errors);
 
         foreach (var mappingDefinition in mapping.MappingDefinitions!)
         {
@@ -276,6 +298,11 @@ public sealed class MappingService : IMappingService
             if (string.IsNullOrWhiteSpace(targetField))
             {
                 errors.Add("Target field is empty in a mapping definition.");
+                continue;
+            }
+
+            if (fixedWidthPatternApplied && IsFixedWidthSourceField(mappingDefinition.SourceField))
+            {
                 continue;
             }
 
@@ -326,7 +353,7 @@ public sealed class MappingService : IMappingService
             }
         }
 
-        ApplyTargetFieldFormats(output, mapping.TargetSchema!, warnings, errors);
+        ApplyTargetFieldFormats(output, mapping.TargetSchema!, fixedWidthParsedTargets, fixedWidthPatternApplied, warnings, errors);
 
         return new TestMappingResponse
         {
@@ -846,9 +873,105 @@ public sealed class MappingService : IMappingService
         return string.IsNullOrEmpty(value) ? null : value[..1];
     }
 
+    private static bool ApplyAyKodluIbanFixedWidthPattern(
+        IReadOnlyDictionary<string, JsonElement> input,
+        IDictionary<string, object?> output,
+        TargetSchemaDocument targetSchema,
+        ISet<string> parsedTargets,
+        ICollection<string> warnings,
+        ICollection<string> errors)
+    {
+        if (!IsAyKodluIbanTargetSchema(targetSchema))
+        {
+            return false;
+        }
+
+        if (!TryGetFixedWidthSourceLine(input, out var sourceLine))
+        {
+            return false;
+        }
+
+        if (sourceLine.Length != AyKodluIbanLineLength)
+        {
+            errors.Add($"AyKodluIban fixed-width line expects length {AyKodluIbanLineLength} but received value of length {sourceLine.Length}.");
+            return true;
+        }
+
+        foreach (var field in AyKodluIbanFields)
+        {
+            output[field.Name] = sourceLine.Substring(field.StartPosition - 1, field.Length);
+            parsedTargets.Add(field.Name);
+        }
+
+        return true;
+    }
+
+    private static bool IsAyKodluIbanTargetSchema(TargetSchemaDocument targetSchema)
+    {
+        var targetFieldNames = targetSchema.Fields
+            .Select(field => field.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return AyKodluIbanFields.All(field => targetFieldNames.Contains(field.Name));
+    }
+
+    private static bool IsAyKodluIbanTargetField(string fieldName)
+    {
+        return AyKodluIbanFields.Any(field => field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool TryGetFixedWidthSourceLine(
+        IReadOnlyDictionary<string, JsonElement> input,
+        out string sourceLine)
+    {
+        var preferredKeys = new[] { "line", "satir", "satır", "rawLine", "record", "row", "fixedWidthLine", "data" };
+
+        foreach (var key in preferredKeys)
+        {
+            if (input.TryGetValue(key, out var value) && TryGetJsonString(value, out sourceLine))
+            {
+                return true;
+            }
+        }
+
+        foreach (var value in input.Values)
+        {
+            if (TryGetJsonString(value, out sourceLine) && sourceLine.Length == AyKodluIbanLineLength)
+            {
+                return true;
+            }
+        }
+
+        sourceLine = string.Empty;
+        return false;
+    }
+
+    private static bool IsFixedWidthSourceField(string? sourceField)
+    {
+        var fixedWidthSourceKeys = new[] { "line", "satir", "satır", "rawLine", "record", "row", "fixedWidthLine", "data" };
+        var sourceFields = GetSourceFieldNames(sourceField);
+
+        return sourceFields.Count > 0
+            && sourceFields.All(source => fixedWidthSourceKeys.Contains(source, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static bool TryGetJsonString(JsonElement value, out string text)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            text = value.GetString() ?? string.Empty;
+            return !string.IsNullOrEmpty(text);
+        }
+
+        text = string.Empty;
+        return false;
+    }
+
     private static void ApplyTargetFieldFormats(
         IDictionary<string, object?> output,
         TargetSchemaDocument targetSchema,
+        ISet<string> skipFormattingFields,
+        bool ayKodluIbanPatternApplied,
         ICollection<string> warnings,
         ICollection<string> errors)
     {
@@ -862,7 +985,7 @@ public sealed class MappingService : IMappingService
                     continue;
                 }
 
-                if (field.Required)
+                if (field.Required && (!ayKodluIbanPatternApplied || IsAyKodluIbanTargetField(field.Name)))
                 {
                     errors.Add($"Required target field '{field.Name}' has no mapped value.");
                 }
@@ -870,7 +993,7 @@ public sealed class MappingService : IMappingService
                 continue;
             }
 
-            if (!HasTargetFormatting(field))
+            if (skipFormattingFields.Contains(field.Name) || !HasTargetFormatting(field))
             {
                 continue;
             }
@@ -1157,4 +1280,6 @@ public sealed class MappingService : IMappingService
             _ => value.GetRawText()
         };
     }
+
+    private sealed record FixedWidthTargetField(string Name, int StartPosition, int Length);
 }
