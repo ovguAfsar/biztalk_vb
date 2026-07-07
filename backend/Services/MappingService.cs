@@ -862,9 +862,9 @@ public sealed class MappingService : IMappingService
                     continue;
                 }
 
-                if (field.RequiredForOutput)
+                if (field.Required)
                 {
-                    warnings.Add($"Target field '{field.Name}' is required by the output format but has no mapped value.");
+                    errors.Add($"Required target field '{field.Name}' has no mapped value.");
                 }
 
                 continue;
