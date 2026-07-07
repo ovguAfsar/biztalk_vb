@@ -6,6 +6,9 @@
       [class.wizard-stepper__item--completed]="getStepState(step.number) === 'completed'"
       [class.wizard-stepper__item--active]="getStepState(step.number) === 'active'"
       [class.wizard-stepper__item--upcoming]="getStepState(step.number) === 'upcoming'"
+      [class.wizard-stepper__item--step-1]="step.number === 1"
+      [class.wizard-stepper__item--step-2]="step.number === 2"
+      [class.wizard-stepper__item--step-3]="step.number === 3"
       [attr.aria-current]="getStepState(step.number) === 'active' ? 'step' : null"
     >
       <span class="wizard-stepper__marker">{{ step.number }}</span>

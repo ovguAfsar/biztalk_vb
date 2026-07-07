@@ -44,8 +44,8 @@
 
 .schema-badge--source {
   border: 1px solid #9dc0ff;
-  background: #eef5ff;
-  color: #1d4ed8;
+  background: #fff4cf;
+  color: #e5a900;
 }
 
 .schema-badge--target {
@@ -113,7 +113,7 @@
 }
 
 .json-editor:focus {
-  box-shadow: inset 0 0 0 3px rgb(37 99 235 / 16%);
+  box-shadow: inset 0 0 0 3px rgb(252 189 0 / 16%);
   outline: none;
 }
 
@@ -185,8 +185,8 @@
 
 .alert--info {
   border: 1px solid #b7cff7;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: #fff4cf;
+  color: #e5a900;
 }
 
 .alert--error {
@@ -221,14 +221,14 @@
 .primary-action {
   min-width: 168px;
   border: 0;
-  background: #2563eb;
+  background: #fcbd00;
   color: #ffffff;
   padding: 10px 18px;
 }
 
 .primary-action:hover:not(:disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 12px 24px rgb(37 99 235 / 22%);
+  background: #e5a900;
+  box-shadow: 0 12px 24px rgb(252 189 0 / 22%);
   transform: translateY(-1px);
 }
 
@@ -242,14 +242,14 @@
 
 .secondary-action:hover:not(:disabled),
 .back-action:hover:not(:disabled) {
-  border-color: #6b8fd6;
+  border-color: #e5a900;
   box-shadow: 0 8px 20px rgb(23 32 51 / 8%);
 }
 
 .primary-action:focus-visible,
 .secondary-action:focus-visible,
 .back-action:focus-visible {
-  outline: 3px solid rgb(37 99 235 / 24%);
+  outline: 3px solid rgb(252 189 0 / 24%);
   outline-offset: 2px;
 }
 
@@ -393,7 +393,7 @@
 }
 
 .completion-modal__btn {
-  background: #2563eb;
+  background: #fcbd00;
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -415,11 +415,11 @@
 }
 
 .completion-modal__btn:hover {
-  background: #1d4ed8;
+  background: #e5a900;
 }
 
 .completion-modal__btn:disabled:hover {
-  background: #2563eb;
+  background: #fcbd00;
 }
 
 .completion-modal__btn--secondary:hover {

@@ -61,6 +61,10 @@ export class CreateMappingPageComponent {
     return this.sourceFields.length > 0 && Boolean(this.detectedSourceType);
   }
 
+  protected get canContinue(): boolean {
+    return this.form.valid && this.hasSourceFile && !this.isSubmitting;
+  }
+
   protected get detectedSourceTypeLabel(): string {
     switch (this.detectedSourceType) {
       case 'excel':

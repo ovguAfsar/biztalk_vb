@@ -44,8 +44,8 @@
 
 .schema-badge--source {
   border: 1px solid #9dc0ff;
-  background: #eef5ff;
-  color: #1d4ed8;
+  background: #fff4cf;
+  color: #e5a900;
 }
 
 .schema-badge--target {
@@ -208,14 +208,14 @@
 
 .schema-field:hover,
 .canvas-node:hover {
-  border-color: #6b8fd6;
+  border-color: #e5a900;
   box-shadow: 0 8px 18px rgb(23 32 51 / 8%);
 }
 
 .schema-field--selected,
 .canvas-node--selected {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 14%);
+  border-color: #fcbd00;
+  box-shadow: 0 0 0 3px rgb(252 189 0 / 14%);
 }
 
 .schema-field--mapped,
@@ -269,7 +269,7 @@
 }
 
 .source-usage {
-  color: #1d4ed8;
+  color: #e5a900;
   font-size: 0.76rem;
   font-weight: 760;
 }
@@ -476,10 +476,10 @@
   z-index: 3;
   width: 16px;
   height: 16px;
-  border: 2px solid #2563eb;
+  border: 2px solid #fcbd00;
   border-radius: 999px;
   background: #ffffff;
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 10%);
+  box-shadow: 0 0 0 3px rgb(252 189 0 / 10%);
   transform: translateY(-50%);
 }
 
@@ -530,7 +530,7 @@
 
 .canvas-node:hover .connector-port--source,
 .target-drop-zone--active .connector-port--target {
-  background: #2563eb;
+  background: #fcbd00;
 }
 
 .target-drop-zone--active .connector-port--target {
@@ -550,9 +550,9 @@
 }
 
 .target-drop-zone--pending .canvas-node {
-  border-color: #2563eb;
-  background: #eef5ff;
-  box-shadow: 0 0 0 3px rgb(37 99 235 / 16%);
+  border-color: #fcbd00;
+  background: #fff4cf;
+  box-shadow: 0 0 0 3px rgb(252 189 0 / 16%);
 }
 
 .drop-transform-palette {
@@ -614,9 +614,9 @@
 }
 
 .drop-transform-palette__option--active {
-  border-color: #2563eb !important;
-  background: #eef5ff !important;
-  color: #1d4ed8 !important;
+  border-color: #fcbd00 !important;
+  background: #fff4cf !important;
+  color: #e5a900 !important;
 }
 
 .drop-transform-palette__cancel {
@@ -857,14 +857,14 @@
 .primary-action {
   min-width: 132px;
   border: 0;
-  background: #2563eb;
+  background: #fcbd00;
   color: #ffffff;
   padding: 10px 18px;
 }
 
 .primary-action:hover:not(:disabled) {
-  background: #1d4ed8;
-  box-shadow: 0 12px 24px rgb(37 99 235 / 22%);
+  background: #e5a900;
+  box-shadow: 0 12px 24px rgb(252 189 0 / 22%);
   transform: translateY(-1px);
 }
 
@@ -878,7 +878,7 @@
 
 .secondary-action:hover:not(:disabled),
 .back-action:hover:not(:disabled) {
-  border-color: #6b8fd6;
+  border-color: #e5a900;
   box-shadow: 0 8px 20px rgb(23 32 51 / 8%);
 }
 
@@ -900,7 +900,7 @@
 .schema-field:focus-visible,
 .canvas-node:focus-visible,
 .tab-list button:focus-visible {
-  outline: 3px solid rgb(37 99 235 / 24%);
+  outline: 3px solid rgb(252 189 0 / 24%);
   outline-offset: 2px;
 }
 
