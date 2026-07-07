@@ -3,9 +3,112 @@
   padding: 48px 20px;
 }
 
+.create-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1040px);
+  gap: 28px;
+  align-items: start;
+  justify-content: center;
+}
+
 .wizard-shell {
-  max-width: 1040px;
-  margin: 0 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.mappings-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #dfe5ef;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 88%);
+  color: #111827;
+  padding: 16px;
+  box-shadow: 0 12px 26px rgb(17 24 39 / 8%);
+}
+
+.mappings-panel__new,
+.mapping-list__item {
+  width: 100%;
+  border: 1px solid #d6dfed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mappings-panel__new {
+  min-height: 42px;
+  font-weight: 780;
+  padding: 10px 12px;
+}
+
+.mappings-panel__new--active,
+.mappings-panel__new:hover,
+.mapping-list__item--active,
+.mapping-list__item:hover {
+  border-color: #111827;
+  box-shadow: inset 4px 0 0 #fcbd00;
+}
+
+.mappings-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mappings-panel__header h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 1.05rem;
+}
+
+.mappings-panel__header span {
+  display: inline-flex;
+  min-width: 34px;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #111827;
+  border-radius: 999px;
+  background: #ffd166;
+  font-weight: 780;
+}
+
+.mappings-panel__state {
+  margin: 0;
+  color: #38445a;
+  font-weight: 650;
+}
+
+.mapping-list {
+  display: grid;
+  gap: 10px;
+  max-height: 66vh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.mapping-list__item {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+}
+
+.mapping-list__name {
+  overflow: hidden;
+  color: #111827;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-list__meta {
+  color: #4b5563;
+  font-size: 0.8rem;
+  font-weight: 650;
 }
 
 .wizard-header {
@@ -267,6 +370,14 @@
 }
 
 @media (max-width: 900px) {
+  .create-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mapping-list {
+    max-height: 300px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }

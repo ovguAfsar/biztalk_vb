@@ -19,10 +19,47 @@ public sealed class MappingRepository : IMappingRepository
         return _mappings.InsertOneAsync(mapping, cancellationToken: cancellationToken);
     }
 
+    public async Task<IReadOnlyList<MappingDocument>> GetAllAsync(CancellationToken cancellationToken)
+    {
+        return await _mappings
+            .Find(Builders<MappingDocument>.Filter.Empty)
+            .SortByDescending(mapping => mapping.UpdatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<MappingDocument?> GetByIdAsync(string id, CancellationToken cancellationToken)
     {
         var filter = Builders<MappingDocument>.Filter.Eq(mapping => mapping.Id, id);
         return await _mappings.Find(filter).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<MappingDocument?> UpdateAsync(
+        string id,
+        string name,
+        string? description,
+        string sourceType,
+        string targetType,
+        string status,
+        DateTime updatedAt,
+        CancellationToken cancellationToken)
+    {
+        var filter = Builders<MappingDocument>.Filter.Eq(mapping => mapping.Id, id);
+        var update = Builders<MappingDocument>.Update
+            .Set(mapping => mapping.Name, name)
+            .Set(mapping => mapping.Description, description)
+            .Set(mapping => mapping.SourceType, sourceType)
+            .Set(mapping => mapping.TargetType, targetType)
+            .Set(mapping => mapping.Status, status)
+            .Set(mapping => mapping.UpdatedAt, updatedAt);
+
+        return await _mappings.FindOneAndUpdateAsync(
+            filter,
+            update,
+            new FindOneAndUpdateOptions<MappingDocument>
+            {
+                ReturnDocument = ReturnDocument.After
+            },
+            cancellationToken);
     }
 
     public async Task<MappingDocument?> SaveSourceSchemaAsync(

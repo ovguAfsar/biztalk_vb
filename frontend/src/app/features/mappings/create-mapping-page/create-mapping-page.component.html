@@ -1,7 +1,45 @@
 <main class="create-page">
+  <div class="create-layout">
+  <aside class="mappings-panel" aria-labelledby="mappings-list-title">
+    <button
+      class="mappings-panel__new"
+      type="button"
+      [class.mappings-panel__new--active]="!isEditingMapping"
+      (click)="startNewMapping()"
+    >
+      Yeni Mapping
+    </button>
+
+    <div class="mappings-panel__header">
+      <h2 id="mappings-list-title">Mappings</h2>
+      <span>{{ mappings.length }}</span>
+    </div>
+
+    <p class="mappings-panel__state" *ngIf="isMappingsLoading">Yükleniyor...</p>
+    <p class="validation-message" *ngIf="mappingsError">{{ mappingsError }}</p>
+    <p class="mappings-panel__state" *ngIf="!isMappingsLoading && !mappingsError && mappings.length === 0">
+      Henüz mapping yok.
+    </p>
+
+    <div class="mapping-list" *ngIf="mappings.length > 0">
+      <button
+        class="mapping-list__item"
+        type="button"
+        *ngFor="let mapping of mappings"
+        [class.mapping-list__item--active]="selectedMapping?.id === mapping.id"
+        (click)="selectMapping(mapping)"
+      >
+        <span class="mapping-list__name">{{ mapping.name }}</span>
+        <span class="mapping-list__meta">Durum: {{ getStatusLabel(mapping.status) }}</span>
+        <span class="mapping-list__meta">Oluşturma: {{ mapping.createdAt | date:'dd.MM.yyyy HH:mm' }}</span>
+        <span class="mapping-list__meta">Güncelleme: {{ mapping.updatedAt | date:'dd.MM.yyyy HH:mm' }}</span>
+      </button>
+    </div>
+  </aside>
+
   <section class="wizard-shell" aria-labelledby="create-mapping-title">
     <header class="wizard-header">
-      <h1 id="create-mapping-title">Yeni Mapping Oluştur</h1>
+      <h1 id="create-mapping-title">{{ isEditingMapping ? 'Mapping Düzenle' : 'Yeni Mapping Oluştur' }}</h1>
       <app-wizard-stepper [currentStep]="1"></app-wizard-stepper>
     </header>
 
@@ -64,10 +102,11 @@
 
       <div class="form-actions">
         <button class="primary-action" type="submit" [disabled]="!canContinue">
-          <span *ngIf="!isSubmitting">Devam Et</span>
+          <span *ngIf="!isSubmitting">{{ isEditingMapping ? 'Güncelle ve Devam Et' : 'Devam Et' }}</span>
           <span *ngIf="isSubmitting">Kaydediliyor...</span>
         </button>
       </div>
     </form>
   </section>
+  </div>
 </main>

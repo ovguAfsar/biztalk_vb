@@ -42,6 +42,7 @@ export class MappingTestPageComponent implements OnInit {
   protected showTestResultModal = false;
   protected showCompletionModal = false;
   protected showNewMappingConfirmModal = false;
+  protected isCompleting = false;
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -106,9 +107,36 @@ export class MappingTestPageComponent implements OnInit {
       return;
     }
 
+    if (!this.mapping) {
+      this.noticeMessage = 'Mapping bilgisi bulunamadı.';
+      return;
+    }
+
     this.noticeMessage = '';
-    this.showTestResultModal = false;
-    this.showCompletionModal = true;
+    this.isCompleting = true;
+    this.mappingApi.updateMapping(this.mappingId, {
+      name: this.mapping.name,
+      description: this.mapping.description,
+      sourceType: this.mapping.sourceType,
+      targetType: this.mapping.targetType,
+      status: 'completed'
+    })
+      .pipe(finalize(() => {
+        this.isCompleting = false;
+        this.changeDetector.detectChanges();
+      }))
+      .subscribe({
+        next: (mapping) => {
+          this.mapping = mapping;
+          this.showTestResultModal = false;
+          this.showCompletionModal = true;
+          this.changeDetector.detectChanges();
+        },
+        error: (error: unknown) => {
+          this.noticeMessage = this.getErrorMessage(error, 'Mapping durumu tamamlandı olarak güncellenemedi.');
+          this.changeDetector.detectChanges();
+        }
+      });
   }
 
   protected closeTestResultModal(): void {

@@ -122,8 +122,8 @@
         <button type="button" class="completion-modal__btn completion-modal__btn--secondary" (click)="closeTestResultModal()">
           Kapat
         </button>
-        <button type="button" class="completion-modal__btn" (click)="continueNext()" [disabled]="!hasSuccessfulRun">
-          Testi Tamamla
+        <button type="button" class="completion-modal__btn" (click)="continueNext()" [disabled]="!hasSuccessfulRun || isCompleting">
+          {{ isCompleting ? 'Tamamlanıyor...' : 'Testi Tamamla' }}
         </button>
       </div>
     </div>
