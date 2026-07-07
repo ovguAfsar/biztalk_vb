@@ -6,8 +6,11 @@ import { RouterOutlet } from '@angular/router';
   standalone: true,
   imports: [RouterOutlet],
   template: `
-    <div class="app-brand-logo" aria-label="VakıfBank">
-      VakıfBank
+    <div class="app-brand-logo">
+      <img
+        src="assets/brand/vakifbank-logo-header.png"
+        alt="VakıfBank"
+      />
     </div>
     <router-outlet />
   `
