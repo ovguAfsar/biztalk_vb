@@ -1,41 +1,66 @@
 <main class="create-page">
-  <div class="create-layout">
-  <aside class="mappings-panel" aria-labelledby="mappings-list-title">
-    <button
-      class="mappings-panel__new"
-      type="button"
-      [class.mappings-panel__new--active]="!isEditingMapping"
-      (click)="startNewMapping()"
-    >
-      Yeni Mapping
-    </button>
-
-    <div class="mappings-panel__header">
-      <h2 id="mappings-list-title">Mappings</h2>
-      <span>{{ mappings.length }}</span>
-    </div>
-
-    <p class="mappings-panel__state" *ngIf="isMappingsLoading">Yükleniyor...</p>
-    <p class="validation-message" *ngIf="mappingsError">{{ mappingsError }}</p>
-    <p class="mappings-panel__state" *ngIf="!isMappingsLoading && !mappingsError && mappings.length === 0">
-      Henüz mapping yok.
-    </p>
-
-    <div class="mapping-list" *ngIf="mappings.length > 0">
+  <div class="create-layout" [class.create-layout--panel-open]="isMappingsPanelOpen">
+    <aside class="mappings-panel" [class.mappings-panel--open]="isMappingsPanelOpen" aria-labelledby="mappings-list-title">
       <button
-        class="mapping-list__item"
+        class="mappings-panel__toggle"
         type="button"
-        *ngFor="let mapping of mappings"
-        [class.mapping-list__item--active]="selectedMapping?.id === mapping.id"
-        (click)="selectMapping(mapping)"
+        [attr.aria-expanded]="isMappingsPanelOpen"
+        (click)="toggleMappingsPanel()"
       >
-        <span class="mapping-list__name">{{ mapping.name }}</span>
-        <span class="mapping-list__meta">Durum: {{ getStatusLabel(mapping.status) }}</span>
-        <span class="mapping-list__meta">Oluşturma: {{ mapping.createdAt | date:'dd.MM.yyyy HH:mm' }}</span>
-        <span class="mapping-list__meta">Güncelleme: {{ mapping.updatedAt | date:'dd.MM.yyyy HH:mm' }}</span>
+        <span>Mappings</span>
+        <span class="mappings-panel__count">{{ mappings.length }}</span>
       </button>
-    </div>
-  </aside>
+
+      <div class="mappings-panel__content" *ngIf="isMappingsPanelOpen">
+        <button
+          class="mappings-panel__new"
+          type="button"
+          [class.mappings-panel__new--active]="!isEditingMapping"
+          (click)="startNewMapping()"
+        >
+          Yeni Mapping
+        </button>
+
+        <div class="mappings-panel__header">
+          <h2 id="mappings-list-title">Geçmiş</h2>
+        </div>
+
+        <label class="mapping-search" for="mapping-search">
+          <span>Geçmişte ara</span>
+          <input
+            id="mapping-search"
+            type="search"
+            placeholder="Mapping adı, durum..."
+            [value]="mappingSearchTerm"
+            (input)="updateMappingSearchTerm($event)"
+          >
+        </label>
+
+        <p class="mappings-panel__state" *ngIf="isMappingsLoading">Yükleniyor...</p>
+        <p class="validation-message" *ngIf="mappingsError">{{ mappingsError }}</p>
+        <p class="mappings-panel__state" *ngIf="!isMappingsLoading && !mappingsError && mappings.length === 0">
+          Henüz mapping yok.
+        </p>
+        <p class="mappings-panel__state" *ngIf="!isMappingsLoading && !mappingsError && mappings.length > 0 && filteredMappings.length === 0">
+          Aramaya uygun mapping bulunamadı.
+        </p>
+
+        <div class="mapping-list" *ngIf="filteredMappings.length > 0">
+          <button
+            class="mapping-list__item"
+            type="button"
+            *ngFor="let mapping of filteredMappings"
+            [class.mapping-list__item--active]="selectedMapping?.id === mapping.id"
+            (click)="selectMapping(mapping)"
+          >
+            <span class="mapping-list__name">{{ mapping.name }}</span>
+            <span class="mapping-list__meta">Durum: {{ getStatusLabel(mapping.status) }}</span>
+            <span class="mapping-list__meta">Oluşturma: {{ mapping.createdAt | date:'dd.MM.yyyy HH:mm' }}</span>
+            <span class="mapping-list__meta">Güncelleme: {{ mapping.updatedAt | date:'dd.MM.yyyy HH:mm' }}</span>
+          </button>
+        </div>
+      </div>
+    </aside>
 
   <section class="wizard-shell" aria-labelledby="create-mapping-title">
     <header class="wizard-header">

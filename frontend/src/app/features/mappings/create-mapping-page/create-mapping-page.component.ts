@@ -52,6 +52,8 @@ export class CreateMappingPageComponent implements OnInit {
   protected selectedMapping?: MappingDetailsResponse;
   protected isMappingsLoading = false;
   protected mappingsError = '';
+  protected isMappingsPanelOpen = false;
+  protected mappingSearchTerm = '';
 
   ngOnInit(): void {
     this.loadMappings();
@@ -79,6 +81,26 @@ export class CreateMappingPageComponent implements OnInit {
     return Boolean(this.selectedMapping);
   }
 
+  protected get filteredMappings(): MappingDetailsResponse[] {
+    const searchTerm = this.mappingSearchTerm.trim().toLowerCase();
+    if (!searchTerm) {
+      return this.mappings;
+    }
+
+    return this.mappings.filter(mapping => {
+      const searchableText = [
+        mapping.name,
+        mapping.description ?? '',
+        this.getStatusLabel(mapping.status),
+        mapping.status,
+        mapping.createdAt,
+        mapping.updatedAt
+      ].join(' ').toLowerCase();
+
+      return searchableText.includes(searchTerm);
+    });
+  }
+
   protected get detectedSourceTypeLabel(): string {
     switch (this.detectedSourceType) {
       case 'excel':
@@ -98,6 +120,15 @@ export class CreateMappingPageComponent implements OnInit {
     return status === 'completed' ? 'Tamamlandı' : 'Taslak';
   }
 
+  protected toggleMappingsPanel(): void {
+    this.isMappingsPanelOpen = !this.isMappingsPanelOpen;
+  }
+
+  protected updateMappingSearchTerm(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.mappingSearchTerm = input.value;
+  }
+
   protected selectMapping(mapping: MappingDetailsResponse): void {
     this.successMessage = '';
     this.errorMessage = '';
@@ -112,6 +143,7 @@ export class CreateMappingPageComponent implements OnInit {
       .subscribe({
         next: (details) => {
           this.applySelectedMapping(details);
+          this.isMappingsPanelOpen = false;
         },
         error: (error: unknown) => {
           this.mappingsError = this.getErrorMessage(error);
@@ -133,6 +165,7 @@ export class CreateMappingPageComponent implements OnInit {
     this.sourceFileName = '';
     this.detectedSourceType = '';
     this.sourceFields = [];
+    this.isMappingsPanelOpen = false;
   }
 
   protected async onSourceFileSelected(event: Event): Promise<void> {
