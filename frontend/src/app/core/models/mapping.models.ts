@@ -103,11 +103,13 @@ export interface SaveTargetSchemaResponse {
 
 export interface SaveMappingsRequest {
   mappings: MappingDefinition[];
+  confirmWarnings?: boolean;
 }
 
 export interface SaveMappingsResponse {
   id: string;
   mappings: MappingDefinition[];
+  warnings: string[];
   updatedAt: string;
 }
 

@@ -6,5 +6,7 @@ public sealed class SaveMappingsResponse
 
     public required IReadOnlyList<MappingDefinitionDto> Mappings { get; init; }
 
+    public required IReadOnlyList<string> Warnings { get; init; }
+
     public required DateTime UpdatedAt { get; init; }
 }
