@@ -280,6 +280,18 @@ public sealed class MappingService : IMappingService
             throw new MappingValidationException(errors);
         }
 
+        var warnings = ValidateMappingWarnings(request!, mapping);
+        if (warnings.Count > 0 && !request!.ConfirmWarnings)
+        {
+            return new SaveMappingsResponse
+            {
+                Id = mapping.Id,
+                Mappings = request.Mappings!,
+                Warnings = warnings,
+                UpdatedAt = mapping.UpdatedAt
+            };
+        }
+
         var now = DateTime.UtcNow;
         var mappingDefinitions = request!.Mappings!
             .Select(mappingDefinition => new MappingDefinitionDocument
@@ -667,6 +679,91 @@ public sealed class MappingService : IMappingService
         return ToValidationErrors(errors);
     }
 
+    private static IReadOnlyList<string> ValidateMappingWarnings(
+        SaveMappingsRequest request,
+        MappingDocument mapping)
+    {
+        var warnings = new List<string>();
+        if (mapping.SourceSchema is null || mapping.TargetSchema is null || request.Mappings is null)
+        {
+            return warnings;
+        }
+
+        foreach (var mappingDefinition in request.Mappings)
+        {
+            if (IsAyKodluIbanTargetSchema(mapping.TargetSchema) && IsFixedWidthSourceField(mappingDefinition.SourceField))
+            {
+                continue;
+            }
+
+            var sourceFields = GetSourceFieldNames(mappingDefinition.SourceField)
+                .Select(sourceField => mapping.SourceSchema.Fields.FirstOrDefault(field =>
+                    field.Name.Equals(sourceField, StringComparison.OrdinalIgnoreCase)))
+                .Where(field => field is not null)
+                .Cast<SourceFieldDocument>()
+                .ToList();
+            var targetField = mapping.TargetSchema.Fields.FirstOrDefault(field =>
+                field.Name.Equals(mappingDefinition.TargetField ?? string.Empty, StringComparison.OrdinalIgnoreCase));
+
+            if (sourceFields.Count == 0 || targetField is null)
+            {
+                continue;
+            }
+
+            var sourceLabel = string.Join(" + ", sourceFields.Select(GetSourceFieldLabel));
+            var targetLabel = GetTargetFieldLabel(targetField);
+
+            if (IsTypeMismatch(sourceFields, targetField, mappingDefinition.TransformType))
+            {
+                warnings.Add($"Tip uyumsuzluğu olabilir: kaynak '{sourceLabel}' ({string.Join(" + ", sourceFields.Select(field => field.Type))}) hedef '{targetLabel}' ({targetField.Type}) alanına eşlenmiş.");
+            }
+        }
+
+        return warnings;
+    }
+
+    private static bool IsTypeMismatch(
+        IReadOnlyList<SourceFieldDocument> sourceFields,
+        TargetFieldDocument targetField,
+        string? transformType)
+    {
+        var normalizedTransform = NormalizeTransformType(transformType ?? string.Empty);
+        if (normalizedTransform == "constant")
+        {
+            return false;
+        }
+
+        if (sourceFields.Count > 1)
+        {
+            return !targetField.Type.Equals("text", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var sourceType = sourceFields[0].Type;
+        var targetType = targetField.Type;
+
+        if (sourceType.Equals(targetType, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (normalizedTransform == "dateFormat" && targetType.Equals("date", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static string GetSourceFieldLabel(SourceFieldDocument field)
+    {
+        return string.IsNullOrWhiteSpace(field.DisplayName) ? field.Name : $"{field.DisplayName} ({field.Name})";
+    }
+
+    private static string GetTargetFieldLabel(TargetFieldDocument field)
+    {
+        return string.IsNullOrWhiteSpace(field.DisplayName) ? field.Name : $"{field.DisplayName} ({field.Name})";
+    }
+
     private static IDictionary<string, string[]> ValidateTargetSchema(SaveTargetSchemaRequest? request)
     {
         var errors = new Dictionary<string, List<string>>();
@@ -947,6 +1044,7 @@ public sealed class MappingService : IMappingService
         {
             Id = mapping.Id,
             Mappings = ToMappingDefinitionDtos(mapping.MappingDefinitions ?? new List<MappingDefinitionDocument>()),
+            Warnings = Array.Empty<string>(),
             UpdatedAt = mapping.UpdatedAt
         };
     }

@@ -16,6 +16,27 @@ export interface SourceFileImportResult {
   records: Record<string, string>[];
 }
 
+interface FixedWidthSourceFieldDefinition {
+  name: string;
+  displayName: string;
+  startPosition: number;
+  length: number;
+  type: SourceFieldType;
+}
+
+const AY_KODLU_IBAN_LINE_LENGTH = 81;
+
+const AY_KODLU_IBAN_SOURCE_FIELDS: FixedWidthSourceFieldDefinition[] = [
+  { name: 'subeKodu', displayName: 'Şube Kodu', startPosition: 1, length: 3, type: 'text' },
+  { name: 'kurumKodu', displayName: 'Kurum Kodu', startPosition: 4, length: 2, type: 'text' },
+  { name: 'hesapNo', displayName: 'Hesap Numarası', startPosition: 6, length: 17, type: 'text' },
+  { name: 'tc', displayName: 'TC No', startPosition: 23, length: 11, type: 'text' },
+  { name: 'ayKodu', displayName: 'Ay Kodu', startPosition: 35, length: 2, type: 'text' },
+  { name: 'tutar', displayName: 'Miktar/Tutar', startPosition: 37, length: 18, type: 'number' },
+  { name: 'maasTuru', displayName: 'Maaş Türü', startPosition: 55, length: 1, type: 'text' },
+  { name: 'iban', displayName: 'IBAN No', startPosition: 56, length: 26, type: 'text' }
+];
+
 export async function readSourceFile(file: File, expectedSourceType: MappingSourceType): Promise<SourceFileImportResult> {
   const format = detectSourceFileFormat(file.name);
 
@@ -85,6 +106,11 @@ function readTxtFile(text: string, format: SourceFileFormat): SourceFileImportRe
     throw new Error('TXT dosyasında alan bulunamadı.');
   }
 
+  const fixedWidthImport = readAyKodluIbanFixedWidthFields(lines);
+  if (fixedWidthImport) {
+    return { format, ...fixedWidthImport };
+  }
+
   const keyValueFields = readTxtKeyValueFields(lines);
   if (keyValueFields.length > 0) {
     return {
@@ -112,6 +138,26 @@ function readTxtFile(text: string, format: SourceFileFormat): SourceFileImportRe
     }],
     records: lines.map(line => ({ line }))
   };
+}
+
+function readAyKodluIbanFixedWidthFields(lines: string[]): { fields: SourceFieldImport[]; records: Record<string, string>[] } | null {
+  if (!lines.every(line => line.length === AY_KODLU_IBAN_LINE_LENGTH)) {
+    return null;
+  }
+
+  const records = lines.map(line => AY_KODLU_IBAN_SOURCE_FIELDS.reduce<Record<string, string>>((record, field) => {
+    record[field.name] = line.substring(field.startPosition - 1, field.startPosition - 1 + field.length).trim();
+    return record;
+  }, {}));
+  const firstRecord = records[0] ?? {};
+  const fields = AY_KODLU_IBAN_SOURCE_FIELDS.map(field => ({
+    displayName: field.displayName,
+    sampleValue: firstRecord[field.name] ?? '',
+    sourcePath: field.name,
+    type: field.type
+  }));
+
+  return { fields, records };
 }
 
 function readTxtKeyValueFields(lines: string[]): SourceFieldImport[] {
