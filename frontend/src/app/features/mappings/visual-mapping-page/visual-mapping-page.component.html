@@ -55,6 +55,14 @@
           <div class="selection-strip">
             <span>Kaynak alanın sağındaki bağlantı noktasından hedef alanın solundaki noktaya ok çekin.</span>
             <button class="auto-match-action" type="button" (click)="autoMatchFields()">Otomatik Eşle</button>
+            <button
+              class="clear-mappings-action"
+              type="button"
+              *ngIf="mappingDefinitions.length > 0"
+              (click)="requestClearMappings()"
+            >
+              Tümünü Sil
+            </button>
             <span *ngIf="draggedSourceField">Ok başlangıcı: {{ getSourceLabelByName(draggedSourceField) }}</span>
             <span *ngIf="pendingConnection">
               Seçiliyor: {{ getSourceLabelByName(pendingConnection.sourceField) }} → {{ getTargetLabelByName(pendingConnection.targetField) }}
@@ -473,6 +481,28 @@
         <h2 id="required-fields-modal-title">Zorunlu Alanlar</h2>
         <p>{{ requiredFieldsPopupMessage }}</p>
         <button class="primary-action" type="button" (click)="closeRequiredFieldsPopup()">Tamam</button>
+      </section>
+    </div>
+
+    <div
+      class="modal-backdrop"
+      *ngIf="clearMappingsPopupMessage"
+      role="presentation"
+      (click)="closeClearMappingsPopup()"
+    >
+      <section
+        class="required-fields-modal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="clear-mappings-modal-title"
+        (click)="$event.stopPropagation()"
+      >
+        <h2 id="clear-mappings-modal-title">Eşleştirmeleri Sil</h2>
+        <p>{{ clearMappingsPopupMessage }}</p>
+        <div class="modal-actions">
+          <button class="back-action" type="button" (click)="closeClearMappingsPopup()">Vazgeç</button>
+          <button class="primary-action" type="button" (click)="confirmClearMappings()">Tümünü Sil</button>
+        </div>
       </section>
     </div>
 

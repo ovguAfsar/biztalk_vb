@@ -73,6 +73,7 @@ export class VisualMappingPageComponent implements OnInit {
   protected successMessage = '';
   protected requiredFieldsPopupMessage = '';
   protected autoMatchMessage = '';
+  protected clearMappingsPopupMessage = '';
   protected mappingValidationWarnings: string[] = [];
 
   ngOnInit(): void {
@@ -442,6 +443,31 @@ export class VisualMappingPageComponent implements OnInit {
     }
     this.successMessage = '';
     this.saveError = '';
+  }
+
+  protected requestClearMappings(): void {
+    if (this.mappingDefinitions.length === 0) {
+      return;
+    }
+
+    this.clearMappingsPopupMessage = 'Tüm eşleştirmeler silinsin mi?';
+  }
+
+  protected closeClearMappingsPopup(): void {
+    this.clearMappingsPopupMessage = '';
+  }
+
+  protected confirmClearMappings(): void {
+    this.mappingDefinitions = [];
+    this.selectedSourceField = '';
+    this.selectedTargetField = '';
+    this.pendingConnection = undefined;
+    this.draggedSourceField = '';
+    this.dragTargetField = '';
+    this.autoMatchMessage = 'Tüm eşleştirmeler silindi.';
+    this.successMessage = '';
+    this.saveError = '';
+    this.closeClearMappingsPopup();
   }
 
   protected saveMappings(confirmWarnings = false): void {
