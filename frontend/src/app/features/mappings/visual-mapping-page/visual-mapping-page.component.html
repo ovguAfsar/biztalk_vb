@@ -54,10 +54,12 @@
 
           <div class="selection-strip">
             <span>Kaynak alanın sağındaki bağlantı noktasından hedef alanın solundaki noktaya ok çekin.</span>
+            <button class="auto-match-action" type="button" (click)="autoMatchFields()">Otomatik Eşle</button>
             <span *ngIf="draggedSourceField">Ok başlangıcı: {{ getSourceLabelByName(draggedSourceField) }}</span>
             <span *ngIf="pendingConnection">
               Seçiliyor: {{ getSourceLabelByName(pendingConnection.sourceField) }} → {{ getTargetLabelByName(pendingConnection.targetField) }}
             </span>
+            <span class="auto-match-message" *ngIf="autoMatchMessage">{{ autoMatchMessage }}</span>
           </div>
 
           <div

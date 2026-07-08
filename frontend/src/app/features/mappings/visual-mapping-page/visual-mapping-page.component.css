@@ -302,12 +302,34 @@
 .selection-strip {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   border-bottom: 1px solid #dfe5ef;
   color: #59677c;
   font-size: 0.86rem;
   font-weight: 680;
   padding: 10px 16px;
+}
+
+.auto-match-action {
+  min-height: 32px;
+  border: 1px solid #111827;
+  border-radius: 8px;
+  background: #fcbd00;
+  color: #111827;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.auto-match-action:hover {
+  background: #f2b400;
+}
+
+.auto-match-message {
+  color: #0f6654;
+  font-weight: 760;
 }
 
 .canvas-grid {

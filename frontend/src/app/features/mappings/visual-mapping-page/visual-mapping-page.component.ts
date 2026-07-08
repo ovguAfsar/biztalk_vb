@@ -72,6 +72,7 @@ export class VisualMappingPageComponent implements OnInit {
   protected saveError = '';
   protected successMessage = '';
   protected requiredFieldsPopupMessage = '';
+  protected autoMatchMessage = '';
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -325,6 +326,21 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected connectSelectedFields(): void {
     this.connectFields(this.selectedSourceField, this.selectedTargetField, this.selectedTransformType);
+  }
+
+  protected autoMatchFields(): void {
+    this.successMessage = '';
+    this.saveError = '';
+    this.autoMatchMessage = '';
+
+    const createdMappings = this.createAutoMatches();
+    if (createdMappings.length === 0) {
+      this.autoMatchMessage = 'Benzer alan bulunamadı veya mevcut eşleşmeler korunuyor.';
+      return;
+    }
+
+    this.mappingDefinitions = [...this.mappingDefinitions, ...createdMappings];
+    this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
   }
 
   protected choosePendingTransform(transformType: MappingTransformType): void {
@@ -598,6 +614,12 @@ export class VisualMappingPageComponent implements OnInit {
             this.loadError = 'Önce kaynak veri tanımlanmalıdır.';
           } else if (!mapping.targetSchema) {
             this.loadError = 'Önce hedef veri tanımlanmalıdır.';
+          } else if (this.mappingDefinitions.length === 0) {
+            const createdMappings = this.createAutoMatches();
+            if (createdMappings.length > 0) {
+              this.mappingDefinitions = createdMappings;
+              this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
+            }
           }
 
           this.changeDetector.detectChanges();
@@ -694,6 +716,181 @@ export class VisualMappingPageComponent implements OnInit {
       .split(',')
       .map(fieldName => fieldName.trim())
       .filter(Boolean);
+  }
+
+  private createAutoMatches(): MappingDefinition[] {
+    const usedSources = new Set(
+      this.mappingDefinitions.flatMap(mapping => this.getSourceFieldNames(mapping.sourceField))
+    );
+    const usedTargets = new Set(this.mappingDefinitions.map(mapping => mapping.targetField));
+    const candidates = this.targetFields
+      .filter(targetField => !usedTargets.has(targetField.name))
+      .flatMap(targetField => this.sourceFields
+        .filter(sourceField => !usedSources.has(sourceField.name))
+        .map(sourceField => ({
+          sourceField: sourceField.name,
+          targetField: targetField.name,
+          score: this.getFieldSimilarityScore(sourceField, targetField)
+        })))
+      .filter(candidate => candidate.score >= 0.68)
+      .sort((left, right) => right.score - left.score);
+    const matches: MappingDefinition[] = [];
+
+    for (const candidate of candidates) {
+      if (usedSources.has(candidate.sourceField) || usedTargets.has(candidate.targetField)) {
+        continue;
+      }
+
+      usedSources.add(candidate.sourceField);
+      usedTargets.add(candidate.targetField);
+      matches.push({
+        sourceField: candidate.sourceField,
+        targetField: candidate.targetField,
+        transformType: 'direct'
+      });
+    }
+
+    return matches;
+  }
+
+  private getFieldSimilarityScore(sourceField: SourceField, targetField: TargetField): number {
+    const sourceTerms = this.getFieldSearchTerms(sourceField);
+    const targetTerms = this.getFieldSearchTerms(targetField);
+    let bestScore = 0;
+
+    for (const sourceTerm of sourceTerms) {
+      for (const targetTerm of targetTerms) {
+        bestScore = Math.max(bestScore, this.scoreNormalizedTerms(sourceTerm, targetTerm));
+      }
+    }
+
+    return bestScore;
+  }
+
+  private getFieldSearchTerms(field: SourceField | TargetField): string[] {
+    return Array.from(new Set([
+      field.name,
+      field.displayName ?? '',
+      this.splitFieldName(field.name),
+      field.displayName ? this.splitFieldName(field.displayName) : ''
+    ]
+      .map(value => value.trim())
+      .filter(Boolean)));
+  }
+
+  private scoreNormalizedTerms(sourceValue: string, targetValue: string): number {
+    const source = this.normalizeFieldText(sourceValue);
+    const target = this.normalizeFieldText(targetValue);
+
+    if (!source || !target) {
+      return 0;
+    }
+
+    if (source.compact === target.compact) {
+      return 1;
+    }
+
+    if (source.compact.includes(target.compact) || target.compact.includes(source.compact)) {
+      const shorterLength = Math.min(source.compact.length, target.compact.length);
+      const longerLength = Math.max(source.compact.length, target.compact.length);
+      return Math.max(0.76, 0.72 + (shorterLength / longerLength) * 0.22);
+    }
+
+    const sourceTokenSet = new Set(source.tokens);
+    const targetTokenSet = new Set(target.tokens);
+    const intersectionCount = target.tokens.filter(token => sourceTokenSet.has(token)).length;
+    const reverseIntersectionCount = source.tokens.filter(token => targetTokenSet.has(token)).length;
+    const targetCoverage = target.tokens.length > 0 ? intersectionCount / target.tokens.length : 0;
+    const sourceCoverage = source.tokens.length > 0 ? reverseIntersectionCount / source.tokens.length : 0;
+
+    if (targetCoverage === 1 && target.tokens.length > 0) {
+      return 0.86;
+    }
+
+    const tokenScore = targetCoverage * 0.62 + sourceCoverage * 0.2;
+    const diceScore = this.getDiceCoefficient(source.compact, target.compact) * 0.72;
+
+    return Math.max(tokenScore, diceScore);
+  }
+
+  private normalizeFieldText(value: string): { compact: string; tokens: string[] } {
+    const asciiValue = value
+      .replace(/[Çç]/g, 'c')
+      .replace(/[Ğğ]/g, 'g')
+      .replace(/[İIı]/g, 'i')
+      .replace(/[Öö]/g, 'o')
+      .replace(/[Şş]/g, 's')
+      .replace(/[Üü]/g, 'u')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const spacedValue = asciiValue
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+      .replace(/[_\-.]+/g, ' ')
+      .toLowerCase();
+    const tokens = spacedValue
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(token => this.normalizeFieldToken(token))
+      .filter(Boolean);
+
+    return {
+      compact: tokens.join(''),
+      tokens: Array.from(new Set(tokens))
+    };
+  }
+
+  private normalizeFieldToken(token: string): string {
+    const aliases: Record<string, string> = {
+      alici: '',
+      gonderen: '',
+      musteri: '',
+      kisi: '',
+      no: 'numara',
+      numarasi: 'numara',
+      numarası: 'numara',
+      hesapno: 'hesapnumara',
+      tutari: 'tutar',
+      tutarı: 'tutar',
+      miktar: 'tutar',
+      amount: 'tutar',
+      name: 'ad',
+      surname: 'soyad',
+      lastname: 'soyad',
+      firstname: 'ad'
+    };
+
+    return aliases[token] ?? token;
+  }
+
+  private getDiceCoefficient(left: string, right: string): number {
+    if (left.length < 2 || right.length < 2) {
+      return left === right ? 1 : 0;
+    }
+
+    const leftBigrams = this.getBigrams(left);
+    const rightBigrams = this.getBigrams(right);
+    const rightCounts = rightBigrams.reduce<Map<string, number>>((counts, bigram) => {
+      counts.set(bigram, (counts.get(bigram) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>());
+    let intersection = 0;
+
+    for (const bigram of leftBigrams) {
+      const count = rightCounts.get(bigram) ?? 0;
+      if (count > 0) {
+        intersection += 1;
+        rightCounts.set(bigram, count - 1);
+      }
+    }
+
+    return (2 * intersection) / (leftBigrams.length + rightBigrams.length);
+  }
+
+  private getBigrams(value: string): string[] {
+    return Array.from({ length: value.length - 1 }, (_, index) => value.slice(index, index + 2));
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {
