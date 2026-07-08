@@ -74,6 +74,7 @@ export class VisualMappingPageComponent implements OnInit {
   protected requiredFieldsPopupMessage = '';
   protected autoMatchMessage = '';
   protected clearMappingsPopupMessage = '';
+  protected mappingValidationWarnings: string[] = [];
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -469,9 +470,12 @@ export class VisualMappingPageComponent implements OnInit {
     this.closeClearMappingsPopup();
   }
 
-  protected saveMappings(): void {
+  protected saveMappings(confirmWarnings = false): void {
     this.successMessage = '';
     this.saveError = '';
+    if (!confirmWarnings) {
+      this.mappingValidationWarnings = [];
+    }
 
     if (this.missingRequiredTargetFields.length > 0) {
       this.activeBottomTab = 'warnings';
@@ -489,15 +493,31 @@ export class VisualMappingPageComponent implements OnInit {
       return;
     }
 
+    const clientWarnings = this.getMappingTypeWarnings();
+    if (clientWarnings.length > 0 && !confirmWarnings) {
+      this.mappingValidationWarnings = clientWarnings;
+      this.activeBottomTab = 'warnings';
+      this.changeDetector.detectChanges();
+      return;
+    }
+
     this.isSaving = true;
 
-    this.mappingApi.saveMappings(this.mappingId, { mappings: this.mappingDefinitions })
+    this.mappingApi.saveMappings(this.mappingId, { mappings: this.mappingDefinitions, confirmWarnings })
       .pipe(finalize(() => {
         this.isSaving = false;
         this.changeDetector.detectChanges();
       }))
       .subscribe({
         next: (response) => {
+          const responseWarnings = response.warnings ?? [];
+          if (responseWarnings.length > 0 && !confirmWarnings) {
+            this.mappingValidationWarnings = responseWarnings;
+            this.activeBottomTab = 'warnings';
+            this.changeDetector.detectChanges();
+            return;
+          }
+
           this.mappingDefinitions = response.mappings;
           this.successMessage = 'Alan eşleştirmeleri kaydedildi.';
           void this.router.navigate(['/mappings', this.mappingId, 'test']);
@@ -520,6 +540,15 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected closeRequiredFieldsPopup(): void {
     this.requiredFieldsPopupMessage = '';
+  }
+
+  protected closeMappingValidationWarnings(): void {
+    this.mappingValidationWarnings = [];
+  }
+
+  protected continueDespiteMappingWarnings(): void {
+    this.mappingValidationWarnings = [];
+    this.saveMappings(true);
   }
 
   protected setActiveBottomTab(tab: BottomPanelTab): void {
@@ -742,6 +771,46 @@ export class VisualMappingPageComponent implements OnInit {
       .split(',')
       .map(fieldName => fieldName.trim())
       .filter(Boolean);
+  }
+
+  private getMappingTypeWarnings(): string[] {
+    return this.mappingDefinitions
+      .map(mappingDefinition => this.getMappingTypeWarning(mappingDefinition))
+      .filter((warning): warning is string => Boolean(warning));
+  }
+
+  private getMappingTypeWarning(mappingDefinition: MappingDefinition): string | undefined {
+    if (mappingDefinition.transformType === 'constant') {
+      return undefined;
+    }
+
+    const sourceFields = this.getSourceFieldNames(mappingDefinition.sourceField)
+      .map(fieldName => this.getSourceField(fieldName))
+      .filter((field): field is SourceField => Boolean(field));
+    const targetField = this.getTargetField(mappingDefinition.targetField);
+
+    if (sourceFields.length === 0 || !targetField) {
+      return undefined;
+    }
+
+    if (sourceFields.length > 1) {
+      if (targetField.type === 'text') {
+        return undefined;
+      }
+
+      return `Tip uyumsuzluğu olabilir: kaynak '${sourceFields.map(field => this.getSourceFieldLabel(field)).join(' + ')}' (${sourceFields.map(field => field.type).join(' + ')}) hedef '${this.getTargetFieldLabel(targetField)}' (${targetField.type}) alanına eşlenmiş.`;
+    }
+
+    const sourceField = sourceFields[0];
+    if (sourceField.type === targetField.type) {
+      return undefined;
+    }
+
+    if (mappingDefinition.transformType === 'dateFormat' && targetField.type === 'date') {
+      return undefined;
+    }
+
+    return `Tip uyumsuzluğu olabilir: kaynak '${this.getSourceFieldLabel(sourceField)}' (${sourceField.type}) hedef '${this.getTargetFieldLabel(targetField)}' (${targetField.type}) alanına eşlenmiş.`;
   }
 
   private createAutoMatches(): MappingDefinition[] {
