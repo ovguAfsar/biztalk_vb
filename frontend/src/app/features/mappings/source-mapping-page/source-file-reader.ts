@@ -13,6 +13,7 @@ export interface SourceFieldImport {
 export interface SourceFileImportResult {
   format: SourceFileFormat;
   fields: SourceFieldImport[];
+  records: Record<string, string>[];
 }
 
 export async function readSourceFile(file: File, expectedSourceType: MappingSourceType): Promise<SourceFileImportResult> {
@@ -26,20 +27,19 @@ export async function readSourceFile(file: File, expectedSourceType: MappingSour
 
   switch (format) {
     case 'excel':
+      const excelImport = await readExcelColumns(file);
       return {
         format,
-        fields: (await readExcelColumns(file)).map(column => ({
+        fields: excelImport.columns.map(column => ({
           displayName: column.header,
           sampleValue: column.sampleValue,
           sourcePath: column.column,
           type: inferScalarType(column.sampleValue)
-        }))
+        })),
+        records: excelImport.records
       };
     case 'txt':
-      return {
-        format,
-        fields: readTxtFields(await file.text())
-      };
+      return readTxtFile(await file.text(), format);
   }
 }
 
@@ -75,7 +75,7 @@ function validateExpectedFormat(format: SourceFileFormat, expectedSourceType: Ma
   }
 }
 
-function readTxtFields(text: string): SourceFieldImport[] {
+function readTxtFile(text: string, format: SourceFileFormat): SourceFileImportResult {
   const lines = text
     .split(/\r?\n/)
     .map(line => line.trim())
@@ -87,20 +87,31 @@ function readTxtFields(text: string): SourceFieldImport[] {
 
   const keyValueFields = readTxtKeyValueFields(lines);
   if (keyValueFields.length > 0) {
-    return keyValueFields;
+    return {
+      format,
+      fields: keyValueFields,
+      records: [keyValueFields.reduce<Record<string, string>>((record, field) => {
+        record[field.sourcePath] = field.sampleValue;
+        return record;
+      }, {})]
+    };
   }
 
-  const delimitedFields = readTxtDelimitedFields(lines);
-  if (delimitedFields.length > 0) {
-    return delimitedFields;
+  const delimitedImport = readTxtDelimitedFields(lines);
+  if (delimitedImport) {
+    return { format, ...delimitedImport };
   }
 
-  return [{
+  return {
+    format,
+    fields: [{
     displayName: 'Satır',
     sampleValue: lines[0],
     sourcePath: 'line',
     type: inferScalarType(lines[0])
-  }];
+    }],
+    records: lines.map(line => ({ line }))
+  };
 }
 
 function readTxtKeyValueFields(lines: string[]): SourceFieldImport[] {
@@ -120,25 +131,34 @@ function readTxtKeyValueFields(lines: string[]): SourceFieldImport[] {
   }));
 }
 
-function readTxtDelimitedFields(lines: string[]): SourceFieldImport[] {
+function readTxtDelimitedFields(lines: string[]): { fields: SourceFieldImport[]; records: Record<string, string>[] } | null {
   const delimiter = detectTxtDelimiter(lines[0]);
   if (!delimiter) {
-    return [];
+    return null;
   }
 
   const headers = splitTxtLine(lines[0], delimiter);
   if (headers.length < 2 || headers.some(header => !header)) {
-    return [];
+    return null;
   }
 
   const sampleValues = lines.length > 1 ? splitTxtLine(lines[1], delimiter) : [];
 
-  return headers.map((header, index) => ({
+  return {
+    fields: headers.map((header, index) => ({
     displayName: header,
     sampleValue: sampleValues[index] ?? '',
     sourcePath: header,
     type: inferScalarType(sampleValues[index] ?? '')
-  }));
+    })),
+    records: lines.slice(1)
+      .map(line => splitTxtLine(line, delimiter))
+      .filter(values => values.some(value => value))
+      .map(values => headers.reduce<Record<string, string>>((record, header, index) => {
+        record[header] = values[index] ?? '';
+        return record;
+      }, {}))
+  };
 }
 
 function detectTxtDelimiter(line: string): string {

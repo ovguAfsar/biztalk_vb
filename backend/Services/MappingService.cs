@@ -199,7 +199,8 @@ public sealed class MappingService : IMappingService
                     Required = field.Required,
                     SampleValue = string.IsNullOrWhiteSpace(field.SampleValue) ? null : field.SampleValue.Trim()
                 })
-                .ToList()
+                .ToList(),
+            Records = NormalizeSourceRecords(request.Records)
         };
 
         var sourceType = string.IsNullOrWhiteSpace(request.SourceType)
@@ -322,88 +323,25 @@ public sealed class MappingService : IMappingService
             throw new MappingValidationException(validationErrors);
         }
 
-        var input = request!.Input!;
-        var output = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var inputRecords = GetInputRecords(request!.Input!.Value);
+        var outputs = new List<IReadOnlyDictionary<string, object?>>();
         var warnings = new List<string>();
         var errors = new List<string>();
-        var fixedWidthParsedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fixedWidthPatternApplied = ApplyAyKodluIbanFixedWidthPattern(
-            input,
-            output,
-            mapping.TargetSchema!,
-            fixedWidthParsedTargets,
-            warnings,
-            errors);
 
-        foreach (var mappingDefinition in mapping.MappingDefinitions!)
+        for (var index = 0; index < inputRecords.Count; index++)
         {
-            var transformType = NormalizeTransformType(mappingDefinition.TransformType);
-            var targetField = mappingDefinition.TargetField;
+            var rowWarnings = new List<string>();
+            var rowErrors = new List<string>();
+            outputs.Add(ApplyMappingToInputRecord(inputRecords[index], mapping, rowWarnings, rowErrors));
 
-            if (string.IsNullOrWhiteSpace(targetField))
-            {
-                errors.Add("Target field is empty in a mapping definition.");
-                continue;
-            }
-
-            if (fixedWidthPatternApplied && IsFixedWidthSourceField(mappingDefinition.SourceField))
-            {
-                continue;
-            }
-
-            switch (transformType)
-            {
-                case "direct":
-                    CopySourceValue(input, output, warnings, mappingDefinition.SourceField, targetField);
-                    break;
-                case "constant":
-                    warnings.Add($"Constant transform for target field '{targetField}' has no constantValue configured.");
-                    break;
-                case "concat":
-                    ConcatSourceValues(input, output, warnings, mappingDefinition.SourceField, targetField);
-                    break;
-                case "dateFormat":
-                    FormatSourceDate(input, output, warnings, mappingDefinition.SourceField, targetField);
-                    break;
-                case "uppercase":
-                    TransformSourceText(
-                        input,
-                        output,
-                        warnings,
-                        mappingDefinition.SourceField,
-                        targetField,
-                        value => value.ToUpperInvariant());
-                    break;
-                case "lowercase":
-                    TransformSourceText(
-                        input,
-                        output,
-                        warnings,
-                        mappingDefinition.SourceField,
-                        targetField,
-                        value => value.ToLowerInvariant());
-                    break;
-                case "trim":
-                    TransformSourceText(
-                        input,
-                        output,
-                        warnings,
-                        mappingDefinition.SourceField,
-                        targetField,
-                        value => value.Trim());
-                    break;
-                default:
-                    errors.Add($"Unsupported transformType '{mappingDefinition.TransformType}' for target field '{targetField}'.");
-                    break;
-            }
+            warnings.AddRange(rowWarnings.Select(warning => PrefixRowMessage(index, inputRecords.Count, warning)));
+            errors.AddRange(rowErrors.Select(error => PrefixRowMessage(index, inputRecords.Count, error)));
         }
-
-        ApplyTargetFieldFormats(output, mapping.TargetSchema!, fixedWidthParsedTargets, fixedWidthPatternApplied, warnings, errors);
 
         return new TestMappingResponse
         {
             Id = mapping.Id,
-            Output = output,
+            Output = outputs,
             Warnings = warnings,
             Errors = errors
         };
@@ -559,6 +497,24 @@ public sealed class MappingService : IMappingService
         return ToValidationErrors(errors);
     }
 
+    private static List<Dictionary<string, string?>>? NormalizeSourceRecords(
+        IReadOnlyList<Dictionary<string, string?>>? records)
+    {
+        if (records is null || records.Count == 0)
+        {
+            return null;
+        }
+
+        return records
+            .Where(record => record.Count > 0)
+            .Select(record => record.ToDictionary(
+                item => item.Key.Trim(),
+                item => string.IsNullOrWhiteSpace(item.Value) ? null : item.Value,
+                StringComparer.OrdinalIgnoreCase))
+            .Where(record => record.Count > 0)
+            .ToList();
+    }
+
     private static IDictionary<string, string[]> ValidateTestMappingRequest(
         TestMappingRequest? request,
         MappingDocument mapping)
@@ -586,9 +542,15 @@ public sealed class MappingService : IMappingService
             return ToValidationErrors(errors);
         }
 
-        if (request.Input is null || request.Input.Count == 0)
+        if (request.Input is null
+            || request.Input.Value.ValueKind == JsonValueKind.Undefined
+            || request.Input.Value.ValueKind == JsonValueKind.Null)
         {
             AddError(errors, "input", "Test input bos olamaz.");
+        }
+        else if (!IsValidTestInputShape(request.Input.Value))
+        {
+            AddError(errors, "input", "Test input bir object veya object listesi olmalidir.");
         }
 
         return ToValidationErrors(errors);
@@ -798,6 +760,129 @@ public sealed class MappingService : IMappingService
         return FieldNamePattern.IsMatch(fieldName);
     }
 
+    private static bool IsValidTestInputShape(JsonElement input)
+    {
+        if (input.ValueKind == JsonValueKind.Object)
+        {
+            return input.EnumerateObject().Any();
+        }
+
+        return input.ValueKind == JsonValueKind.Array
+            && input.EnumerateArray().Any()
+            && input.EnumerateArray().All(item => item.ValueKind == JsonValueKind.Object);
+    }
+
+    private static IReadOnlyList<IReadOnlyDictionary<string, JsonElement>> GetInputRecords(JsonElement input)
+    {
+        if (input.ValueKind == JsonValueKind.Object)
+        {
+            return new[] { JsonObjectToDictionary(input) };
+        }
+
+        return input
+            .EnumerateArray()
+            .Select(JsonObjectToDictionary)
+            .ToList();
+    }
+
+    private static IReadOnlyDictionary<string, JsonElement> JsonObjectToDictionary(JsonElement input)
+    {
+        return input
+            .EnumerateObject()
+            .ToDictionary(
+                property => property.Name,
+                property => property.Value.Clone(),
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string PrefixRowMessage(int rowIndex, int recordCount, string message)
+    {
+        return recordCount <= 1 ? message : $"Record {rowIndex + 1}: {message}";
+    }
+
+    private static IReadOnlyDictionary<string, object?> ApplyMappingToInputRecord(
+        IReadOnlyDictionary<string, JsonElement> input,
+        MappingDocument mapping,
+        ICollection<string> warnings,
+        ICollection<string> errors)
+    {
+        var output = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        var fixedWidthParsedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fixedWidthPatternApplied = ApplyAyKodluIbanFixedWidthPattern(
+            input,
+            output,
+            mapping.TargetSchema!,
+            fixedWidthParsedTargets,
+            warnings,
+            errors);
+
+        foreach (var mappingDefinition in mapping.MappingDefinitions!)
+        {
+            var transformType = NormalizeTransformType(mappingDefinition.TransformType);
+            var targetField = mappingDefinition.TargetField;
+
+            if (string.IsNullOrWhiteSpace(targetField))
+            {
+                errors.Add("Target field is empty in a mapping definition.");
+                continue;
+            }
+
+            if (fixedWidthPatternApplied && IsFixedWidthSourceField(mappingDefinition.SourceField))
+            {
+                continue;
+            }
+
+            switch (transformType)
+            {
+                case "direct":
+                    CopySourceValue(input, output, warnings, mappingDefinition.SourceField, targetField);
+                    break;
+                case "constant":
+                    warnings.Add($"Constant transform for target field '{targetField}' has no constantValue configured.");
+                    break;
+                case "concat":
+                    ConcatSourceValues(input, output, warnings, mappingDefinition.SourceField, targetField);
+                    break;
+                case "dateFormat":
+                    FormatSourceDate(input, output, warnings, mappingDefinition.SourceField, targetField);
+                    break;
+                case "uppercase":
+                    TransformSourceText(
+                        input,
+                        output,
+                        warnings,
+                        mappingDefinition.SourceField,
+                        targetField,
+                        value => value.ToUpperInvariant());
+                    break;
+                case "lowercase":
+                    TransformSourceText(
+                        input,
+                        output,
+                        warnings,
+                        mappingDefinition.SourceField,
+                        targetField,
+                        value => value.ToLowerInvariant());
+                    break;
+                case "trim":
+                    TransformSourceText(
+                        input,
+                        output,
+                        warnings,
+                        mappingDefinition.SourceField,
+                        targetField,
+                        value => value.Trim());
+                    break;
+                default:
+                    errors.Add($"Unsupported transformType '{mappingDefinition.TransformType}' for target field '{targetField}'.");
+                    break;
+            }
+        }
+
+        ApplyTargetFieldFormats(output, mapping.TargetSchema!, fixedWidthParsedTargets, fixedWidthPatternApplied, warnings, errors);
+        return output;
+    }
+
     private static void AddError(IDictionary<string, List<string>> errors, string key, string message)
     {
         if (!errors.TryGetValue(key, out var messages))
@@ -851,6 +936,7 @@ public sealed class MappingService : IMappingService
                     SampleValue = field.SampleValue
                 })
                 .ToList(),
+            Records = sourceSchema.Records,
             UpdatedAt = mapping.UpdatedAt
         };
     }
@@ -895,7 +981,8 @@ public sealed class MappingService : IMappingService
                     Required = field.Required,
                     SampleValue = field.SampleValue
                 })
-                .ToList()
+                .ToList(),
+            Records = sourceSchema.Records
         };
     }
 

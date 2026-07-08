@@ -10,5 +10,7 @@ public sealed class SourceSchemaResponse
 
     public required IReadOnlyList<SourceFieldDto> Fields { get; init; }
 
+    public IReadOnlyList<Dictionary<string, string?>>? Records { get; init; }
+
     public required DateTime UpdatedAt { get; init; }
 }

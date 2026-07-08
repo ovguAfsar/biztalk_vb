@@ -176,8 +176,8 @@ export class MappingTestPageComponent implements OnInit {
           this.validateMappingForTest(mapping);
 
           if (!this.loadError) {
-            this.inputJson = JSON.stringify(this.createSampleInput(mapping.sourceSchema!.fields), null, 2);
-            this.outputJson = JSON.stringify({}, null, 2);
+            this.inputJson = JSON.stringify(this.createSampleInput(mapping.sourceSchema!.fields, mapping.sourceSchema!.records), null, 2);
+            this.outputJson = JSON.stringify([], null, 2);
           }
 
           this.changeDetector.detectChanges();
@@ -205,7 +205,14 @@ export class MappingTestPageComponent implements OnInit {
     }
   }
 
-  private createSampleInput(fields: SourceField[]): Record<string, unknown> {
+  private createSampleInput(
+    fields: SourceField[],
+    records?: Record<string, string>[]
+  ): Record<string, unknown> | Record<string, unknown>[] {
+    if (records && records.length > 0) {
+      return records;
+    }
+
     return fields.reduce<Record<string, unknown>>((sampleInput, field) => {
       sampleInput[field.name] = this.createSampleValue(field);
       return sampleInput;
@@ -254,15 +261,27 @@ export class MappingTestPageComponent implements OnInit {
     }
   }
 
-  private parseInputJson(): Record<string, unknown> | null {
+  private parseInputJson(): Record<string, unknown> | Record<string, unknown>[] | null {
     try {
       const parsedInput = JSON.parse(this.inputJson) as unknown;
-      if (!parsedInput || Array.isArray(parsedInput) || typeof parsedInput !== 'object') {
-        this.errors = ['Input JSON bir object olmalıdır.'];
+
+      if (this.isPlainObject(parsedInput)) {
+        return parsedInput;
+      }
+
+      if (Array.isArray(parsedInput)
+        && parsedInput.length > 0
+        && parsedInput.every(item => this.isPlainObject(item))) {
+        return parsedInput;
+      }
+
+      if (Array.isArray(parsedInput)) {
+        this.errors = ['Input JSON boş olmayan bir object listesi olmalıdır.'];
         return null;
       }
 
-      return parsedInput as Record<string, unknown>;
+      this.errors = ['Input JSON bir object veya object listesi olmalıdır.'];
+      return null;
     } catch {
       this.errors = ['Input JSON geçerli değil. Lütfen formatı kontrol edin.'];
       return null;
@@ -278,6 +297,10 @@ export class MappingTestPageComponent implements OnInit {
     this.successMessage = this.hasSuccessfulRun ? 'Mapping başarıyla çalıştırıldı.' : '';
     this.showTestResultModal = true;
     this.changeDetector.detectChanges();
+  }
+
+  private isPlainObject(value: unknown): value is Record<string, unknown> {
+    return value !== null && !Array.isArray(value) && typeof value === 'object';
   }
 
   private getErrorMessage(error: unknown, fallback: string): string {
