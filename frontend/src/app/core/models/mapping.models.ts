@@ -42,6 +42,7 @@ export interface TargetField {
 export interface SourceSchemaDetails {
   sourceName: string;
   fields: SourceField[];
+  records?: Record<string, string>[];
 }
 
 export interface TargetSchemaDetails {
@@ -75,6 +76,7 @@ export interface SaveSourceSchemaRequest {
   sourceName: string;
   sourceType?: MappingSourceType;
   fields: SourceField[];
+  records?: Record<string, string>[];
 }
 
 export interface SaveSourceSchemaResponse {
@@ -82,6 +84,7 @@ export interface SaveSourceSchemaResponse {
   sourceName: string;
   sourceType: MappingSourceType;
   fields: SourceField[];
+  records?: Record<string, string>[];
   updatedAt: string;
 }
 
@@ -109,12 +112,12 @@ export interface SaveMappingsResponse {
 }
 
 export interface TestMappingRequest {
-  input: Record<string, unknown>;
+  input: Record<string, unknown> | Record<string, unknown>[];
 }
 
 export interface TestMappingResponse {
   id: string;
-  output: Record<string, unknown>;
+  output: unknown;
   warnings: string[];
   errors: string[];
 }

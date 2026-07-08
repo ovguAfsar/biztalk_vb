@@ -4,6 +4,11 @@ export interface ExcelColumnImport {
   sampleValue: string;
 }
 
+export interface ExcelFileImport {
+  columns: ExcelColumnImport[];
+  records: Record<string, string>[];
+}
+
 interface ZipEntry {
   compressionMethod: number;
   compressedSize: number;
@@ -89,7 +94,7 @@ class XlsxZipArchive {
   }
 }
 
-export async function readExcelColumns(file: File): Promise<ExcelColumnImport[]> {
+export async function readExcelColumns(file: File): Promise<ExcelFileImport> {
   const lowerName = file.name.toLowerCase();
 
   if (lowerName.endsWith('.csv')) {
@@ -174,7 +179,7 @@ function resolveFirstSheetPath(workbookXml: string, relationshipsXml: string): s
   return target ? resolveZipPath('xl', target) : 'xl/worksheets/sheet1.xml';
 }
 
-function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColumnImport[] {
+function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelFileImport {
   const document = parseXml(xml);
   const rows = getElementsByLocalName(document, 'row')
     .map(row => parseWorksheetRow(row, sharedStrings))
@@ -210,7 +215,18 @@ function parseWorksheetColumns(xml: string, sharedStrings: string[]): ExcelColum
     throw new Error('Excel dosyasında kolon başlıkları bulunamadı.');
   }
 
-  return columns;
+  const headersByColumn = new Map(headerRow.map(cell => [cell.columnIndex, cell.value.trim()]));
+  const records = dataRows
+    .filter(row => rowHasDataInColumns(row, headerColumnIndexes))
+    .map(row => {
+      const valuesByColumn = new Map(row.map(cell => [cell.columnIndex, cell.value.trim()]));
+      return headerColumnIndexes.reduce<Record<string, string>>((record, columnIndex) => {
+        record[headersByColumn.get(columnIndex) ?? getColumnNameFromIndex(columnIndex)] = valuesByColumn.get(columnIndex) ?? '';
+        return record;
+      }, {});
+    });
+
+  return { columns, records };
 }
 
 function validateHeaderCells(
@@ -286,7 +302,7 @@ function readCellValue(cell: Element, sharedStrings: string[]): string {
   return value;
 }
 
-function readCsvColumns(text: string): ExcelColumnImport[] {
+function readCsvColumns(text: string): ExcelFileImport {
   const rows = parseCsvRows(text).filter(row => row.some(cell => cell.trim()));
   const headerRow = rows[0];
 
@@ -323,7 +339,14 @@ function readCsvColumns(text: string): ExcelColumnImport[] {
     throw new Error('CSV dosyasında kolon başlıkları bulunamadı.');
   }
 
-  return columns;
+  const records = dataRows
+    .filter(row => row.some((cell, index) => index < headerRow.length && cell.trim()))
+    .map(row => headerRow.reduce<Record<string, string>>((record, header, index) => {
+      record[header.trim()] = row[index]?.trim() ?? '';
+      return record;
+    }, {}));
+
+  return { columns, records };
 }
 
 function parseCsvRows(text: string): string[][] {

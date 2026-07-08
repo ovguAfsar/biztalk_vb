@@ -48,6 +48,9 @@ public sealed class SourceSchemaDocument
 
     [BsonElement("fields")]
     public required List<SourceFieldDocument> Fields { get; init; }
+
+    [BsonElement("records")]
+    public List<Dictionary<string, string?>>? Records { get; init; }
 }
 
 public sealed class SourceFieldDocument

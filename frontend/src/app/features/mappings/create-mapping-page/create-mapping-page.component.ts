@@ -46,6 +46,7 @@ export class CreateMappingPageComponent implements OnInit {
   protected sourceFileError = '';
   protected detectedSourceType: MappingSourceType | '' = '';
   protected sourceFields: SourceField[] = [];
+  protected sourceRecords: Record<string, string>[] = [];
   protected createdMapping?: MappingCreateResponse;
   protected isSourceDragActive = false;
   protected mappings: MappingDetailsResponse[] = [];
@@ -165,6 +166,7 @@ export class CreateMappingPageComponent implements OnInit {
     this.sourceFileName = '';
     this.detectedSourceType = '';
     this.sourceFields = [];
+    this.sourceRecords = [];
     this.isMappingsPanelOpen = false;
   }
 
@@ -225,15 +227,19 @@ export class CreateMappingPageComponent implements OnInit {
     this.successMessage = '';
     this.detectedSourceType = '';
     this.sourceFields = [];
+    this.sourceRecords = [];
 
     try {
       const result = await readSourceFile(file, 'file');
       this.detectedSourceType = result.format;
-      this.sourceFields = this.toSourceFields(result.fields);
+      const importedSource = this.toSourceImport(result.fields, result.records);
+      this.sourceFields = importedSource.fields;
+      this.sourceRecords = importedSource.records;
     } catch (error: unknown) {
       this.sourceFileName = '';
       this.detectedSourceType = '';
       this.sourceFields = [];
+      this.sourceRecords = [];
       this.sourceFileError = error instanceof Error ? error.message : 'Dosya okunamadı.';
     } finally {
       this.changeDetector.detectChanges();
@@ -265,7 +271,8 @@ export class CreateMappingPageComponent implements OnInit {
     const sourceRequest: SaveSourceSchemaRequest = {
       sourceName: this.getFileBaseName(this.sourceFileName),
       sourceType: this.isDetectedFileSourceType(this.detectedSourceType) ? this.detectedSourceType : undefined,
-      fields: this.sourceFields
+      fields: this.sourceFields,
+      records: this.sourceRecords
     };
     let mappingId = this.selectedMapping?.id ?? '';
     const metadataRequest = this.selectedMapping
@@ -327,11 +334,10 @@ export class CreateMappingPageComponent implements OnInit {
     this.sourceFileName = mapping.sourceSchema?.sourceName ?? '';
     this.detectedSourceType = mapping.sourceSchema ? mapping.sourceType : '';
     this.sourceFields = mapping.sourceSchema?.fields ?? [];
+    this.sourceRecords = mapping.sourceSchema?.records ?? [];
   }
 
-  private toSourceFields(importedFields: SourceFieldImport[]): SourceField[] {
-    const usedFieldNames = new Set<string>();
-
+  private toSourceFields(importedFields: SourceFieldImport[], usedFieldNames = new Set<string>()): SourceField[] {
     return importedFields.map(field => ({
       name: this.createUniqueFieldName(field.displayName, field.sourcePath, usedFieldNames),
       displayName: field.displayName,
@@ -339,6 +345,38 @@ export class CreateMappingPageComponent implements OnInit {
       required: false,
       sampleValue: field.sampleValue || undefined
     }));
+  }
+
+  private toSourceImport(
+    importedFields: SourceFieldImport[],
+    importedRecords: Record<string, string>[]
+  ): { fields: SourceField[]; records: Record<string, string>[] } {
+    const usedFieldNames = new Set<string>();
+    const sourceKeyToFieldName = new Map<string, string>();
+    const fields = importedFields.map(field => {
+      const name = this.createUniqueFieldName(field.displayName, field.sourcePath, usedFieldNames);
+      sourceKeyToFieldName.set(field.sourcePath, name);
+      sourceKeyToFieldName.set(field.displayName, name);
+
+      return {
+        name,
+        displayName: field.displayName,
+        type: field.type,
+        required: false,
+        sampleValue: field.sampleValue || undefined
+      };
+    });
+    const records = importedRecords.map(record => {
+      return Array.from(sourceKeyToFieldName.entries()).reduce<Record<string, string>>((mappedRecord, [sourceKey, fieldName]) => {
+        if (Object.prototype.hasOwnProperty.call(record, sourceKey)) {
+          mappedRecord[fieldName] = record[sourceKey] ?? '';
+        }
+
+        return mappedRecord;
+      }, {});
+    });
+
+    return { fields, records };
   }
 
   private createUniqueFieldName(displayName: string, sourcePath: string, usedFieldNames: Set<string>): string {
