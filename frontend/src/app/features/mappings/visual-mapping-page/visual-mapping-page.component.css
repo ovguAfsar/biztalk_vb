@@ -311,20 +311,33 @@
   padding: 10px 16px;
 }
 
-.auto-match-action {
+.auto-match-action,
+.clear-mappings-action {
   min-height: 32px;
   border: 1px solid #111827;
   border-radius: 8px;
-  background: #fcbd00;
-  color: #111827;
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 800;
   padding: 6px 10px;
 }
 
+.auto-match-action {
+  background: #fcbd00;
+  color: #111827;
+}
+
 .auto-match-action:hover {
   background: #f2b400;
+}
+
+.clear-mappings-action {
+  background: #ffffff;
+  color: #111827;
+}
+
+.clear-mappings-action:hover {
+  background: #fff7df;
 }
 
 .auto-match-message {
@@ -863,6 +876,12 @@
 
 .required-fields-modal .primary-action {
   justify-self: end;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .primary-action,
