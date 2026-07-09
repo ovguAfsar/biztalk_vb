@@ -144,7 +144,7 @@ export const DEFAULT_TARGET_FIELDS: TargetField[] = [
     name: 'odemeKodu',
     displayName: 'Ödeme Kodu',
     type: 'text',
-    required: true,
+    required: false,
     sampleValue: '0052',
     length: 4,
     format: 'fixed-width',
