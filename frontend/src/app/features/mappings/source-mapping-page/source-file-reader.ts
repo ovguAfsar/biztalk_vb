@@ -106,6 +106,12 @@ function readTxtFile(text: string, format: SourceFileFormat): SourceFileImportRe
 
   return {
     format,
+    ...readFixedWidthRawLines(lines)
+  };
+}
+
+function readFixedWidthRawLines(lines: string[]): { fields: SourceFieldImport[]; records: Record<string, string>[] } {
+  return {
     fields: [],
     records: lines.map(line => ({ line }))
   };

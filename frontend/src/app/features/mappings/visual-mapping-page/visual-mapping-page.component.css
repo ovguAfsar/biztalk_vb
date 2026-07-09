@@ -897,58 +897,81 @@
   width: min(680px, 100%);
 }
 
-.fixed-width-position-modal {
-  width: min(760px, 100%);
-}
-
-.fixed-width-position-list {
-  display: grid;
-  gap: 10px;
-  max-height: min(50vh, 460px);
+.fixed-width-modal {
+  width: min(1040px, 100%);
+  max-height: min(760px, 92vh);
   overflow: auto;
-  padding-right: 4px;
+  border-color: #111827;
 }
 
-.fixed-width-position-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) 120px 120px 110px;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid #dfe5ef;
-  border-radius: 8px;
-  background: #fffaf0;
-  padding: 10px;
+.fixed-width-modal__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
 }
 
-.fixed-width-position-name {
+.fixed-width-modal__header h2 {
   color: #111827;
-  font-weight: 800;
 }
 
-.fixed-width-position-row input {
-  min-width: 0;
+.fixed-width-modal__header span {
   border: 1px solid #111827;
-  border-radius: 8px;
+  border-radius: 999px;
+  background: #fcbd00;
   color: #111827;
-  font: inherit;
-  font-weight: 760;
-  padding: 9px 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 5px 10px;
+  white-space: nowrap;
 }
 
-.fixed-width-position-row input:focus {
-  outline: 3px solid rgba(252, 189, 0, 0.35);
-  outline-offset: 1px;
+.fixed-width-grid {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
 }
 
-.fixed-width-position-length {
-  border: 1px solid #f0d48a;
+.fixed-width-grid__row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) minmax(150px, 1.2fr) minmax(110px, 0.75fr) minmax(98px, 0.55fr) minmax(98px, 0.55fr) minmax(82px, 0.45fr);
+  gap: 8px;
+  min-width: 760px;
+  align-items: center;
+}
+
+.fixed-width-grid__row--head {
+  color: #111827;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.fixed-width-grid input,
+.fixed-width-grid select,
+.fixed-width-grid output {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cfd8e6;
   border-radius: 8px;
   background: #ffffff;
-  color: #111827;;
-  font-size: 0.82rem;
-  font-weight: 860;
-  padding: 9px 10px;
-  text-align: center;
+  color: #172033;
+  font-weight: 700;
+  padding: 8px 10px;
+}
+
+.fixed-width-grid input:focus,
+.fixed-width-grid select:focus {
+  border-color: #fcbd00;
+  box-shadow: 0 0 0 3px rgb(252 189 0 / 18%);
+  outline: none;
+}
+
+.fixed-width-grid output {
+  display: inline-flex;
+  align-items: center;
+  border-color: #111827;
+  background: #fff7df;
 }
 
 .mapping-warning-modal .warning-list {

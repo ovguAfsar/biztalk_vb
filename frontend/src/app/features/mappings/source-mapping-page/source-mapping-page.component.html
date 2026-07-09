@@ -35,7 +35,7 @@
       <section class="file-import" *ngIf="isFileSource">
         <div
           class="file-import__summary"
-          [class.file-import__summary--ready]="hasImportedFields"
+          [class.file-import__summary--ready]="hasImportedFile"
           [class.file-import__summary--active]="isFileDragActive"
           [class.file-import__summary--disabled]="isSaving || isFileParsing"
           (dragover)="onSourceFileDragOver($event)"
@@ -47,8 +47,8 @@
           <p class="file-import__title">Dosyanızı buraya sürükleyin veya</p>
 
           <label class="file-picker" [class.file-picker--disabled]="isSaving || isFileParsing">
-            <span *ngIf="!hasImportedFields">Dosya Seç</span>
-            <span *ngIf="hasImportedFields">Dosyayı Değiştir</span>
+            <span *ngIf="!hasImportedFile">Dosya Seç</span>
+            <span *ngIf="hasImportedFile">Dosyayı Değiştir</span>
             <input
               type="file"
               [accept]="acceptedFileExtensions"
@@ -60,9 +60,15 @@
           <p class="file-import__description">
             Desteklenen dosya türleri: Excel (.xlsx, .xls), CSV (.csv), TXT (.txt)
           </p>
-          <p class="file-import__description" *ngIf="!hasImportedFields">{{ sourceFileDescription }}</p>
-          <p class="file-import__meta" *ngIf="hasImportedFields">
-            {{ sourceFileName }} · {{ fields.length }} {{ importCountLabel }}
+          <p class="file-import__description" *ngIf="!hasImportedFile">{{ sourceFileDescription }}</p>
+          <p class="file-import__meta" *ngIf="hasImportedFile">
+            <ng-container *ngIf="isFixedWidthRawSource; else importedFieldCount">
+              {{ sourceFileName }} · {{ importedRecords.length }} {{ importCountLabel }}
+            </ng-container>
+            <ng-template #importedFieldCount>{{ sourceFileName }} · {{ fields.length }} {{ importCountLabel }}</ng-template>
+          </p>
+          <p class="detected-format" *ngIf="isFixedWidthRawSource">
+            Sabit genişlik pozisyonları mapping ekranında tanımlanacak.
           </p>
           <p class="detected-format" *ngIf="detectedSourceTypeLabel">Algılanan format: {{ detectedSourceTypeLabel }}</p>
         </div>
@@ -159,7 +165,7 @@
 
       <div class="form-actions">
         <button class="back-action" type="button" (click)="goBack()" [disabled]="isSaving">Geri</button>
-        <button class="primary-action" type="submit" [disabled]="form.invalid || isSaving">
+        <button class="primary-action" type="submit" [disabled]="!canSubmitSource">
           <span *ngIf="!isSaving">Kaydet ve Devam Et</span>
           <span *ngIf="isSaving">Kaydediliyor...</span>
         </button>

@@ -75,6 +75,13 @@ export class CreateMappingPageComponent implements OnInit {
       && (this.sourceFields.length > 0 || this.sourceRecords.length > 0);
   }
 
+  protected get isFixedWidthRawSource(): boolean {
+    return this.detectedSourceType === 'txt'
+      && this.sourceFields.length === 0
+      && this.sourceRecords.length > 0
+      && this.sourceRecords.every(record => typeof record['line'] === 'string');
+  }
+
   protected get sourceFileMeta(): string {
     if (!this.hasSourceFile) {
       return '';
@@ -85,13 +92,6 @@ export class CreateMappingPageComponent implements OnInit {
     }
 
     return `${this.sourceFileName} · ${this.sourceFields.length} alan · ${this.detectedSourceTypeLabel}`;
-  }
-
-  private get isFixedWidthRawSource(): boolean {
-    return this.detectedSourceType === 'txt'
-      && this.sourceFields.length === 0
-      && this.sourceRecords.length > 0
-      && this.sourceRecords.every(record => typeof record['line'] === 'string');
   }
 
   protected get canContinue(): boolean {

@@ -10,6 +10,7 @@ import {
   MappingTransformType,
   SaveSourceSchemaRequest,
   SourceField,
+  SourceFieldType,
   TargetField
 } from '../../../core/models/mapping.models';
 import { MappingApiService } from '../../../core/services/mapping-api.service';
@@ -23,20 +24,11 @@ interface PendingConnection {
 }
 
 interface FixedWidthPositionRow {
-  fieldName: string;
+  name: string;
   displayName: string;
-  type: SourceField['type'];
-  startPosition: string;
-  endPosition: string;
-}
-
-interface ParsedFixedWidthPositionRow {
-  fieldName: string;
-  displayName: string;
-  type: SourceField['type'];
-  startPosition: number;
-  endPosition: number;
-  length: number;
+  type: SourceFieldType;
+  startPosition: number | null;
+  endPosition: number | null;
 }
 
 @Component({
@@ -95,9 +87,9 @@ export class VisualMappingPageComponent implements OnInit {
   protected clearMappingsPopupMessage = '';
   protected mappingValidationWarnings: string[] = [];
   protected isAiMatching = false;
+  protected showFixedWidthPositionModal = false;
   protected fixedWidthPositionRows: FixedWidthPositionRow[] = [];
-  protected fixedWidthPositionError = '';
-  protected isFixedWidthPositionPopupOpen = false;
+  protected fixedWidthPositionErrors: string[] = [];
   protected isSavingFixedWidthPositions = false;
 
   ngOnInit(): void {
@@ -164,9 +156,12 @@ export class VisualMappingPageComponent implements OnInit {
       && !this.isSaving;
   }
 
-  protected get canApplyFixedWidthPositions(): boolean {
-    return !this.isSavingFixedWidthPositions
-      && this.fixedWidthPositionRows.some(row => row.startPosition.trim() || row.endPosition.trim());
+  protected get fixedWidthRawRecords(): Record<string, string>[] {
+    return this.mapping?.sourceSchema?.records ?? [];
+  }
+
+  protected get canSaveFixedWidthPositions(): boolean {
+    return !this.isSavingFixedWidthPositions && this.fixedWidthPositionErrors.length === 0;
   }
 
   protected get selectedSourceFieldDetails(): SourceField | undefined {
@@ -207,35 +202,6 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected updateTransformType(event: Event): void {
     this.selectedTransformType = (event.target as HTMLSelectElement).value as MappingTransformType;
-  }
-
-  protected updateFixedWidthStartPosition(fieldName: string, event: Event): void {
-    const row = this.fixedWidthPositionRows.find(item => item.fieldName === fieldName);
-    if (row) {
-      row.startPosition = (event.target as HTMLInputElement).value;
-      this.fixedWidthPositionError = '';
-    }
-  }
-
-  protected updateFixedWidthEndPosition(fieldName: string, event: Event): void {
-    const row = this.fixedWidthPositionRows.find(item => item.fieldName === fieldName);
-    if (row) {
-      row.endPosition = (event.target as HTMLInputElement).value;
-      this.fixedWidthPositionError = '';
-    }
-  }
-
-  protected getFixedWidthPositionLength(row: FixedWidthPositionRow): string {
-    const startPosition = Number(row.startPosition.trim());
-    const endPosition = Number(row.endPosition.trim());
-    if (!Number.isInteger(startPosition)
-      || !Number.isInteger(endPosition)
-      || startPosition < 1
-      || endPosition < startPosition) {
-      return '-';
-    }
-
-    return String(endPosition - startPosition + 1);
   }
 
   protected startSourceDrag(event: DragEvent, fieldName: string): void {
@@ -615,80 +581,6 @@ export class VisualMappingPageComponent implements OnInit {
     this.closeClearMappingsPopup();
   }
 
-  protected closeFixedWidthPositionPopup(): void {
-    if (this.isSavingFixedWidthPositions) {
-      return;
-    }
-
-    this.isFixedWidthPositionPopupOpen = false;
-    this.fixedWidthPositionError = '';
-  }
-
-  protected applyFixedWidthPositions(): void {
-    if (!this.mapping?.sourceSchema || !this.mapping.targetSchema) {
-      return;
-    }
-
-    const parsedRows = this.parseFixedWidthPositionRows();
-    if (!parsedRows) {
-      return;
-    }
-
-    if (parsedRows.length === 0) {
-      this.fixedWidthPositionError = 'En az bir alan için başlangıç ve bitiş pozisyonu girin.';
-      return;
-    }
-
-    const rawRecords = this.getFixedWidthRawRecords();
-    const fields: SourceField[] = parsedRows.map(row => ({
-      name: row.fieldName,
-      displayName: row.displayName,
-      type: row.type,
-      required: false,
-      sampleValue: this.sliceFixedWidthLine(rawRecords[0] ?? '', row.startPosition, row.endPosition).trim() || undefined,
-      startPosition: row.startPosition,
-      endPosition: row.endPosition,
-      length: row.length
-    }));
-    const records = rawRecords.map(line => parsedRows.reduce<Record<string, string>>((record, row) => {
-      record[row.fieldName] = this.sliceFixedWidthLine(line, row.startPosition, row.endPosition).trim();
-      return record;
-    }, {}));
-    const request: SaveSourceSchemaRequest = {
-      sourceName: this.mapping.sourceSchema.sourceName,
-      sourceType: 'txt',
-      fields,
-      records
-    };
-
-    this.isSavingFixedWidthPositions = true;
-    this.mappingApi.saveSourceSchema(this.mappingId, request)
-      .pipe(finalize(() => {
-        this.isSavingFixedWidthPositions = false;
-        this.changeDetector.detectChanges();
-      }))
-      .subscribe({
-        next: (response) => {
-          this.mapping = {
-            ...this.mapping!,
-            sourceSchema: response
-          };
-          this.mappingDefinitions = [];
-          const createdMappings = this.createAutoMatches();
-          if (createdMappings.length > 0) {
-            this.mappingDefinitions = createdMappings;
-            this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
-          }
-
-          this.isFixedWidthPositionPopupOpen = false;
-          this.fixedWidthPositionError = '';
-        },
-        error: (error: unknown) => {
-          this.fixedWidthPositionError = this.getErrorMessage(error, 'Pozisyonlar kaydedilemedi.');
-        }
-      });
-  }
-
   protected saveMappings(confirmWarnings = false): void {
     this.successMessage = '';
     this.saveError = '';
@@ -772,6 +664,100 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected setActiveBottomTab(tab: BottomPanelTab): void {
     this.activeBottomTab = tab;
+  }
+
+  protected updateFixedWidthPosition(
+    index: number,
+    key: 'name' | 'displayName' | 'type' | 'startPosition' | 'endPosition',
+    event: Event
+  ): void {
+    const row = this.fixedWidthPositionRows[index];
+    if (!row) {
+      return;
+    }
+
+    const input = event.target as HTMLInputElement | HTMLSelectElement;
+    if (key === 'startPosition' || key === 'endPosition') {
+      row[key] = input.value === '' ? null : Number(input.value);
+    } else if (key === 'type') {
+      row.type = input.value as SourceFieldType;
+    } else {
+      row[key] = input.value;
+    }
+
+    this.fixedWidthPositionErrors = this.validateFixedWidthPositionRows();
+  }
+
+  protected getFixedWidthLength(row: FixedWidthPositionRow): string {
+    if (!this.isCompleteFixedWidthRow(row)) {
+      return '';
+    }
+
+    return String(row.endPosition! - row.startPosition! + 1);
+  }
+
+  protected closeFixedWidthPositionModal(): void {
+    this.showFixedWidthPositionModal = false;
+  }
+
+  protected saveFixedWidthPositions(): void {
+    this.fixedWidthPositionErrors = this.validateFixedWidthPositionRows();
+    if (this.fixedWidthPositionErrors.length > 0 || !this.mapping?.sourceSchema) {
+      return;
+    }
+
+    const positionedRows = this.fixedWidthPositionRows.filter(row => this.isCompleteFixedWidthRow(row));
+    const rawRecords = this.fixedWidthRawRecords;
+    const sourceFields = positionedRows.map(row => this.toSourceFieldFromPositionRow(row, rawRecords[0]?.['line'] ?? ''));
+    const records = positionedRows.length === 0
+      ? rawRecords
+      : rawRecords.map(record => this.readFixedWidthRecord(record['line'] ?? '', positionedRows));
+    const request: SaveSourceSchemaRequest = {
+      sourceName: this.mapping.sourceSchema.sourceName,
+      sourceType: this.mapping.sourceType,
+      fields: sourceFields,
+      records
+    };
+
+    this.isSavingFixedWidthPositions = true;
+    this.mappingApi.saveSourceSchema(this.mappingId, request)
+      .pipe(finalize(() => {
+        this.isSavingFixedWidthPositions = false;
+        this.changeDetector.detectChanges();
+      }))
+      .subscribe({
+        next: (response) => {
+          if (!this.mapping) {
+            return;
+          }
+
+          this.mapping = {
+            ...this.mapping,
+            sourceType: response.sourceType,
+            sourceSchema: {
+              sourceName: response.sourceName,
+              fields: response.fields,
+              records: response.records
+            },
+            updatedAt: response.updatedAt
+          };
+          this.showFixedWidthPositionModal = false;
+          this.mappingDefinitions = this.mappingDefinitions.filter(mappingDefinition =>
+            response.fields.some(field => field.name === mappingDefinition.sourceField));
+          const createdMappings = this.createAutoMatches();
+          if (createdMappings.length > 0) {
+            this.mappingDefinitions = [...this.mappingDefinitions, ...createdMappings];
+            this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
+          } else if (response.fields.length === 0) {
+            this.autoMatchMessage = 'Pozisyon girilmediği için kaynak kolon oluşturulmadı.';
+          }
+          this.changeDetector.detectChanges();
+        },
+        error: (error: unknown) => {
+          this.fixedWidthPositionErrors = [this.getErrorMessage(error, 'Pozisyon tanımları kaydedilemedi.')];
+          this.changeDetector.detectChanges();
+        }
+      });
   }
 
   protected getSourceMappingCount(fieldName: string): number {
@@ -888,9 +874,8 @@ export class VisualMappingPageComponent implements OnInit {
             this.loadError = 'Önce kaynak veri tanımlanmalıdır.';
           } else if (!mapping.targetSchema) {
             this.loadError = 'Önce hedef veri tanımlanmalıdır.';
-          } else if (this.isRawFixedWidthSource(mapping)) {
-            this.prepareFixedWidthPositionRows(mapping);
-            this.isFixedWidthPositionPopupOpen = true;
+          } else if (this.shouldPromptForFixedWidthPositions(mapping)) {
+            this.openFixedWidthPositionModal(mapping);
           } else if (this.mappingDefinitions.length === 0) {
             const createdMappings = this.createAutoMatches();
             if (createdMappings.length > 0) {
@@ -916,80 +901,116 @@ export class VisualMappingPageComponent implements OnInit {
     return this.targetFields.find(field => field.name === fieldName);
   }
 
-  private isRawFixedWidthSource(mapping: MappingDetailsResponse): boolean {
-    const sourceSchema = mapping.sourceSchema;
+  private shouldPromptForFixedWidthPositions(mapping: MappingDetailsResponse): boolean {
+    const records = mapping.sourceSchema?.records ?? [];
     return mapping.sourceType === 'txt'
-      && Boolean(sourceSchema)
-      && (sourceSchema?.fields.length ?? 0) === 0
-      && (sourceSchema?.records?.length ?? 0) > 0
-      && sourceSchema!.records!.every(record => typeof record['line'] === 'string');
+      && (mapping.sourceSchema?.fields.length ?? 0) === 0
+      && records.length > 0
+      && records.every(record => typeof record['line'] === 'string');
   }
 
-  private prepareFixedWidthPositionRows(mapping: MappingDetailsResponse): void {
+  private openFixedWidthPositionModal(mapping: MappingDetailsResponse): void {
     this.fixedWidthPositionRows = (mapping.targetSchema?.fields ?? []).map(field => ({
-      fieldName: field.name,
-      displayName: field.displayName || this.splitFieldName(field.name),
+      name: field.name,
+      displayName: field.displayName ?? this.splitFieldName(field.name),
       type: field.type,
-      startPosition: '',
-      endPosition: ''
+      startPosition: null,
+      endPosition: null
     }));
+    this.fixedWidthPositionErrors = [];
+    this.showFixedWidthPositionModal = true;
   }
 
-  private parseFixedWidthPositionRows(): ParsedFixedWidthPositionRow[] | null {
-    const parsedRows: ParsedFixedWidthPositionRow[] = [];
-    const ranges: Array<{ fieldName: string; startPosition: number; endPosition: number }> = [];
+  private validateFixedWidthPositionRows(): string[] {
+    const errors: string[] = [];
+    const ranges: Array<{ name: string; start: number; end: number }> = [];
+    const usedNames = new Set<string>();
 
-    for (const row of this.fixedWidthPositionRows) {
-      const startText = row.startPosition.trim();
-      const endText = row.endPosition.trim();
-      if (!startText && !endText) {
-        continue;
+    this.fixedWidthPositionRows.forEach((row, index) => {
+      const hasStart = row.startPosition !== null && row.startPosition !== undefined;
+      const hasEnd = row.endPosition !== null && row.endPosition !== undefined;
+
+      if (!hasStart && !hasEnd) {
+        return;
       }
 
-      const startPosition = Number(startText);
-      const endPosition = Number(endText);
-      if (!Number.isInteger(startPosition) || !Number.isInteger(endPosition)) {
-        this.fixedWidthPositionError = `${row.displayName} için başlangıç ve bitiş tam sayı olmalı.`;
-        return null;
+      const label = row.displayName.trim() || row.name.trim() || `Alan ${index + 1}`;
+      if (!row.name.trim()) {
+        errors.push(`${label} için alan adı boş olamaz.`);
+      } else if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(row.name.trim())) {
+        errors.push(`${label} alan adı harf veya alt çizgi ile başlamalıdır.`);
+      } else if (usedNames.has(row.name.trim().toLowerCase())) {
+        errors.push(`${label} alan adı tekrar ediyor.`);
       }
 
-      if (startPosition < 1 || endPosition < 1) {
-        this.fixedWidthPositionError = `${row.displayName} için pozisyonlar 1 veya daha büyük olmalı.`;
-        return null;
+      usedNames.add(row.name.trim().toLowerCase());
+
+      if (hasStart !== hasEnd) {
+        errors.push(`${label} için başlangıç ve bitiş birlikte girilmelidir.`);
+        return;
       }
 
-      if (endPosition < startPosition) {
-        this.fixedWidthPositionError = `${row.displayName} için bitiş pozisyonu başlangıçtan küçük olamaz.`;
-        return null;
+      if (row.startPosition! < 1) {
+        errors.push(`${label} başlangıç pozisyonu 1 veya daha büyük olmalıdır.`);
       }
 
-      const overlappingRange = ranges.find(range =>
-        startPosition <= range.endPosition && endPosition >= range.startPosition);
-      if (overlappingRange) {
-        this.fixedWidthPositionError = `${row.displayName} pozisyonu ${overlappingRange.fieldName} alanı ile çakışıyor.`;
-        return null;
+      if (row.endPosition! < row.startPosition!) {
+        errors.push(`${label} bitiş pozisyonu başlangıçtan küçük olamaz.`);
       }
 
-      ranges.push({ fieldName: row.displayName, startPosition, endPosition });
-      parsedRows.push({
-        ...row,
-        startPosition,
-        endPosition,
-        length: endPosition - startPosition + 1
-      });
+      if (row.startPosition! >= 1 && row.endPosition! >= row.startPosition!) {
+        ranges.push({
+          name: label,
+          start: row.startPosition!,
+          end: row.endPosition!
+        });
+      }
+    });
+
+    for (let index = 0; index < ranges.length; index++) {
+      for (let nextIndex = index + 1; nextIndex < ranges.length; nextIndex++) {
+        const current = ranges[index];
+        const next = ranges[nextIndex];
+        if (current.start <= next.end && next.start <= current.end) {
+          errors.push(`${current.name} ile ${next.name} pozisyon aralıkları çakışıyor.`);
+        }
+      }
     }
 
-    return parsedRows;
+    return errors;
   }
 
-  private getFixedWidthRawRecords(): string[] {
-    return this.mapping?.sourceSchema?.records
-      ?.map(record => record['line'])
-      .filter((line): line is string => typeof line === 'string') ?? [];
+  private isCompleteFixedWidthRow(row: FixedWidthPositionRow): boolean {
+    return row.startPosition !== null
+      && row.startPosition !== undefined
+      && row.endPosition !== null
+      && row.endPosition !== undefined;
   }
 
-  private sliceFixedWidthLine(line: string, startPosition: number, endPosition: number): string {
-    return line.substring(startPosition - 1, endPosition);
+  private toSourceFieldFromPositionRow(row: FixedWidthPositionRow, sampleLine: string): SourceField {
+    return {
+      name: row.name.trim(),
+      displayName: row.displayName.trim() || undefined,
+      type: row.type,
+      required: false,
+      sampleValue: this.readFixedWidthValue(sampleLine, row),
+      startPosition: row.startPosition!,
+      endPosition: row.endPosition!,
+      length: row.endPosition! - row.startPosition! + 1
+    };
+  }
+
+  private readFixedWidthRecord(line: string, rows: FixedWidthPositionRow[]): Record<string, string> {
+    return rows.reduce<Record<string, string>>((record, row) => {
+      record[row.name.trim()] = this.readFixedWidthValue(line, row);
+      return record;
+    }, {});
+  }
+
+  private readFixedWidthValue(line: string, row: FixedWidthPositionRow): string {
+    const startIndex = Math.max(row.startPosition! - 1, 0);
+    const endIndex = Math.min(row.endPosition!, line.length);
+    return line.substring(startIndex, endIndex).trim();
   }
 
   private setActiveDragTarget(fieldName: string): void {
