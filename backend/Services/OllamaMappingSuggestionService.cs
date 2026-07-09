@@ -148,9 +148,25 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     private static string BuildPrompt(AiMappingSuggestionRequest request)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("Match source fields to target fields semantically.");
-        builder.AppendLine("Use only exact names from the lists. Do not invent fields. One target can be used once.");
-        builder.AppendLine("Return only JSON: {\"mappings\":[{\"sourceField\":\"sourceName\",\"targetField\":\"targetName\",\"confidence\":0.0}]}");
+        builder.AppendLine("You are a data mapping expert for Turkish banking payment/payroll files.");
+        builder.AppendLine("Match each source field to the most appropriate target field by MEANING, not just exact text.");
+        builder.AppendLine("Source names may be abbreviations, shortened, misspelled, or in Turkish. Understand the intent.");
+        builder.AppendLine("Examples of correct matches:");
+        builder.AppendLine("- \"hsp\" -> \"hesapNo\" (hsp is short for hesap/account)");
+        builder.AppendLine("- \"Alici_Iban\" -> \"iban\"");
+        builder.AppendLine("- \"musteri_ad\" -> \"adSoyad\"");
+        builder.AppendLine("- \"ttr\" -> \"tutar\" (ttr is short for tutar/amount)");
+        builder.AppendLine("- \"tc_kimlik\" -> \"tc\"");
+        builder.AppendLine("- \"sube\" -> \"subeKodu\"");
+        builder.AppendLine("- \"krm\" -> \"kurumKodu\"");
+        builder.AppendLine("- \"hsp\" -> \"hesapNo\"");
+        builder.AppendLine("- \"ttr\" -> \"tutar\"");
+        builder.AppendLine("- \"sube\" -> \"subeKodu\"");
+        builder.AppendLine("- \"dvz\" -> \"dovizCinsi\"");
+        builder.AppendLine("- \"ack\" -> \"aciklama\"");
+        builder.AppendLine("Use only exact names from the lists below. Do not invent fields. One target can be used once.");
+        builder.AppendLine("If you are not confident about a match, do NOT include it (leave it out).");
+        builder.AppendLine("Return only JSON, no explanation: {\"mappings\":[{\"sourceField\":\"sourceName\",\"targetField\":\"targetName\",\"confidence\":0.0}]}");
         builder.AppendLine();
         builder.AppendLine("Source fields:");
         foreach (var field in request.SourceFields!)
