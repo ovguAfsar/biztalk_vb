@@ -16,6 +16,7 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     {
         ["account"] = "hesap",
         ["acct"] = "hesap",
+        ["amount"] = "tutar",
         ["ay"] = "ay",
         ["aykodu"] = "ay",
         ["bank"] = "banka",

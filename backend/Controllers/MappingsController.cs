@@ -206,16 +206,6 @@ public sealed class MappingsController : ControllerBase
         }
     }
 
-    [HttpPost("ai-suggest")]
-    [ProducesResponseType(typeof(AiMappingSuggestionResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<AiMappingSuggestionResponse>> SuggestMappingsWithAi(
-        [FromBody] AiMappingSuggestionRequest? request,
-        CancellationToken cancellationToken)
-    {
-        var response = await _ollamaMappingSuggestionService.SuggestAsync(request, cancellationToken);
-        return Ok(response);
-    }
-
     [HttpPost("{id}/test")]
     [ProducesResponseType(typeof(TestMappingResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -246,5 +236,15 @@ public sealed class MappingsController : ControllerBase
                 Title = "Mapping bulunamadi."
             });
         }
+    }
+
+    [HttpPost("ai-suggest")]
+    [ProducesResponseType(typeof(AiMappingSuggestionResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AiMappingSuggestionResponse>> SuggestMappingsWithAi(
+        [FromBody] AiMappingSuggestionRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _ollamaMappingSuggestionService.SuggestAsync(request, cancellationToken);
+        return Ok(response);
     }
 }

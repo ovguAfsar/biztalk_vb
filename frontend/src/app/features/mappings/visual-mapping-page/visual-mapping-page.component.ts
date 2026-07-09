@@ -876,12 +876,6 @@ export class VisualMappingPageComponent implements OnInit {
             this.loadError = 'Önce hedef veri tanımlanmalıdır.';
           } else if (this.shouldPromptForFixedWidthPositions(mapping)) {
             this.openFixedWidthPositionModal(mapping);
-          } else if (this.mappingDefinitions.length === 0) {
-            const createdMappings = this.createAutoMatches();
-            if (createdMappings.length > 0) {
-              this.mappingDefinitions = createdMappings;
-              this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
-            }
           }
 
           this.changeDetector.detectChanges();
