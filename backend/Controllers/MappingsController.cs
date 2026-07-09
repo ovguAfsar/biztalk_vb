@@ -9,10 +9,14 @@ namespace MappingStudio.Api.Controllers;
 public sealed class MappingsController : ControllerBase
 {
     private readonly IMappingService _mappingService;
+    private readonly IOllamaMappingSuggestionService _ollamaMappingSuggestionService;
 
-    public MappingsController(IMappingService mappingService)
+    public MappingsController(
+        IMappingService mappingService,
+        IOllamaMappingSuggestionService ollamaMappingSuggestionService)
     {
         _mappingService = mappingService;
+        _ollamaMappingSuggestionService = ollamaMappingSuggestionService;
     }
 
     [HttpGet]
@@ -200,6 +204,16 @@ public sealed class MappingsController : ControllerBase
                 Title = "Mapping bulunamadi."
             });
         }
+    }
+
+    [HttpPost("ai-suggest")]
+    [ProducesResponseType(typeof(AiMappingSuggestionResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AiMappingSuggestionResponse>> SuggestMappingsWithAi(
+        [FromBody] AiMappingSuggestionRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _ollamaMappingSuggestionService.SuggestAsync(request, cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("{id}/test")]

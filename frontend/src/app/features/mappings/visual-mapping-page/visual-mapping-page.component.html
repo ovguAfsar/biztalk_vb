@@ -56,6 +56,15 @@
             <span>Kaynak alanın sağındaki bağlantı noktasından hedef alanın solundaki noktaya ok çekin.</span>
             <button class="auto-match-action" type="button" (click)="autoMatchFields()">Otomatik Eşle</button>
             <button
+              class="ai-match-action"
+              type="button"
+              (click)="aiMatchFields()"
+              [disabled]="isAiMatching || sourceFields.length === 0 || targetFields.length === 0"
+            >
+              <span *ngIf="!isAiMatching">AI ile Eşle</span>
+              <span *ngIf="isAiMatching">AI düşünüyor...</span>
+            </button>
+            <button
               class="clear-mappings-action"
               type="button"
               *ngIf="mappingDefinitions.length > 0"
@@ -68,6 +77,7 @@
               Seçiliyor: {{ getSourceLabelByName(pendingConnection.sourceField) }} → {{ getTargetLabelByName(pendingConnection.targetField) }}
             </span>
             <span class="auto-match-message" *ngIf="autoMatchMessage">{{ autoMatchMessage }}</span>
+            <span class="ai-match-message" *ngIf="aiMatchMessage">{{ aiMatchMessage }}</span>
           </div>
 
           <div

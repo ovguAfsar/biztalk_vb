@@ -3,6 +3,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 
 import {
+  AiMappingSuggestionRequest,
+  AiMappingSuggestionResponse,
   MappingCreateRequest,
   MappingCreateResponse,
   MappingDetailsResponse,
@@ -54,5 +56,9 @@ export class MappingApiService {
 
   testMapping(id: string, request: TestMappingRequest): Observable<TestMappingResponse> {
     return this.http.post<TestMappingResponse>(`${this.baseUrl}/${encodeURIComponent(id)}/test`, request);
+  }
+
+  suggestMappingsWithAi(request: AiMappingSuggestionRequest): Observable<AiMappingSuggestionResponse> {
+    return this.http.post<AiMappingSuggestionResponse>(`${this.baseUrl}/ai-suggest`, request);
   }
 }

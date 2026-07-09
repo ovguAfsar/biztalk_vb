@@ -312,6 +312,7 @@
 }
 
 .auto-match-action,
+.ai-match-action,
 .clear-mappings-action {
   min-height: 32px;
   border: 1px solid #111827;
@@ -331,6 +332,15 @@
   background: #f2b400;
 }
 
+.ai-match-action {
+  background: #fcbd00;
+  color: #111827;
+}
+
+.ai-match-action:hover:not(:disabled) {
+  background: #f2b400;
+}
+
 .clear-mappings-action {
   background: #ffffff;
   color: #111827;
@@ -342,6 +352,11 @@
 
 .auto-match-message {
   color: #0f6654;
+  font-weight: 760;
+}
+
+.ai-match-message {
+  color: #111827;
   font-weight: 760;
 }
 
@@ -1039,7 +1054,8 @@
 .primary-action:disabled,
 .secondary-action:disabled,
 .back-action:disabled,
-.delete-action:disabled {
+.delete-action:disabled,
+.ai-match-action:disabled {
   cursor: not-allowed;
   opacity: 0.62;
   box-shadow: none;

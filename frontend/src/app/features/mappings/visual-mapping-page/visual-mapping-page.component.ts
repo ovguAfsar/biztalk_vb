@@ -83,8 +83,10 @@ export class VisualMappingPageComponent implements OnInit {
   protected successMessage = '';
   protected requiredFieldsPopupMessage = '';
   protected autoMatchMessage = '';
+  protected aiMatchMessage = '';
   protected clearMappingsPopupMessage = '';
   protected mappingValidationWarnings: string[] = [];
+  protected isAiMatching = false;
   protected showFixedWidthPositionModal = false;
   protected fixedWidthPositionRows: FixedWidthPositionRow[] = [];
   protected fixedWidthPositionErrors: string[] = [];
@@ -367,6 +369,51 @@ export class VisualMappingPageComponent implements OnInit {
     this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
   }
 
+  protected aiMatchFields(): void {
+    this.successMessage = '';
+    this.saveError = '';
+    this.aiMatchMessage = '';
+
+    if (this.sourceFields.length === 0 || this.targetFields.length === 0) {
+      this.aiMatchMessage = 'AI eşleme için kaynak ve hedef alanlar hazır olmalı.';
+      return;
+    }
+
+    this.isAiMatching = true;
+    this.mappingApi.suggestMappingsWithAi({
+      sourceFields: this.sourceFields.map(field => ({
+        name: field.name,
+        displayName: field.displayName,
+        type: field.type
+      })),
+      targetFields: this.targetFields.map(field => ({
+        name: field.name,
+        displayName: field.displayName,
+        type: field.type
+      }))
+    })
+      .pipe(finalize(() => {
+        this.isAiMatching = false;
+        this.changeDetector.detectChanges();
+      }))
+      .subscribe({
+        next: (response) => {
+          if (!response.isAvailable) {
+            this.aiMatchMessage = response.message || 'AI şu an kullanılamıyor.';
+            return;
+          }
+
+          const appliedCount = this.applyAiSuggestions(response.suggestions ?? []);
+          this.aiMatchMessage = appliedCount > 0
+            ? `${appliedCount} alan AI ile eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`
+            : response.message || 'AI uygun yeni eşleme önermedi.';
+        },
+        error: () => {
+          this.aiMatchMessage = 'AI şu an kullanılamıyor.';
+        }
+      });
+  }
+
   protected choosePendingTransform(transformType: MappingTransformType): void {
     if (!this.pendingConnection) {
       return;
@@ -456,6 +503,48 @@ export class VisualMappingPageComponent implements OnInit {
     this.successMessage = '';
     this.saveError = '';
     return true;
+  }
+
+  private applyAiSuggestions(
+    suggestions: Array<{ sourceField: string; targetField: string }>
+  ): number {
+    const sourceNames = new Map(this.sourceFields.map(field => [field.name.toLowerCase(), field.name]));
+    const targetNames = new Map(this.targetFields.map(field => [field.name.toLowerCase(), field.name]));
+    const nextMappings = [...this.mappingDefinitions];
+    let appliedCount = 0;
+
+    for (const suggestion of suggestions) {
+      const sourceField = sourceNames.get(suggestion.sourceField.toLowerCase());
+      const targetField = targetNames.get(suggestion.targetField.toLowerCase());
+      if (!sourceField || !targetField) {
+        continue;
+      }
+
+      const mappingDefinition: MappingDefinition = {
+        sourceField,
+        targetField,
+        transformType: 'direct'
+      };
+      const existingIndex = nextMappings.findIndex(mapping => mapping.targetField === targetField);
+      if (existingIndex >= 0) {
+        const existingMapping = nextMappings[existingIndex];
+        if (existingMapping.sourceField === sourceField && existingMapping.transformType === 'direct') {
+          continue;
+        }
+
+        nextMappings[existingIndex] = mappingDefinition;
+      } else {
+        nextMappings.push(mappingDefinition);
+      }
+
+      appliedCount += 1;
+    }
+
+    if (appliedCount > 0) {
+      this.mappingDefinitions = nextMappings;
+    }
+
+    return appliedCount;
   }
 
   protected removeMapping(targetField: string): void {
