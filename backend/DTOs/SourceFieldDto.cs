@@ -11,5 +11,10 @@ public sealed class SourceFieldDto
     public bool Required { get; init; }
 
     public string? SampleValue { get; init; }
-}
 
+    public int? StartPosition { get; init; }
+
+    public int? EndPosition { get; init; }
+
+    public int? Length { get; init; }
+}

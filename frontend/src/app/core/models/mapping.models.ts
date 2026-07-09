@@ -22,6 +22,9 @@ export interface SourceField {
   type: SourceFieldType;
   required: boolean;
   sampleValue?: string;
+  startPosition?: number;
+  endPosition?: number;
+  length?: number;
 }
 
 export interface TargetField {

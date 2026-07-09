@@ -197,7 +197,10 @@ public sealed class MappingService : IMappingService
                     DisplayName = string.IsNullOrWhiteSpace(field.DisplayName) ? null : field.DisplayName.Trim(),
                     Type = field.Type!.Trim().ToLowerInvariant(),
                     Required = field.Required,
-                    SampleValue = string.IsNullOrWhiteSpace(field.SampleValue) ? null : field.SampleValue.Trim()
+                    SampleValue = string.IsNullOrWhiteSpace(field.SampleValue) ? null : field.SampleValue.Trim(),
+                    StartPosition = field.StartPosition,
+                    EndPosition = field.EndPosition,
+                    Length = ResolveSourceFieldLength(field)
                 })
                 .ToList(),
             Records = NormalizeSourceRecords(request.Records)
@@ -469,13 +472,24 @@ public sealed class MappingService : IMappingService
             AddError(errors, "sourceType", "Dosyadan algilanan kaynak tipi excel veya txt olmalidir.");
         }
 
-        if (request.Fields is null || request.Fields.Count == 0)
+        if (request.Fields is null)
         {
             AddError(errors, "fields", "En az bir kaynak alani eklenmelidir.");
             return ToValidationErrors(errors);
         }
 
+        if (request.Fields.Count == 0)
+        {
+            if (!IsFixedWidthRawSourceRequest(request))
+            {
+                AddError(errors, "fields", "En az bir kaynak alani eklenmelidir.");
+            }
+
+            return ToValidationErrors(errors);
+        }
+
         var fieldNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var fixedWidthRanges = new List<(int Index, string Name, int StartPosition, int EndPosition)>();
 
         for (var index = 0; index < request.Fields.Count; index++)
         {
@@ -504,9 +518,96 @@ public sealed class MappingService : IMappingService
             {
                 AddError(errors, typeKey, "Alan tipi text, number, date, boolean, object veya array olmalidir.");
             }
+
+            ValidateSourceFieldPositions(errors, field, index, fixedWidthRanges);
+        }
+
+        for (var index = 0; index < fixedWidthRanges.Count; index++)
+        {
+            for (var nextIndex = index + 1; nextIndex < fixedWidthRanges.Count; nextIndex++)
+            {
+                var current = fixedWidthRanges[index];
+                var next = fixedWidthRanges[nextIndex];
+
+                if (current.StartPosition <= next.EndPosition && next.StartPosition <= current.EndPosition)
+                {
+                    AddError(
+                        errors,
+                        $"fields[{next.Index}].startPosition",
+                        $"Pozisyon araligi '{current.Name}' alani ile cakisir.");
+                }
+            }
         }
 
         return ToValidationErrors(errors);
+    }
+
+    private static void ValidateSourceFieldPositions(
+        IDictionary<string, List<string>> errors,
+        SourceFieldDto field,
+        int index,
+        ICollection<(int Index, string Name, int StartPosition, int EndPosition)> fixedWidthRanges)
+    {
+        var startPositionKey = $"fields[{index}].startPosition";
+        var endPositionKey = $"fields[{index}].endPosition";
+        var lengthKey = $"fields[{index}].length";
+        var hasStartPosition = field.StartPosition.HasValue;
+        var hasEndPosition = field.EndPosition.HasValue;
+
+        if (hasStartPosition != hasEndPosition)
+        {
+            AddError(errors, startPositionKey, "Baslangic ve bitis pozisyonlari birlikte girilmelidir.");
+            AddError(errors, endPositionKey, "Baslangic ve bitis pozisyonlari birlikte girilmelidir.");
+            return;
+        }
+
+        if (!hasStartPosition || !hasEndPosition)
+        {
+            return;
+        }
+
+        if (field.StartPosition!.Value < 1)
+        {
+            AddError(errors, startPositionKey, "Baslangic pozisyonu 1 veya daha buyuk olmalidir.");
+        }
+
+        if (field.EndPosition!.Value < field.StartPosition.Value)
+        {
+            AddError(errors, endPositionKey, "Bitis pozisyonu baslangic pozisyonundan kucuk olamaz.");
+        }
+
+        var expectedLength = field.EndPosition.Value - field.StartPosition.Value + 1;
+        if (field.Length.HasValue && field.Length.Value != expectedLength)
+        {
+            AddError(errors, lengthKey, "Alan uzunlugu baslangic ve bitis pozisyonlari ile uyumlu olmalidir.");
+        }
+
+        if (field.StartPosition.Value >= 1 && field.EndPosition.Value >= field.StartPosition.Value)
+        {
+            fixedWidthRanges.Add((
+                index,
+                string.IsNullOrWhiteSpace(field.Name) ? $"fields[{index}]" : field.Name.Trim(),
+                field.StartPosition.Value,
+                field.EndPosition.Value));
+        }
+    }
+
+    private static bool IsFixedWidthRawSourceRequest(SaveSourceSchemaRequest request)
+    {
+        return request.SourceType?.Trim().Equals("txt", StringComparison.OrdinalIgnoreCase) == true
+            && request.Records is not null
+            && request.Records.Count > 0
+            && request.Records.All(record => record.ContainsKey("line"));
+    }
+
+    private static int? ResolveSourceFieldLength(SourceFieldDto field)
+    {
+        if (field.StartPosition.HasValue && field.EndPosition.HasValue)
+        {
+            return field.EndPosition.Value - field.StartPosition.Value + 1;
+        }
+
+        return field.Length;
     }
 
     private static List<Dictionary<string, string?>>? NormalizeSourceRecords(
@@ -905,13 +1006,11 @@ public sealed class MappingService : IMappingService
     {
         var output = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         var fixedWidthParsedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fixedWidthPatternApplied = ApplyAyKodluIbanFixedWidthPattern(
-            input,
-            output,
-            mapping.TargetSchema!,
-            fixedWidthParsedTargets,
-            warnings,
-            errors);
+        var fixedWidthPatternApplied = false;
+        var mappedTargets = mapping.MappingDefinitions!
+            .Select(mappingDefinition => mappingDefinition.TargetField)
+            .Where(targetField => !string.IsNullOrWhiteSpace(targetField))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         foreach (var mappingDefinition in mapping.MappingDefinitions!)
         {
@@ -921,11 +1020,6 @@ public sealed class MappingService : IMappingService
             if (string.IsNullOrWhiteSpace(targetField))
             {
                 errors.Add("Target field is empty in a mapping definition.");
-                continue;
-            }
-
-            if (fixedWidthPatternApplied && IsFixedWidthSourceField(mappingDefinition.SourceField))
-            {
                 continue;
             }
 
@@ -976,7 +1070,7 @@ public sealed class MappingService : IMappingService
             }
         }
 
-        ApplyTargetFieldFormats(output, mapping.TargetSchema!, fixedWidthParsedTargets, fixedWidthPatternApplied, warnings, errors);
+        ApplyTargetFieldFormats(output, mapping.TargetSchema!, mappedTargets, fixedWidthParsedTargets, fixedWidthPatternApplied, warnings, errors);
         return output;
     }
 
@@ -1030,7 +1124,10 @@ public sealed class MappingService : IMappingService
                     DisplayName = field.DisplayName,
                     Type = field.Type,
                     Required = field.Required,
-                    SampleValue = field.SampleValue
+                    SampleValue = field.SampleValue,
+                    StartPosition = field.StartPosition,
+                    EndPosition = field.EndPosition,
+                    Length = field.Length
                 })
                 .ToList(),
             Records = sourceSchema.Records,
@@ -1077,7 +1174,10 @@ public sealed class MappingService : IMappingService
                     DisplayName = field.DisplayName,
                     Type = field.Type,
                     Required = field.Required,
-                    SampleValue = field.SampleValue
+                    SampleValue = field.SampleValue,
+                    StartPosition = field.StartPosition,
+                    EndPosition = field.EndPosition,
+                    Length = field.Length
                 })
                 .ToList(),
             Records = sourceSchema.Records
@@ -1242,6 +1342,7 @@ public sealed class MappingService : IMappingService
     private static void ApplyTargetFieldFormats(
         IDictionary<string, object?> output,
         TargetSchemaDocument targetSchema,
+        ISet<string> mappedTargets,
         ISet<string> skipFormattingFields,
         bool ayKodluIbanPatternApplied,
         ICollection<string> warnings,
@@ -1249,6 +1350,12 @@ public sealed class MappingService : IMappingService
     {
         foreach (var field in targetSchema.Fields)
         {
+            if (!mappedTargets.Contains(field.Name))
+            {
+                output.Remove(field.Name);
+                continue;
+            }
+
             if (!output.TryGetValue(field.Name, out var value))
             {
                 if (field.FixedValue is not null)
