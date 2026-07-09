@@ -71,7 +71,27 @@ export class CreateMappingPageComponent implements OnInit {
   }
 
   protected get hasSourceFile(): boolean {
-    return this.sourceFields.length > 0 && Boolean(this.detectedSourceType);
+    return Boolean(this.detectedSourceType)
+      && (this.sourceFields.length > 0 || this.sourceRecords.length > 0);
+  }
+
+  protected get sourceFileMeta(): string {
+    if (!this.hasSourceFile) {
+      return '';
+    }
+
+    if (this.isFixedWidthRawSource) {
+      return `${this.sourceFileName} · ${this.sourceRecords.length} sabit genişlikli satır · ${this.detectedSourceTypeLabel}`;
+    }
+
+    return `${this.sourceFileName} · ${this.sourceFields.length} alan · ${this.detectedSourceTypeLabel}`;
+  }
+
+  private get isFixedWidthRawSource(): boolean {
+    return this.detectedSourceType === 'txt'
+      && this.sourceFields.length === 0
+      && this.sourceRecords.length > 0
+      && this.sourceRecords.every(record => typeof record['line'] === 'string');
   }
 
   protected get canContinue(): boolean {
@@ -351,6 +371,10 @@ export class CreateMappingPageComponent implements OnInit {
     importedFields: SourceFieldImport[],
     importedRecords: Record<string, string>[]
   ): { fields: SourceField[]; records: Record<string, string>[] } {
+    if (importedFields.length === 0) {
+      return { fields: [], records: importedRecords };
+    }
+
     const usedFieldNames = new Set<string>();
     const sourceKeyToFieldName = new Map<string, string>();
     const fields = importedFields.map(field => {

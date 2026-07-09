@@ -16,6 +16,12 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<OllamaOptions>()
+    .Bind(builder.Configuration.GetSection(OllamaOptions.SectionName))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.AddSingleton<IMongoClient>(serviceProvider =>
 {
     var options = serviceProvider.GetRequiredService<IOptions<MongoDbOptions>>().Value;
@@ -31,6 +37,11 @@ builder.Services.AddScoped<IMongoDatabase>(serviceProvider =>
 
 builder.Services.AddScoped<IMappingRepository, MappingRepository>();
 builder.Services.AddScoped<IMappingService, MappingService>();
+builder.Services.AddHttpClient<IOllamaMappingSuggestionService, OllamaMappingSuggestionService>((serviceProvider, httpClient) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
+    httpClient.BaseAddress = new Uri(options.BaseUrl);
+});
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? Array.Empty<string>();
@@ -67,4 +78,3 @@ app.UseCors("Frontend");
 app.MapControllers();
 
 app.Run();
-

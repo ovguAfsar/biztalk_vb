@@ -8,6 +8,7 @@ import {
   MappingDefinition,
   MappingDetailsResponse,
   MappingTransformType,
+  SaveSourceSchemaRequest,
   SourceField,
   TargetField
 } from '../../../core/models/mapping.models';
@@ -19,6 +20,23 @@ type BottomPanelTab = 'properties' | 'output' | 'warnings';
 interface PendingConnection {
   sourceField: string;
   targetField: string;
+}
+
+interface FixedWidthPositionRow {
+  fieldName: string;
+  displayName: string;
+  type: SourceField['type'];
+  startPosition: string;
+  endPosition: string;
+}
+
+interface ParsedFixedWidthPositionRow {
+  fieldName: string;
+  displayName: string;
+  type: SourceField['type'];
+  startPosition: number;
+  endPosition: number;
+  length: number;
 }
 
 @Component({
@@ -73,8 +91,14 @@ export class VisualMappingPageComponent implements OnInit {
   protected successMessage = '';
   protected requiredFieldsPopupMessage = '';
   protected autoMatchMessage = '';
+  protected aiMatchMessage = '';
   protected clearMappingsPopupMessage = '';
   protected mappingValidationWarnings: string[] = [];
+  protected isAiMatching = false;
+  protected fixedWidthPositionRows: FixedWidthPositionRow[] = [];
+  protected fixedWidthPositionError = '';
+  protected isFixedWidthPositionPopupOpen = false;
+  protected isSavingFixedWidthPositions = false;
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -140,6 +164,11 @@ export class VisualMappingPageComponent implements OnInit {
       && !this.isSaving;
   }
 
+  protected get canApplyFixedWidthPositions(): boolean {
+    return !this.isSavingFixedWidthPositions
+      && this.fixedWidthPositionRows.some(row => row.startPosition.trim() || row.endPosition.trim());
+  }
+
   protected get selectedSourceFieldDetails(): SourceField | undefined {
     return this.getSourceField(this.selectedSourceField);
   }
@@ -178,6 +207,35 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected updateTransformType(event: Event): void {
     this.selectedTransformType = (event.target as HTMLSelectElement).value as MappingTransformType;
+  }
+
+  protected updateFixedWidthStartPosition(fieldName: string, event: Event): void {
+    const row = this.fixedWidthPositionRows.find(item => item.fieldName === fieldName);
+    if (row) {
+      row.startPosition = (event.target as HTMLInputElement).value;
+      this.fixedWidthPositionError = '';
+    }
+  }
+
+  protected updateFixedWidthEndPosition(fieldName: string, event: Event): void {
+    const row = this.fixedWidthPositionRows.find(item => item.fieldName === fieldName);
+    if (row) {
+      row.endPosition = (event.target as HTMLInputElement).value;
+      this.fixedWidthPositionError = '';
+    }
+  }
+
+  protected getFixedWidthPositionLength(row: FixedWidthPositionRow): string {
+    const startPosition = Number(row.startPosition.trim());
+    const endPosition = Number(row.endPosition.trim());
+    if (!Number.isInteger(startPosition)
+      || !Number.isInteger(endPosition)
+      || startPosition < 1
+      || endPosition < startPosition) {
+      return '-';
+    }
+
+    return String(endPosition - startPosition + 1);
   }
 
   protected startSourceDrag(event: DragEvent, fieldName: string): void {
@@ -345,6 +403,51 @@ export class VisualMappingPageComponent implements OnInit {
     this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
   }
 
+  protected aiMatchFields(): void {
+    this.successMessage = '';
+    this.saveError = '';
+    this.aiMatchMessage = '';
+
+    if (this.sourceFields.length === 0 || this.targetFields.length === 0) {
+      this.aiMatchMessage = 'AI eşleme için kaynak ve hedef alanlar hazır olmalı.';
+      return;
+    }
+
+    this.isAiMatching = true;
+    this.mappingApi.suggestMappingsWithAi({
+      sourceFields: this.sourceFields.map(field => ({
+        name: field.name,
+        displayName: field.displayName,
+        type: field.type
+      })),
+      targetFields: this.targetFields.map(field => ({
+        name: field.name,
+        displayName: field.displayName,
+        type: field.type
+      }))
+    })
+      .pipe(finalize(() => {
+        this.isAiMatching = false;
+        this.changeDetector.detectChanges();
+      }))
+      .subscribe({
+        next: (response) => {
+          if (!response.isAvailable) {
+            this.aiMatchMessage = response.message || 'AI şu an kullanılamıyor.';
+            return;
+          }
+
+          const appliedCount = this.applyAiSuggestions(response.suggestions ?? []);
+          this.aiMatchMessage = appliedCount > 0
+            ? `${appliedCount} alan AI ile eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`
+            : response.message || 'AI uygun yeni eşleme önermedi.';
+        },
+        error: () => {
+          this.aiMatchMessage = 'AI şu an kullanılamıyor.';
+        }
+      });
+  }
+
   protected choosePendingTransform(transformType: MappingTransformType): void {
     if (!this.pendingConnection) {
       return;
@@ -436,6 +539,48 @@ export class VisualMappingPageComponent implements OnInit {
     return true;
   }
 
+  private applyAiSuggestions(
+    suggestions: Array<{ sourceField: string; targetField: string }>
+  ): number {
+    const sourceNames = new Map(this.sourceFields.map(field => [field.name.toLowerCase(), field.name]));
+    const targetNames = new Map(this.targetFields.map(field => [field.name.toLowerCase(), field.name]));
+    const nextMappings = [...this.mappingDefinitions];
+    let appliedCount = 0;
+
+    for (const suggestion of suggestions) {
+      const sourceField = sourceNames.get(suggestion.sourceField.toLowerCase());
+      const targetField = targetNames.get(suggestion.targetField.toLowerCase());
+      if (!sourceField || !targetField) {
+        continue;
+      }
+
+      const mappingDefinition: MappingDefinition = {
+        sourceField,
+        targetField,
+        transformType: 'direct'
+      };
+      const existingIndex = nextMappings.findIndex(mapping => mapping.targetField === targetField);
+      if (existingIndex >= 0) {
+        const existingMapping = nextMappings[existingIndex];
+        if (existingMapping.sourceField === sourceField && existingMapping.transformType === 'direct') {
+          continue;
+        }
+
+        nextMappings[existingIndex] = mappingDefinition;
+      } else {
+        nextMappings.push(mappingDefinition);
+      }
+
+      appliedCount += 1;
+    }
+
+    if (appliedCount > 0) {
+      this.mappingDefinitions = nextMappings;
+    }
+
+    return appliedCount;
+  }
+
   protected removeMapping(targetField: string): void {
     this.mappingDefinitions = this.mappingDefinitions.filter(mapping => mapping.targetField !== targetField);
     if (this.selectedTargetField === targetField) {
@@ -468,6 +613,80 @@ export class VisualMappingPageComponent implements OnInit {
     this.successMessage = '';
     this.saveError = '';
     this.closeClearMappingsPopup();
+  }
+
+  protected closeFixedWidthPositionPopup(): void {
+    if (this.isSavingFixedWidthPositions) {
+      return;
+    }
+
+    this.isFixedWidthPositionPopupOpen = false;
+    this.fixedWidthPositionError = '';
+  }
+
+  protected applyFixedWidthPositions(): void {
+    if (!this.mapping?.sourceSchema || !this.mapping.targetSchema) {
+      return;
+    }
+
+    const parsedRows = this.parseFixedWidthPositionRows();
+    if (!parsedRows) {
+      return;
+    }
+
+    if (parsedRows.length === 0) {
+      this.fixedWidthPositionError = 'En az bir alan için başlangıç ve bitiş pozisyonu girin.';
+      return;
+    }
+
+    const rawRecords = this.getFixedWidthRawRecords();
+    const fields: SourceField[] = parsedRows.map(row => ({
+      name: row.fieldName,
+      displayName: row.displayName,
+      type: row.type,
+      required: false,
+      sampleValue: this.sliceFixedWidthLine(rawRecords[0] ?? '', row.startPosition, row.endPosition).trim() || undefined,
+      startPosition: row.startPosition,
+      endPosition: row.endPosition,
+      length: row.length
+    }));
+    const records = rawRecords.map(line => parsedRows.reduce<Record<string, string>>((record, row) => {
+      record[row.fieldName] = this.sliceFixedWidthLine(line, row.startPosition, row.endPosition).trim();
+      return record;
+    }, {}));
+    const request: SaveSourceSchemaRequest = {
+      sourceName: this.mapping.sourceSchema.sourceName,
+      sourceType: 'txt',
+      fields,
+      records
+    };
+
+    this.isSavingFixedWidthPositions = true;
+    this.mappingApi.saveSourceSchema(this.mappingId, request)
+      .pipe(finalize(() => {
+        this.isSavingFixedWidthPositions = false;
+        this.changeDetector.detectChanges();
+      }))
+      .subscribe({
+        next: (response) => {
+          this.mapping = {
+            ...this.mapping!,
+            sourceSchema: response
+          };
+          this.mappingDefinitions = [];
+          const createdMappings = this.createAutoMatches();
+          if (createdMappings.length > 0) {
+            this.mappingDefinitions = createdMappings;
+            this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
+          }
+
+          this.isFixedWidthPositionPopupOpen = false;
+          this.fixedWidthPositionError = '';
+        },
+        error: (error: unknown) => {
+          this.fixedWidthPositionError = this.getErrorMessage(error, 'Pozisyonlar kaydedilemedi.');
+        }
+      });
   }
 
   protected saveMappings(confirmWarnings = false): void {
@@ -669,6 +888,9 @@ export class VisualMappingPageComponent implements OnInit {
             this.loadError = 'Önce kaynak veri tanımlanmalıdır.';
           } else if (!mapping.targetSchema) {
             this.loadError = 'Önce hedef veri tanımlanmalıdır.';
+          } else if (this.isRawFixedWidthSource(mapping)) {
+            this.prepareFixedWidthPositionRows(mapping);
+            this.isFixedWidthPositionPopupOpen = true;
           } else if (this.mappingDefinitions.length === 0) {
             const createdMappings = this.createAutoMatches();
             if (createdMappings.length > 0) {
@@ -692,6 +914,82 @@ export class VisualMappingPageComponent implements OnInit {
 
   private getTargetField(fieldName: string): TargetField | undefined {
     return this.targetFields.find(field => field.name === fieldName);
+  }
+
+  private isRawFixedWidthSource(mapping: MappingDetailsResponse): boolean {
+    const sourceSchema = mapping.sourceSchema;
+    return mapping.sourceType === 'txt'
+      && Boolean(sourceSchema)
+      && (sourceSchema?.fields.length ?? 0) === 0
+      && (sourceSchema?.records?.length ?? 0) > 0
+      && sourceSchema!.records!.every(record => typeof record['line'] === 'string');
+  }
+
+  private prepareFixedWidthPositionRows(mapping: MappingDetailsResponse): void {
+    this.fixedWidthPositionRows = (mapping.targetSchema?.fields ?? []).map(field => ({
+      fieldName: field.name,
+      displayName: field.displayName || this.splitFieldName(field.name),
+      type: field.type,
+      startPosition: '',
+      endPosition: ''
+    }));
+  }
+
+  private parseFixedWidthPositionRows(): ParsedFixedWidthPositionRow[] | null {
+    const parsedRows: ParsedFixedWidthPositionRow[] = [];
+    const ranges: Array<{ fieldName: string; startPosition: number; endPosition: number }> = [];
+
+    for (const row of this.fixedWidthPositionRows) {
+      const startText = row.startPosition.trim();
+      const endText = row.endPosition.trim();
+      if (!startText && !endText) {
+        continue;
+      }
+
+      const startPosition = Number(startText);
+      const endPosition = Number(endText);
+      if (!Number.isInteger(startPosition) || !Number.isInteger(endPosition)) {
+        this.fixedWidthPositionError = `${row.displayName} için başlangıç ve bitiş tam sayı olmalı.`;
+        return null;
+      }
+
+      if (startPosition < 1 || endPosition < 1) {
+        this.fixedWidthPositionError = `${row.displayName} için pozisyonlar 1 veya daha büyük olmalı.`;
+        return null;
+      }
+
+      if (endPosition < startPosition) {
+        this.fixedWidthPositionError = `${row.displayName} için bitiş pozisyonu başlangıçtan küçük olamaz.`;
+        return null;
+      }
+
+      const overlappingRange = ranges.find(range =>
+        startPosition <= range.endPosition && endPosition >= range.startPosition);
+      if (overlappingRange) {
+        this.fixedWidthPositionError = `${row.displayName} pozisyonu ${overlappingRange.fieldName} alanı ile çakışıyor.`;
+        return null;
+      }
+
+      ranges.push({ fieldName: row.displayName, startPosition, endPosition });
+      parsedRows.push({
+        ...row,
+        startPosition,
+        endPosition,
+        length: endPosition - startPosition + 1
+      });
+    }
+
+    return parsedRows;
+  }
+
+  private getFixedWidthRawRecords(): string[] {
+    return this.mapping?.sourceSchema?.records
+      ?.map(record => record['line'])
+      .filter((line): line is string => typeof line === 'string') ?? [];
+  }
+
+  private sliceFixedWidthLine(line: string, startPosition: number, endPosition: number): string {
+    return line.substring(startPosition - 1, endPosition);
   }
 
   private setActiveDragTarget(fieldName: string): void {
