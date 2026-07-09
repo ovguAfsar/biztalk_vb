@@ -744,12 +744,10 @@ export class VisualMappingPageComponent implements OnInit {
           this.showFixedWidthPositionModal = false;
           this.mappingDefinitions = this.mappingDefinitions.filter(mappingDefinition =>
             response.fields.some(field => field.name === mappingDefinition.sourceField));
-          const createdMappings = this.createAutoMatches();
-          if (createdMappings.length > 0) {
-            this.mappingDefinitions = [...this.mappingDefinitions, ...createdMappings];
-            this.autoMatchMessage = `${createdMappings.length} alan otomatik eşlendi. İstersen bağlantıları silebilir veya değiştirebilirsin.`;
-          } else if (response.fields.length === 0) {
+          if (response.fields.length === 0) {
             this.autoMatchMessage = 'Pozisyon girilmediği için kaynak kolon oluşturulmadı.';
+          } else {
+            this.autoMatchMessage = 'Kaynak kolonlar oluşturuldu. Eşlemek için Otomatik Eşle veya AI ile Eşle butonunu kullanabilirsin.';
           }
           this.changeDetector.detectChanges();
         },
