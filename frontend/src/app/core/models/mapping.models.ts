@@ -123,3 +123,27 @@ export interface TestMappingResponse {
   warnings: string[];
   errors: string[];
 }
+
+export interface AiMappingField {
+  name: string;
+  displayName?: string;
+  type: SourceFieldType;
+}
+
+export interface AiMappingSuggestionRequest {
+  sourceFields: AiMappingField[];
+  targetFields: AiMappingField[];
+}
+
+export interface AiMappingSuggestion {
+  sourceField: string;
+  targetField: string;
+  confidence?: number;
+  reason?: string;
+}
+
+export interface AiMappingSuggestionResponse {
+  isAvailable: boolean;
+  message?: string;
+  suggestions: AiMappingSuggestion[];
+}
