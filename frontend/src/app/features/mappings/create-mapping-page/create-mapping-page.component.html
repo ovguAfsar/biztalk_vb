@@ -114,7 +114,7 @@
           <span class="source-upload__button">Dosya Seç</span>
           <span class="source-upload__description">Desteklenen dosya türleri: Excel (.xlsx, .xls), CSV (.csv), TXT (.txt)</span>
           <span class="source-upload__meta" *ngIf="hasSourceFile">
-            {{ sourceFileName }} · {{ sourceFields.length }} alan · {{ detectedSourceTypeLabel }}
+            {{ sourceFileMeta }}
           </span>
         </label>
         <p class="validation-message" *ngIf="sourceFileError">{{ sourceFileError }}</p>

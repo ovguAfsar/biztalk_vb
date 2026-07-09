@@ -17,6 +17,10 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         ["account"] = "hesap",
         ["acct"] = "hesap",
         ["amount"] = "tutar",
+        ["ay"] = "ay",
+        ["aykodu"] = "ay",
+        ["bank"] = "banka",
+        ["banka"] = "banka",
         ["branch"] = "sube",
         ["company"] = "kurum",
         ["customer"] = "musteri",
@@ -41,11 +45,10 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         ["tc"] = "tc",
         ["tckn"] = "tc",
         ["tutar"] = "tutar",
+        ["type"] = "tur",
         ["tur"] = "tur",
-        ["turu"] = "tur",
-        ["type"] = "tur"
+        ["turu"] = "tur"
     };
-
     private readonly HttpClient _httpClient;
     private readonly OllamaOptions _options;
 
@@ -146,9 +149,25 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     private static string BuildPrompt(AiMappingSuggestionRequest request)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("Match source fields to target fields semantically.");
-        builder.AppendLine("Use only exact names from the lists. Do not invent fields. One target can be used once.");
-        builder.AppendLine("Return only JSON: {\"mappings\":[{\"sourceField\":\"sourceName\",\"targetField\":\"targetName\",\"confidence\":0.0}]}");
+        builder.AppendLine("You are a data mapping expert for Turkish banking payment/payroll files.");
+        builder.AppendLine("Match each source field to the most appropriate target field by MEANING, not just exact text.");
+        builder.AppendLine("Source names may be abbreviations, shortened, misspelled, or in Turkish. Understand the intent.");
+        builder.AppendLine("Examples of correct matches:");
+        builder.AppendLine("- \"hsp\" -> \"hesapNo\" (hsp is short for hesap/account)");
+        builder.AppendLine("- \"Alici_Iban\" -> \"iban\"");
+        builder.AppendLine("- \"musteri_ad\" -> \"adSoyad\"");
+        builder.AppendLine("- \"ttr\" -> \"tutar\" (ttr is short for tutar/amount)");
+        builder.AppendLine("- \"tc_kimlik\" -> \"tc\"");
+        builder.AppendLine("- \"sube\" -> \"subeKodu\"");
+        builder.AppendLine("- \"krm\" -> \"kurumKodu\"");
+        builder.AppendLine("- \"hsp\" -> \"hesapNo\"");
+        builder.AppendLine("- \"ttr\" -> \"tutar\"");
+        builder.AppendLine("- \"sube\" -> \"subeKodu\"");
+        builder.AppendLine("- \"dvz\" -> \"dovizCinsi\"");
+        builder.AppendLine("- \"ack\" -> \"aciklama\"");
+        builder.AppendLine("Use only exact names from the lists below. Do not invent fields. One target can be used once.");
+        builder.AppendLine("If you are not confident about a match, do NOT include it (leave it out).");
+        builder.AppendLine("Return only JSON, no explanation: {\"mappings\":[{\"sourceField\":\"sourceName\",\"targetField\":\"targetName\",\"confidence\":0.0}]}");
         builder.AppendLine();
         builder.AppendLine("Source fields:");
         foreach (var field in request.SourceFields!)
@@ -261,7 +280,11 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
             var targetProfile = CreateFieldProfile(target);
             var best = sourceProfiles
                 .Where(source => !usedSources.Contains(source.Name))
-                .Select(source => new { Source = source, Score = ScoreSemanticMatch(source, targetProfile) })
+                .Select(source => new
+                {
+                    Source = source,
+                    Score = ScoreSemanticMatch(source, targetProfile)
+                })
                 .Where(candidate => candidate.Score >= 0.46)
                 .OrderByDescending(candidate => candidate.Score)
                 .FirstOrDefault();
@@ -286,7 +309,8 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
 
     private static FieldProfile CreateFieldProfile(AiMappingFieldDto field)
     {
-        var tokens = Tokenize($"{field.Name} {field.DisplayName}");
+        var text = $"{field.Name} {field.DisplayName}".Trim();
+        var tokens = Tokenize(text);
         return new FieldProfile(
             field.Name!,
             new HashSet<string>(tokens, StringComparer.OrdinalIgnoreCase),
@@ -297,7 +321,8 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     private static IReadOnlyList<string> Tokenize(string text)
     {
         var normalized = NormalizeText(text);
-        return TokenPattern.Matches(normalized)
+        var splitCamelCase = Regex.Replace(normalized, "([a-z])([0-9])|([0-9])([a-z])", "$1$3 $2$4");
+        return TokenPattern.Matches(splitCamelCase)
             .Select(match => match.Value)
             .SelectMany(ExpandToken)
             .Where(token => token.Length > 0)
@@ -325,14 +350,12 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
             ["tckimlikno"] = new[] { "tc", "no" }
         };
 
-        if (!compactAliases.TryGetValue(token, out var aliases))
+        if (compactAliases.TryGetValue(token, out var aliases))
         {
-            yield break;
-        }
-
-        foreach (var alias in aliases)
-        {
-            yield return alias;
+            foreach (var alias in aliases)
+            {
+                yield return alias;
+            }
         }
     }
 

@@ -69,6 +69,15 @@ public sealed class SourceFieldDocument
 
     [BsonElement("sampleValue")]
     public string? SampleValue { get; init; }
+
+    [BsonElement("startPosition")]
+    public int? StartPosition { get; init; }
+
+    [BsonElement("endPosition")]
+    public int? EndPosition { get; init; }
+
+    [BsonElement("length")]
+    public int? Length { get; init; }
 }
 
 public sealed class TargetSchemaDocument

@@ -101,6 +101,8 @@ function uniqueFieldNamesValidator(control: AbstractControl): ValidationErrors |
   return new Set(names).size === names.length ? null : { duplicateFieldNames: true };
 }
 
+const sourceFieldsValidators = [Validators.minLength(1), uniqueFieldNamesValidator];
+
 @Component({
   selector: 'app-source-mapping-page',
   standalone: true,
@@ -118,7 +120,7 @@ export class SourceMappingPageComponent implements OnInit {
   protected readonly form = new FormGroup({
     sourceName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     fields: new FormArray<SourceFieldForm>([], {
-      validators: [Validators.minLength(1), uniqueFieldNamesValidator]
+      validators: sourceFieldsValidators
     })
   });
 
@@ -135,6 +137,8 @@ export class SourceMappingPageComponent implements OnInit {
   protected isFileParsing = false;
   protected detectedSourceType: MappingSourceType | '' = '';
   protected isFileDragActive = false;
+  protected importedRecords: Record<string, string>[] = [];
+  protected isFixedWidthRawImport = false;
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -173,8 +177,28 @@ export class SourceMappingPageComponent implements OnInit {
     return this.isFileSource && Boolean(this.sourceFileName) && this.fields.length > 0;
   }
 
+  protected get hasImportedFile(): boolean {
+    return this.isFileSource && Boolean(this.sourceFileName);
+  }
+
+  protected get isFixedWidthRawSource(): boolean {
+    return this.isFixedWidthRawImport;
+  }
+
   protected get showFieldsSection(): boolean {
-    return !this.isFileSource || this.hasImportedFields;
+    return !this.isFileSource || (this.hasImportedFields && !this.isFixedWidthRawSource);
+  }
+
+  protected get canSubmitSource(): boolean {
+    if (this.isSaving) {
+      return false;
+    }
+
+    if (this.isFixedWidthRawSource) {
+      return this.form.controls.sourceName.valid;
+    }
+
+    return this.form.valid;
   }
 
   protected get sourceCopy(): SourceTypeCopy {
@@ -212,6 +236,10 @@ export class SourceMappingPageComponent implements OnInit {
   }
 
   protected get importCountLabel(): string {
+    if (this.isFixedWidthRawSource) {
+      return 'sabit genişlikli satır yüklendi';
+    }
+
     return this.isExcelSource ? 'kolon bulundu' : 'alan bulundu';
   }
 
@@ -313,17 +341,30 @@ export class SourceMappingPageComponent implements OnInit {
     this.sourceFileName = file.name;
     this.fileImportError = '';
     this.detectedSourceType = '';
+    this.isFixedWidthRawImport = false;
     this.successMessage = '';
     this.saveError = '';
     this.savedSourceSchema = undefined;
     this.isFileParsing = true;
+    this.importedRecords = [];
     this.fields.clear();
+    this.fields.setValidators(sourceFieldsValidators);
     this.fields.updateValueAndValidity();
 
     try {
       const result = await readSourceFile(file, this.mapping?.sourceType ?? 'manual');
       this.detectedSourceType = result.format;
+      this.importedRecords = result.records;
+      this.isFixedWidthRawImport = result.format === 'txt'
+        && result.fields.length === 0
+        && result.records.length > 0
+        && result.records.every(record => typeof record['line'] === 'string');
       this.setImportedFields(result.fields);
+      if (this.isFixedWidthRawSource) {
+        this.fields.clearValidators();
+        this.fields.updateValueAndValidity();
+        this.form.updateValueAndValidity();
+      }
 
       if (!this.form.controls.sourceName.value.trim()) {
         this.form.controls.sourceName.setValue(this.getFileBaseName(file.name));
@@ -332,6 +373,8 @@ export class SourceMappingPageComponent implements OnInit {
       this.sourceFileName = '';
       this.fileImportError = error instanceof Error ? error.message : 'Dosya okunamadı.';
       this.detectedSourceType = '';
+      this.importedRecords = [];
+      this.isFixedWidthRawImport = false;
       this.fields.markAsTouched();
       this.fields.updateValueAndValidity();
     } finally {
@@ -374,9 +417,14 @@ export class SourceMappingPageComponent implements OnInit {
     this.saveError = '';
     this.savedSourceSchema = undefined;
 
-    if (this.form.invalid) {
+    if (!this.isFixedWidthRawSource && this.form.invalid) {
       this.form.markAllAsTouched();
       this.fields.updateValueAndValidity();
+      return;
+    }
+
+    if (this.isFixedWidthRawSource && this.form.controls.sourceName.invalid) {
+      this.form.controls.sourceName.markAsTouched();
       return;
     }
 
@@ -390,7 +438,8 @@ export class SourceMappingPageComponent implements OnInit {
         type: field.type as SourceFieldType,
         required: field.required,
         sampleValue: field.sampleValue.trim() || undefined
-      }))
+      })),
+      records: this.importedRecords
     };
 
     this.isSaving = true;
