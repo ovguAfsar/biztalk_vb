@@ -12,6 +12,8 @@ public sealed class MappingService : IMappingService
 {
     private const string DraftStatus = "draft";
     private const string CompletedStatus = "completed";
+    private const string DefaultPatternType = "maas";
+    private const string MtvPatternType = "mtv";
     private static readonly Regex FieldNamePattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
 
     private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
@@ -45,6 +47,12 @@ public sealed class MappingService : IMappingService
         "api",
         "database",
         "file"
+    };
+
+    private static readonly HashSet<string> AllowedPatternTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        DefaultPatternType,
+        "mtv"
     };
 
     private static readonly HashSet<string> AllowedFieldTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -98,6 +106,8 @@ public sealed class MappingService : IMappingService
             Description = string.IsNullOrWhiteSpace(validRequest.Description) ? null : validRequest.Description.Trim(),
             SourceType = validRequest.SourceType!.Trim().ToLowerInvariant(),
             TargetType = validRequest.TargetType!.Trim().ToLowerInvariant(),
+            PatternType = NormalizePatternType(validRequest.PatternType),
+            PatternSettings = ToPatternSettingsDocument(validRequest.PatternSettings),
             Status = DraftStatus,
             CreatedAt = now,
             UpdatedAt = now
@@ -108,9 +118,11 @@ public sealed class MappingService : IMappingService
         return ToResponse(mapping);
     }
 
-    public async Task<IReadOnlyList<MappingResponse>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MappingResponse>> GetAllAsync(string? patternType, CancellationToken cancellationToken)
     {
-        var mappings = await _mappingRepository.GetAllAsync(cancellationToken);
+        ValidatePatternTypeFilter(patternType);
+
+        var mappings = await _mappingRepository.GetAllAsync(patternType, cancellationToken);
         return mappings.Select(ToResponse).ToList();
     }
 
@@ -141,12 +153,27 @@ public sealed class MappingService : IMappingService
         }
 
         var validRequest = request!;
+        var currentMapping = await _mappingRepository.GetByIdAsync(id, cancellationToken);
+        if (currentMapping is null)
+        {
+            throw new MappingNotFoundException(id);
+        }
+
+        var patternType = string.IsNullOrWhiteSpace(validRequest.PatternType)
+            ? NormalizePatternType(currentMapping.PatternType)
+            : NormalizePatternType(validRequest.PatternType);
+        var patternSettings = validRequest.PatternSettings is null
+            ? currentMapping.PatternSettings
+            : ToPatternSettingsDocument(validRequest.PatternSettings);
+
         var updatedMapping = await _mappingRepository.UpdateAsync(
             id,
             validRequest.Name!.Trim(),
             string.IsNullOrWhiteSpace(validRequest.Description) ? null : validRequest.Description.Trim(),
             validRequest.SourceType!.Trim().ToLowerInvariant(),
             validRequest.TargetType!.Trim().ToLowerInvariant(),
+            patternType,
+            patternSettings,
             string.IsNullOrWhiteSpace(validRequest.Status) ? DraftStatus : validRequest.Status.Trim().ToLowerInvariant(),
             DateTime.UtcNow,
             cancellationToken);
@@ -339,10 +366,14 @@ public sealed class MappingService : IMappingService
             errors.AddRange(rowErrors.Select(error => PrefixRowMessage(index, inputRecords.Count, error)));
         }
 
+        object output = NormalizePatternType(mapping.PatternType) == MtvPatternType
+            ? BuildMtvFileOutput(outputs, mapping, warnings, errors)
+            : outputs;
+
         return new TestMappingResponse
         {
             Id = mapping.Id,
-            Output = outputs,
+            Output = output,
             Warnings = warnings,
             Errors = errors
         };
@@ -380,6 +411,15 @@ public sealed class MappingService : IMappingService
         {
             errors["targetType"] = new[] { "Hedef veri tipi json, xml, api, database veya file olmalidir." };
         }
+
+        var patternType = NormalizePatternType(request.PatternType);
+        if (!string.IsNullOrWhiteSpace(request.PatternType)
+            && !AllowedPatternTypes.Contains(request.PatternType.Trim()))
+        {
+            errors["patternType"] = new[] { "Desen tipi maas veya mtv olmalidir." };
+        }
+
+        ValidatePatternSettings(errors, patternType, request.PatternSettings);
 
         return errors;
     }
@@ -423,7 +463,57 @@ public sealed class MappingService : IMappingService
             errors["status"] = new[] { "Mapping durumu draft veya completed olmalidir." };
         }
 
+        var patternType = NormalizePatternType(request.PatternType);
+        if (!string.IsNullOrWhiteSpace(request.PatternType)
+            && !AllowedPatternTypes.Contains(request.PatternType.Trim()))
+        {
+            errors["patternType"] = new[] { "Desen tipi maas veya mtv olmalidir." };
+        }
+
+        ValidatePatternSettings(errors, patternType, request.PatternSettings);
+
         return errors;
+    }
+
+    private static void ValidatePatternSettings(
+        IDictionary<string, string[]> errors,
+        string patternType,
+        PatternSettingsDto? patternSettings)
+    {
+        if (patternType != MtvPatternType)
+        {
+            return;
+        }
+
+        var mtvHeader = patternSettings?.MtvHeader;
+        var fieldErrors = new Dictionary<string, string>();
+
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.subeKodu", mtvHeader?.SubeKodu, 5, true, "MTV sube kodu 5 karakter olmalidir.");
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.kurumKodu", mtvHeader?.KurumKodu, 5, true, "MTV kurum kodu 5 karakter olmalidir.");
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.dosyaTarihi", mtvHeader?.DosyaTarihi, 8, true, "MTV dosya tarihi YYYYMMDD formatinda 8 karakter olmalidir.");
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.kurumHesapNo", mtvHeader?.KurumHesapNo, 17, true, "MTV kurum hesap no 17 karakter olmalidir.");
+
+        foreach (var error in fieldErrors)
+        {
+            errors[error.Key] = new[] { error.Value };
+        }
+    }
+
+    private static void ValidateFixedLengthSetting(
+        IDictionary<string, string> errors,
+        string key,
+        string? value,
+        int length,
+        bool digitsOnly,
+        string message)
+    {
+        var trimmedValue = value?.Trim();
+        if (string.IsNullOrWhiteSpace(trimmedValue)
+            || trimmedValue.Length != length
+            || (digitsOnly && trimmedValue.Any(character => !char.IsDigit(character))))
+        {
+            errors[key] = message;
+        }
     }
 
     private static void ValidateMappingId(string id)
@@ -435,6 +525,19 @@ public sealed class MappingService : IMappingService
                 ["id"] = new[] { "Mapping id gecerli bir ObjectId olmalidir." }
             });
         }
+    }
+
+    private static void ValidatePatternTypeFilter(string? patternType)
+    {
+        if (string.IsNullOrWhiteSpace(patternType) || AllowedPatternTypes.Contains(patternType.Trim()))
+        {
+            return;
+        }
+
+        throw new MappingValidationException(new Dictionary<string, string[]>
+        {
+            ["patternType"] = new[] { "Desen tipi filtresi maas veya mtv olmalidir." }
+        });
     }
 
     private static IDictionary<string, string[]> ValidateSourceSchema(SaveSourceSchemaRequest? request)
@@ -1078,6 +1181,8 @@ public sealed class MappingService : IMappingService
             Description = mapping.Description,
             SourceType = mapping.SourceType,
             TargetType = mapping.TargetType,
+            PatternType = NormalizePatternType(mapping.PatternType),
+            PatternSettings = ToPatternSettingsDto(mapping.PatternSettings),
             Status = mapping.Status,
             SourceSchema = mapping.SourceSchema is null ? null : ToSourceSchemaDetails(mapping.SourceSchema),
             TargetSchema = mapping.TargetSchema is null ? null : ToTargetSchemaDetails(mapping.TargetSchema),
@@ -1212,6 +1317,205 @@ public sealed class MappingService : IMappingService
         return trimmedTransformType.Equals("dateFormat", StringComparison.OrdinalIgnoreCase)
             ? "dateFormat"
             : trimmedTransformType.ToLowerInvariant();
+    }
+
+    private static string NormalizePatternType(string? patternType)
+    {
+        return string.IsNullOrWhiteSpace(patternType)
+            ? DefaultPatternType
+            : patternType.Trim().ToLowerInvariant();
+    }
+
+    private static PatternSettingsDocument? ToPatternSettingsDocument(PatternSettingsDto? settings)
+    {
+        if (settings?.MtvHeader is null)
+        {
+            return null;
+        }
+
+        return new PatternSettingsDocument
+        {
+            MtvHeader = new MtvHeaderSettingsDocument
+            {
+                SubeKodu = NormalizeOptionalString(settings.MtvHeader.SubeKodu),
+                KurumKodu = NormalizeOptionalString(settings.MtvHeader.KurumKodu),
+                DosyaTarihi = NormalizeOptionalString(settings.MtvHeader.DosyaTarihi),
+                KurumHesapNo = NormalizeOptionalString(settings.MtvHeader.KurumHesapNo)
+            }
+        };
+    }
+
+    private static PatternSettingsDto? ToPatternSettingsDto(PatternSettingsDocument? settings)
+    {
+        if (settings?.MtvHeader is null)
+        {
+            return null;
+        }
+
+        return new PatternSettingsDto
+        {
+            MtvHeader = new MtvHeaderSettingsDto
+            {
+                SubeKodu = settings.MtvHeader.SubeKodu,
+                KurumKodu = settings.MtvHeader.KurumKodu,
+                DosyaTarihi = settings.MtvHeader.DosyaTarihi,
+                KurumHesapNo = settings.MtvHeader.KurumHesapNo
+            }
+        };
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildMtvFileOutput(
+        IReadOnlyList<IReadOnlyDictionary<string, object?>> dataOutputs,
+        MappingDocument mapping,
+        ICollection<string> warnings,
+        ICollection<string> errors)
+    {
+        var header = BuildMtvHeader(mapping.PatternSettings?.MtvHeader, errors);
+        var data = dataOutputs
+            .Select(output => new Dictionary<string, object?>
+            {
+                ["fields"] = output,
+                ["line"] = BuildFixedWidthLine(output, mapping.TargetSchema!.Fields, 237, errors),
+                ["length"] = 237
+            })
+            .ToList();
+        var totalAmount = dataOutputs.Sum(output => TryGetOutputDecimal(output, "tutar", out var amount) ? amount : 0m);
+        var footer = BuildMtvFooter(dataOutputs.Count, totalAmount);
+        var lines = new[] { header["line"]?.ToString() ?? string.Empty }
+            .Concat(data.Select(item => item["line"]?.ToString() ?? string.Empty))
+            .Concat(new[] { footer["line"]?.ToString() ?? string.Empty })
+            .ToList();
+
+        if (mapping.PatternSettings?.MtvHeader is null)
+        {
+            warnings.Add("MTV Header ayarlari bulunamadi; header bos/default degerlerle uretildi.");
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["recordType"] = "mtvFile",
+            ["header"] = header,
+            ["data"] = data,
+            ["footer"] = footer,
+            ["fileContent"] = string.Join(Environment.NewLine, lines)
+        };
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildMtvHeader(
+        MtvHeaderSettingsDocument? headerSettings,
+        ICollection<string> errors)
+    {
+        var fields = new Dictionary<string, object?>
+        {
+            ["kayitTipi"] = "H",
+            ["subeKodu"] = headerSettings?.SubeKodu ?? string.Empty,
+            ["kurumKodu"] = headerSettings?.KurumKodu ?? string.Empty,
+            ["dosyaTarihi"] = headerSettings?.DosyaTarihi ?? DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+            ["kurumHesapNo"] = headerSettings?.KurumHesapNo ?? string.Empty
+        };
+        var schema = new List<TargetFieldDocument>
+        {
+            CreateOutputField("kayitTipi", 0, 1, "left", " "),
+            CreateOutputField("subeKodu", 1, 5, "right", "0"),
+            CreateOutputField("kurumKodu", 6, 5, "right", "0"),
+            CreateOutputField("dosyaTarihi", 11, 8, "right", "0"),
+            CreateOutputField("kurumHesapNo", 19, 17, "right", "0")
+        };
+
+        return new Dictionary<string, object?>
+        {
+            ["fields"] = fields,
+            ["line"] = BuildFixedWidthLine(fields, schema, 36, errors),
+            ["length"] = 36
+        };
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildMtvFooter(int recordCount, decimal totalAmount)
+    {
+        var fields = new Dictionary<string, object?>
+        {
+            ["kayitTipi"] = "F",
+            ["toplamKisi"] = recordCount.ToString(CultureInfo.InvariantCulture).PadLeft(6, '0'),
+            ["toplamMiktar"] = totalAmount.ToString("0.00", CultureInfo.InvariantCulture).PadLeft(21, '0')
+        };
+        var line = string.Concat(fields["kayitTipi"], fields["toplamKisi"], fields["toplamMiktar"]);
+
+        return new Dictionary<string, object?>
+        {
+            ["fields"] = fields,
+            ["line"] = line,
+            ["length"] = 28
+        };
+    }
+
+    private static TargetFieldDocument CreateOutputField(
+        string name,
+        int startPosition,
+        int length,
+        string align,
+        string padChar)
+    {
+        return new TargetFieldDocument
+        {
+            Name = name,
+            Type = "text",
+            Required = false,
+            Length = length,
+            StartPosition = startPosition,
+            Align = align,
+            PadChar = padChar
+        };
+    }
+
+    private static string BuildFixedWidthLine(
+        IReadOnlyDictionary<string, object?> output,
+        IReadOnlyList<TargetFieldDocument> fields,
+        int recordLength,
+        ICollection<string> errors)
+    {
+        var chars = Enumerable.Repeat(' ', recordLength).ToArray();
+        foreach (var field in fields.Where(field => field.StartPosition.HasValue && field.Length.HasValue))
+        {
+            var value = output.TryGetValue(field.Name, out var rawValue) ? ObjectValueToText(rawValue) : string.Empty;
+            var length = field.Length!.Value;
+            var padChar = string.IsNullOrEmpty(field.PadChar) ? ' ' : field.PadChar[0];
+            var align = string.IsNullOrWhiteSpace(field.Align) ? "left" : field.Align.Trim().ToLowerInvariant();
+            var normalizedValue = value.Length > length
+                ? value[..field.Length.Value]
+                : align == "right"
+                    ? value.PadLeft(length, padChar)
+                    : value.PadRight(length, padChar);
+
+            if (value.Length > length)
+            {
+                errors.Add($"Target field '{field.Name}' was truncated while building fixed-width output.");
+            }
+
+            for (var index = 0; index < normalizedValue.Length; index++)
+            {
+                var targetIndex = field.StartPosition!.Value + index;
+                if (targetIndex >= 0 && targetIndex < chars.Length)
+                {
+                    chars[targetIndex] = normalizedValue[index];
+                }
+            }
+        }
+
+        return new string(chars);
+    }
+
+    private static bool TryGetOutputDecimal(
+        IReadOnlyDictionary<string, object?> output,
+        string fieldName,
+        out decimal value)
+    {
+        if (!output.TryGetValue(fieldName, out var rawValue))
+        {
+            value = 0;
+            return false;
+        }
+
+        return TryParseDecimalText(ObjectValueToText(rawValue), out value);
     }
 
     private static string? NormalizeOptionalString(string? value)

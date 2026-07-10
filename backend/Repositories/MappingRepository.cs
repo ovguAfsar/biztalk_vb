@@ -12,6 +12,9 @@ public sealed class MappingRepository : IMappingRepository
     public MappingRepository(IMongoDatabase database, IOptions<MongoDbOptions> options)
     {
         _mappings = database.GetCollection<MappingDocument>(options.Value.MappingsCollectionName);
+        _mappings.Indexes.CreateOne(new CreateIndexModel<MappingDocument>(
+            Builders<MappingDocument>.IndexKeys.Ascending(mapping => mapping.PatternType),
+            new CreateIndexOptions { Name = "idx_patternType" }));
     }
 
     public Task CreateAsync(MappingDocument mapping, CancellationToken cancellationToken)
@@ -19,12 +22,31 @@ public sealed class MappingRepository : IMappingRepository
         return _mappings.InsertOneAsync(mapping, cancellationToken: cancellationToken);
     }
 
-    public async Task<IReadOnlyList<MappingDocument>> GetAllAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MappingDocument>> GetAllAsync(string? patternType, CancellationToken cancellationToken)
     {
+        var filter = BuildPatternTypeFilter(patternType);
         return await _mappings
-            .Find(Builders<MappingDocument>.Filter.Empty)
+            .Find(filter)
             .SortByDescending(mapping => mapping.UpdatedAt)
             .ToListAsync(cancellationToken);
+    }
+
+    private static FilterDefinition<MappingDocument> BuildPatternTypeFilter(string? patternType)
+    {
+        var normalizedPatternType = string.IsNullOrWhiteSpace(patternType)
+            ? null
+            : patternType.Trim().ToLowerInvariant();
+        var filter = Builders<MappingDocument>.Filter;
+
+        return normalizedPatternType switch
+        {
+            "maas" => filter.Or(
+                filter.Eq(mapping => mapping.PatternType, "maas"),
+                filter.Eq(mapping => mapping.PatternType, null),
+                filter.Exists(mapping => mapping.PatternType, false)),
+            "mtv" => filter.Eq(mapping => mapping.PatternType, "mtv"),
+            _ => filter.Empty
+        };
     }
 
     public async Task<MappingDocument?> GetByIdAsync(string id, CancellationToken cancellationToken)
@@ -39,6 +61,8 @@ public sealed class MappingRepository : IMappingRepository
         string? description,
         string sourceType,
         string targetType,
+        string patternType,
+        PatternSettingsDocument? patternSettings,
         string status,
         DateTime updatedAt,
         CancellationToken cancellationToken)
@@ -49,6 +73,8 @@ public sealed class MappingRepository : IMappingRepository
             .Set(mapping => mapping.Description, description)
             .Set(mapping => mapping.SourceType, sourceType)
             .Set(mapping => mapping.TargetType, targetType)
+            .Set(mapping => mapping.PatternType, patternType)
+            .Set(mapping => mapping.PatternSettings, patternSettings)
             .Set(mapping => mapping.Status, status)
             .Set(mapping => mapping.UpdatedAt, updatedAt);
 

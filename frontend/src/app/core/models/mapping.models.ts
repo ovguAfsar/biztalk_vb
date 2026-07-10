@@ -1,6 +1,7 @@
 export type MappingSourceType = 'file' | 'excel' | 'txt' | 'json' | 'xml' | 'api' | 'database' | 'manual';
 export type MappingTargetType = 'json' | 'xml' | 'api' | 'database' | 'file';
 export type MappingStatus = 'draft' | 'completed';
+export type MappingPatternType = 'maas' | 'mtv';
 export type SourceFieldType = 'text' | 'number' | 'date' | 'boolean' | 'object' | 'array';
 export type MappingTransformType = 'direct' | 'concat' | 'constant' | 'dateFormat' | 'uppercase' | 'lowercase' | 'trim';
 export type TargetFieldAlign = 'left' | 'right';
@@ -10,6 +11,8 @@ export interface MappingCreateRequest {
   description?: string;
   sourceType: MappingSourceType;
   targetType: MappingTargetType;
+  patternType?: MappingPatternType;
+  patternSettings?: PatternSettings;
 }
 
 export interface MappingUpdateRequest extends MappingCreateRequest {
@@ -42,6 +45,17 @@ export interface TargetField {
   requiredForOutput?: boolean;
 }
 
+export interface PatternSettings {
+  mtvHeader?: MtvHeaderSettings;
+}
+
+export interface MtvHeaderSettings {
+  subeKodu?: string;
+  kurumKodu?: string;
+  dosyaTarihi?: string;
+  kurumHesapNo?: string;
+}
+
 export interface SourceSchemaDetails {
   sourceName: string;
   fields: SourceField[];
@@ -65,6 +79,8 @@ export interface MappingCreateResponse {
   description?: string;
   sourceType: MappingSourceType;
   targetType: MappingTargetType;
+  patternType: MappingPatternType;
+  patternSettings?: PatternSettings;
   status: MappingStatus;
   sourceSchema?: SourceSchemaDetails;
   targetSchema?: TargetSchemaDetails;

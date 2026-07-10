@@ -8,6 +8,7 @@ import {
   MappingCreateRequest,
   MappingCreateResponse,
   MappingDetailsResponse,
+  MappingPatternType,
   MappingUpdateRequest,
   SaveMappingsRequest,
   SaveMappingsResponse,
@@ -30,8 +31,11 @@ export class MappingApiService {
     return this.http.post<MappingCreateResponse>(this.baseUrl, request);
   }
 
-  getMappings(): Observable<MappingDetailsResponse[]> {
-    return this.http.get<MappingDetailsResponse[]>(this.baseUrl);
+  getMappings(patternType?: MappingPatternType): Observable<MappingDetailsResponse[]> {
+    const url = patternType
+      ? `${this.baseUrl}?patternType=${encodeURIComponent(patternType)}`
+      : this.baseUrl;
+    return this.http.get<MappingDetailsResponse[]>(url);
   }
 
   getMappingById(id: string): Observable<MappingDetailsResponse> {

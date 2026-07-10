@@ -119,6 +119,8 @@ export class MappingTestPageComponent implements OnInit {
       description: this.mapping.description,
       sourceType: this.mapping.sourceType,
       targetType: this.mapping.targetType,
+      patternType: this.mapping.patternType,
+      patternSettings: this.mapping.patternSettings,
       status: 'completed'
     })
       .pipe(finalize(() => {

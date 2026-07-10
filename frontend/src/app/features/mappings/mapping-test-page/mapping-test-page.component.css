@@ -119,6 +119,7 @@
 
 .json-output {
   overflow: auto;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -285,18 +286,32 @@
   .back-action {
     width: 100%;
   }
+
+  .completion-overlay {
+    padding: 18px 12px;
+  }
+
+  .completion-modal {
+    max-height: calc(100vh - 36px);
+    padding: 24px;
+  }
 }
 .completion-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow: auto;
+  background: rgba(0, 0, 0, 0.5);
   z-index: 1000;
+  padding: 32px 16px;
 }
 
 .completion-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 64px);
   background: #ffffff;
   border-radius: 16px;
   padding: 32px;
@@ -347,6 +362,9 @@
   display: grid;
   gap: 14px;
   margin: 18px 0 24px;
+  overflow: auto;
+  max-height: min(52vh, 520px);
+  padding-right: 4px;
   text-align: left;
 }
 
@@ -380,6 +398,7 @@
   padding-left: 20px;
   color: #59677c;
   font-weight: 650;
+  overflow-wrap: anywhere;
 }
 
 .result-summary__column--error ul {

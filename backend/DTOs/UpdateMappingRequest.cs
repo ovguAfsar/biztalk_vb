@@ -10,5 +10,9 @@ public sealed class UpdateMappingRequest
 
     public string? TargetType { get; init; }
 
+    public string? PatternType { get; init; }
+
+    public PatternSettingsDto? PatternSettings { get; init; }
+
     public string? Status { get; init; }
 }

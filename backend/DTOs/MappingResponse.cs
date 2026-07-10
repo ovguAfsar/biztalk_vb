@@ -12,6 +12,10 @@ public sealed class MappingResponse
 
     public required string TargetType { get; init; }
 
+    public required string PatternType { get; init; }
+
+    public PatternSettingsDto? PatternSettings { get; init; }
+
     public required string Status { get; init; }
 
     public SourceSchemaDetails? SourceSchema { get; init; }

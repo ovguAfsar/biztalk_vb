@@ -9,6 +9,7 @@ import {
   MappingCreateRequest,
   MappingCreateResponse,
   MappingDetailsResponse,
+  MappingPatternType,
   MappingSourceType,
   MappingStatus,
   MappingTargetType,
@@ -36,6 +37,11 @@ export class CreateMappingPageComponent implements OnInit {
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required]],
     description: ['', [Validators.required]],
+    patternType: ['maas' as MappingPatternType, [Validators.required]],
+    mtvSubeKodu: [''],
+    mtvKurumKodu: [''],
+    mtvDosyaTarihi: [''],
+    mtvKurumHesapNo: [''],
     sourceType: ['file', [Validators.required]]
   });
 
@@ -55,6 +61,19 @@ export class CreateMappingPageComponent implements OnInit {
   protected mappingsError = '';
   protected isMappingsPanelOpen = false;
   protected mappingSearchTerm = '';
+  protected selectedPatternFilter: MappingPatternType | 'all' = 'all';
+  protected readonly patternTypeOptions: Array<{ value: MappingPatternType; label: string; description: string }> = [
+    {
+      value: 'maas',
+      label: 'Maaş',
+      description: 'Mevcut maaş hedef kolonları ve alanları kullanılır.'
+    },
+    {
+      value: 'mtv',
+      label: 'MTV',
+      description: 'Motorlu Taşıtlar Vergisi Data kaydı hedef kolonları kullanılır.'
+    }
+  ];
 
   ngOnInit(): void {
     this.loadMappings();
@@ -68,6 +87,19 @@ export class CreateMappingPageComponent implements OnInit {
   protected get descriptionInvalid(): boolean {
     const control = this.form.controls.description;
     return control.invalid && (control.dirty || control.touched);
+  }
+
+  protected get patternTypeInvalid(): boolean {
+    const control = this.form.controls.patternType;
+    return control.invalid && (control.dirty || control.touched);
+  }
+
+  protected get isMtvPattern(): boolean {
+    return this.form.controls.patternType.value === 'mtv';
+  }
+
+  protected get mtvHeaderInvalid(): boolean {
+    return this.isMtvPattern && !this.isMtvHeaderValid();
   }
 
   protected get hasSourceFile(): boolean {
@@ -95,7 +127,7 @@ export class CreateMappingPageComponent implements OnInit {
   }
 
   protected get canContinue(): boolean {
-    return this.form.valid && this.hasSourceFile && !this.isSubmitting;
+    return this.form.valid && !this.mtvHeaderInvalid && this.hasSourceFile && !this.isSubmitting;
   }
 
   protected get isEditingMapping(): boolean {
@@ -104,14 +136,15 @@ export class CreateMappingPageComponent implements OnInit {
 
   protected get filteredMappings(): MappingDetailsResponse[] {
     const searchTerm = this.mappingSearchTerm.trim().toLowerCase();
-    if (!searchTerm) {
-      return this.mappings;
-    }
-
     return this.mappings.filter(mapping => {
+      if (!searchTerm) {
+        return true;
+      }
+
       const searchableText = [
         mapping.name,
         mapping.description ?? '',
+        this.getPatternTypeLabel(mapping.patternType),
         this.getStatusLabel(mapping.status),
         mapping.status,
         mapping.createdAt,
@@ -141,6 +174,10 @@ export class CreateMappingPageComponent implements OnInit {
     return status === 'completed' ? 'Tamamlandı' : 'Taslak';
   }
 
+  protected getPatternTypeLabel(patternType: MappingPatternType): string {
+    return this.patternTypeOptions.find(option => option.value === patternType)?.label ?? 'Maaş';
+  }
+
   protected toggleMappingsPanel(): void {
     this.isMappingsPanelOpen = !this.isMappingsPanelOpen;
   }
@@ -148,6 +185,11 @@ export class CreateMappingPageComponent implements OnInit {
   protected updateMappingSearchTerm(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.mappingSearchTerm = input.value;
+  }
+
+  protected updatePatternFilter(patternType: MappingPatternType | 'all'): void {
+    this.selectedPatternFilter = patternType;
+    this.loadMappings();
   }
 
   protected selectMapping(mapping: MappingDetailsResponse): void {
@@ -181,6 +223,11 @@ export class CreateMappingPageComponent implements OnInit {
     this.form.reset({
       name: '',
       description: '',
+      patternType: 'maas',
+      mtvSubeKodu: '',
+      mtvKurumKodu: '',
+      mtvDosyaTarihi: this.getTodayAsYYYYMMDD(),
+      mtvKurumHesapNo: '',
       sourceType: 'file'
     });
     this.sourceFileName = '';
@@ -276,6 +323,11 @@ export class CreateMappingPageComponent implements OnInit {
       return;
     }
 
+    if (this.mtvHeaderInvalid) {
+      this.errorMessage = 'MTV Header bilgileri eksiksiz ve doğru formatta girilmelidir.';
+      return;
+    }
+
     if (!this.hasSourceFile) {
       this.sourceFileError = 'Kaynak dosyası seçin. Desteklenen formatlar: .xlsx, .xls, .csv, .txt';
       return;
@@ -286,7 +338,18 @@ export class CreateMappingPageComponent implements OnInit {
       name: value.name.trim(),
       description: value.description.trim() || undefined,
       sourceType: this.detectedSourceType as MappingSourceType,
-      targetType: 'json' as MappingTargetType
+      targetType: 'json' as MappingTargetType,
+      patternType: value.patternType,
+      patternSettings: value.patternType === 'mtv'
+        ? {
+            mtvHeader: {
+              subeKodu: value.mtvSubeKodu.trim(),
+              kurumKodu: value.mtvKurumKodu.trim(),
+              dosyaTarihi: value.mtvDosyaTarihi.trim(),
+              kurumHesapNo: value.mtvKurumHesapNo.trim()
+            }
+          }
+        : undefined
     };
     const sourceRequest: SaveSourceSchemaRequest = {
       sourceName: this.getFileBaseName(this.sourceFileName),
@@ -308,7 +371,7 @@ export class CreateMappingPageComponent implements OnInit {
       }))
       .pipe(concatMap(() => this.selectedMapping?.targetSchema
         ? of(null)
-        : this.mappingApi.saveTargetSchema(mappingId, createDefaultTargetSchemaRequest())))
+        : this.mappingApi.saveTargetSchema(mappingId, createDefaultTargetSchemaRequest(value.patternType))))
       .pipe(finalize(() => {
         this.isSubmitting = false;
       }))
@@ -329,7 +392,8 @@ export class CreateMappingPageComponent implements OnInit {
     this.isMappingsLoading = true;
     this.mappingsError = '';
 
-    this.mappingApi.getMappings()
+    const patternType = this.selectedPatternFilter === 'all' ? undefined : this.selectedPatternFilter;
+    this.mappingApi.getMappings(patternType)
       .pipe(finalize(() => {
         this.isMappingsLoading = false;
       }))
@@ -348,6 +412,11 @@ export class CreateMappingPageComponent implements OnInit {
     this.form.patchValue({
       name: mapping.name,
       description: mapping.description ?? '',
+      patternType: mapping.patternType,
+      mtvSubeKodu: mapping.patternSettings?.mtvHeader?.subeKodu ?? '',
+      mtvKurumKodu: mapping.patternSettings?.mtvHeader?.kurumKodu ?? '',
+      mtvDosyaTarihi: mapping.patternSettings?.mtvHeader?.dosyaTarihi ?? this.getTodayAsYYYYMMDD(),
+      mtvKurumHesapNo: mapping.patternSettings?.mtvHeader?.kurumHesapNo ?? '',
       sourceType: mapping.sourceType
     });
 
@@ -448,6 +517,22 @@ export class CreateMappingPageComponent implements OnInit {
 
   private getFileBaseName(fileName: string): string {
     return fileName.replace(/\.[^/.]+$/, '') || fileName;
+  }
+
+  private isMtvHeaderValid(): boolean {
+    const value = this.form.getRawValue();
+    return /^\d{5}$/.test(value.mtvSubeKodu.trim())
+      && /^\d{5}$/.test(value.mtvKurumKodu.trim())
+      && /^\d{8}$/.test(value.mtvDosyaTarihi.trim())
+      && /^\d{17}$/.test(value.mtvKurumHesapNo.trim());
+  }
+
+  private getTodayAsYYYYMMDD(): string {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
   }
 
   private isDetectedFileSourceType(value: MappingSourceType | ''): value is 'excel' | 'txt' {
