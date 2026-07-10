@@ -53,10 +53,24 @@
           </button>
           <button
             type="button"
-            [class.mapping-filter__button--active]="selectedPatternFilter === 'mtv'"
-            (click)="updatePatternFilter('mtv')"
+            [class.mapping-filter__button--active]="selectedPatternFilter === 'vergi_mtv'"
+            (click)="updatePatternFilter('vergi_mtv')"
           >
             MTV
+          </button>
+          <button
+            type="button"
+            [class.mapping-filter__button--active]="selectedPatternFilter === 'vergi_gumruk'"
+            (click)="updatePatternFilter('vergi_gumruk')"
+          >
+            Gümrük
+          </button>
+          <button
+            type="button"
+            [class.mapping-filter__button--active]="selectedPatternFilter === 'vergi_toplu'"
+            (click)="updatePatternFilter('vergi_toplu')"
+          >
+            Toplu Vergi
           </button>
         </div>
 
@@ -120,24 +134,31 @@
 
       <fieldset class="option-section pattern-section" aria-label="Dosya deseni seçimi">
         <legend>Dosya Deseni</legend>
-        <div class="pattern-options">
-          <label
-            class="pattern-option"
-            *ngFor="let option of patternTypeOptions"
-            [class.pattern-option--selected]="form.controls.patternType.value === option.value"
-          >
-            <input type="radio" formControlName="patternType" [value]="option.value">
-            <span class="pattern-option__body">
-              <span class="pattern-option__title">{{ option.label }}</span>
-              <span class="pattern-option__description">{{ option.description }}</span>
-            </span>
-          </label>
+        <div class="pattern-select-row">
+          <label for="mapping-pattern-type">Desen Türü</label>
+          <div class="pattern-select-wrap">
+            <select
+              id="mapping-pattern-type"
+              formControlName="patternType"
+              [class.field__control--invalid]="patternTypeInvalid"
+            >
+              <option value="" disabled>Seçiniz</option>
+              <ng-container *ngFor="let group of patternTypeGroups">
+                <ng-container *ngIf="!group.label">
+                  <option *ngFor="let option of group.options" [value]="option.value">{{ option.label }}</option>
+                </ng-container>
+                <optgroup *ngIf="group.label" [label]="group.label">
+                  <option *ngFor="let option of group.options" [value]="option.value">{{ option.label }}</option>
+                </optgroup>
+              </ng-container>
+            </select>
+          </div>
         </div>
         <p class="validation-message" *ngIf="patternTypeInvalid">Dosya deseni seçimi zorunludur.</p>
       </fieldset>
 
-      <fieldset class="option-section mtv-header-section" *ngIf="isMtvPattern" aria-label="MTV Header bilgileri">
-        <legend>MTV Header Bilgileri</legend>
+      <fieldset class="option-section mtv-header-section" *ngIf="isVergiPattern" aria-label="Vergi Header bilgileri">
+        <legend>Vergi Header Bilgileri</legend>
         <div class="mtv-header-grid">
           <div class="field">
             <label for="mtv-sube-kodu">Şube Kodu</label>
@@ -188,7 +209,7 @@
           </div>
         </div>
         <p class="validation-message" *ngIf="mtvHeaderInvalid">
-          MTV Header için Şube Kodu 5, Kurum Kodu 5, Dosya Tarihi 8, Kurum Hesap No 17 rakam olmalıdır.
+          Vergi Header için Şube Kodu 5, Kurum Kodu 5, Dosya Tarihi 8, Kurum Hesap No 17 rakam olmalıdır.
         </p>
       </fieldset>
 

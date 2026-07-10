@@ -37,7 +37,7 @@ export class CreateMappingPageComponent implements OnInit {
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required]],
     description: ['', [Validators.required]],
-    patternType: ['maas' as MappingPatternType, [Validators.required]],
+    patternType: ['' as MappingPatternType, [Validators.required]],
     mtvSubeKodu: [''],
     mtvKurumKodu: [''],
     mtvDosyaTarihi: [''],
@@ -62,16 +62,18 @@ export class CreateMappingPageComponent implements OnInit {
   protected isMappingsPanelOpen = false;
   protected mappingSearchTerm = '';
   protected selectedPatternFilter: MappingPatternType | 'all' = 'all';
-  protected readonly patternTypeOptions: Array<{ value: MappingPatternType; label: string; description: string }> = [
+  protected readonly patternTypeGroups: Array<{
+    label?: string;
+    options: Array<{ value: MappingPatternType; label: string }>;
+  }> = [
+    { options: [{ value: 'maas', label: 'Maaş' }] },
     {
-      value: 'maas',
-      label: 'Maaş',
-      description: 'Mevcut maaş hedef kolonları ve alanları kullanılır.'
-    },
-    {
-      value: 'mtv',
-      label: 'MTV',
-      description: 'Motorlu Taşıtlar Vergisi Data kaydı hedef kolonları kullanılır.'
+      label: 'Vergi',
+      options: [
+        { value: 'vergi_mtv', label: 'MTV' },
+        { value: 'vergi_gumruk', label: 'Gümrük Vergisi' },
+        { value: 'vergi_toplu', label: 'Toplu Vergi' }
+      ]
     }
   ];
 
@@ -94,12 +96,13 @@ export class CreateMappingPageComponent implements OnInit {
     return control.invalid && (control.dirty || control.touched);
   }
 
-  protected get isMtvPattern(): boolean {
-    return this.form.controls.patternType.value === 'mtv';
+  protected get isVergiPattern(): boolean {
+    return this.form.controls.patternType.value.startsWith('vergi_')
+      || this.form.controls.patternType.value === 'mtv';
   }
 
   protected get mtvHeaderInvalid(): boolean {
-    return this.isMtvPattern && !this.isMtvHeaderValid();
+    return this.isVergiPattern && !this.isMtvHeaderValid();
   }
 
   protected get hasSourceFile(): boolean {
@@ -175,7 +178,10 @@ export class CreateMappingPageComponent implements OnInit {
   }
 
   protected getPatternTypeLabel(patternType: MappingPatternType): string {
-    return this.patternTypeOptions.find(option => option.value === patternType)?.label ?? 'Maaş';
+    const normalizedPatternType = patternType === 'mtv' ? 'vergi_mtv' : patternType;
+    return this.patternTypeGroups
+      .flatMap(group => group.options)
+      .find(option => option.value === normalizedPatternType)?.label ?? normalizedPatternType;
   }
 
   protected toggleMappingsPanel(): void {
@@ -223,7 +229,7 @@ export class CreateMappingPageComponent implements OnInit {
     this.form.reset({
       name: '',
       description: '',
-      patternType: 'maas',
+      patternType: '' as MappingPatternType,
       mtvSubeKodu: '',
       mtvKurumKodu: '',
       mtvDosyaTarihi: this.getTodayAsYYYYMMDD(),
@@ -324,7 +330,7 @@ export class CreateMappingPageComponent implements OnInit {
     }
 
     if (this.mtvHeaderInvalid) {
-      this.errorMessage = 'MTV Header bilgileri eksiksiz ve doğru formatta girilmelidir.';
+      this.errorMessage = 'Vergi Header bilgileri eksiksiz ve doğru formatta girilmelidir.';
       return;
     }
 
@@ -340,7 +346,7 @@ export class CreateMappingPageComponent implements OnInit {
       sourceType: this.detectedSourceType as MappingSourceType,
       targetType: 'json' as MappingTargetType,
       patternType: value.patternType,
-      patternSettings: value.patternType === 'mtv'
+      patternSettings: this.isVergiPattern
         ? {
             mtvHeader: {
               subeKodu: value.mtvSubeKodu.trim(),
@@ -408,11 +414,12 @@ export class CreateMappingPageComponent implements OnInit {
   }
 
   private applySelectedMapping(mapping: MappingDetailsResponse): void {
+    const patternType = mapping.patternType === 'mtv' ? 'vergi_mtv' : mapping.patternType;
     this.selectedMapping = mapping;
     this.form.patchValue({
       name: mapping.name,
       description: mapping.description ?? '',
-      patternType: mapping.patternType,
+      patternType,
       mtvSubeKodu: mapping.patternSettings?.mtvHeader?.subeKodu ?? '',
       mtvKurumKodu: mapping.patternSettings?.mtvHeader?.kurumKodu ?? '',
       mtvDosyaTarihi: mapping.patternSettings?.mtvHeader?.dosyaTarihi ?? this.getTodayAsYYYYMMDD(),

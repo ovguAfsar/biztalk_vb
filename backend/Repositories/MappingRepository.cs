@@ -44,7 +44,11 @@ public sealed class MappingRepository : IMappingRepository
                 filter.Eq(mapping => mapping.PatternType, "maas"),
                 filter.Eq(mapping => mapping.PatternType, null),
                 filter.Exists(mapping => mapping.PatternType, false)),
-            "mtv" => filter.Eq(mapping => mapping.PatternType, "mtv"),
+            "mtv" or "vergi_mtv" => filter.Or(
+                filter.Eq(mapping => mapping.PatternType, "mtv"),
+                filter.Eq(mapping => mapping.PatternType, "vergi_mtv")),
+            "vergi_gumruk" => filter.Eq(mapping => mapping.PatternType, "vergi_gumruk"),
+            "vergi_toplu" => filter.Eq(mapping => mapping.PatternType, "vergi_toplu"),
             _ => filter.Empty
         };
     }

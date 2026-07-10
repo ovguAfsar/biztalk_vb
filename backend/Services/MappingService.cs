@@ -2,9 +2,14 @@ using MappingStudio.Api.DTOs;
 using MappingStudio.Api.Models;
 using MappingStudio.Api.Repositories;
 using MongoDB.Bson;
+using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MappingStudio.Api.Services;
 
@@ -13,7 +18,10 @@ public sealed class MappingService : IMappingService
     private const string DraftStatus = "draft";
     private const string CompletedStatus = "completed";
     private const string DefaultPatternType = "maas";
-    private const string MtvPatternType = "mtv";
+    private const string LegacyMtvPatternType = "mtv";
+    private const string MtvPatternType = "vergi_mtv";
+    private const string GumrukPatternType = "vergi_gumruk";
+    private const string TopluVergiPatternType = "vergi_toplu";
     private static readonly Regex FieldNamePattern = new("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.Compiled);
 
     private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
@@ -52,7 +60,10 @@ public sealed class MappingService : IMappingService
     private static readonly HashSet<string> AllowedPatternTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         DefaultPatternType,
-        "mtv"
+        LegacyMtvPatternType,
+        MtvPatternType,
+        GumrukPatternType,
+        TopluVergiPatternType
     };
 
     private static readonly HashSet<string> AllowedFieldTypes = new(StringComparer.OrdinalIgnoreCase)
@@ -366,7 +377,7 @@ public sealed class MappingService : IMappingService
             errors.AddRange(rowErrors.Select(error => PrefixRowMessage(index, inputRecords.Count, error)));
         }
 
-        object output = NormalizePatternType(mapping.PatternType) == MtvPatternType
+        object output = IsVergiPattern(NormalizePatternType(mapping.PatternType))
             ? BuildMtvFileOutput(outputs, mapping, warnings, errors)
             : outputs;
 
@@ -416,7 +427,7 @@ public sealed class MappingService : IMappingService
         if (!string.IsNullOrWhiteSpace(request.PatternType)
             && !AllowedPatternTypes.Contains(request.PatternType.Trim()))
         {
-            errors["patternType"] = new[] { "Desen tipi maas veya mtv olmalidir." };
+            errors["patternType"] = new[] { "Desen tipi maas, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." };
         }
 
         ValidatePatternSettings(errors, patternType, request.PatternSettings);
@@ -467,7 +478,7 @@ public sealed class MappingService : IMappingService
         if (!string.IsNullOrWhiteSpace(request.PatternType)
             && !AllowedPatternTypes.Contains(request.PatternType.Trim()))
         {
-            errors["patternType"] = new[] { "Desen tipi maas veya mtv olmalidir." };
+            errors["patternType"] = new[] { "Desen tipi maas, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." };
         }
 
         ValidatePatternSettings(errors, patternType, request.PatternSettings);
@@ -480,7 +491,7 @@ public sealed class MappingService : IMappingService
         string patternType,
         PatternSettingsDto? patternSettings)
     {
-        if (patternType != MtvPatternType)
+        if (!IsVergiPattern(patternType))
         {
             return;
         }
@@ -488,10 +499,10 @@ public sealed class MappingService : IMappingService
         var mtvHeader = patternSettings?.MtvHeader;
         var fieldErrors = new Dictionary<string, string>();
 
-        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.subeKodu", mtvHeader?.SubeKodu, 5, true, "MTV sube kodu 5 karakter olmalidir.");
-        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.kurumKodu", mtvHeader?.KurumKodu, 5, true, "MTV kurum kodu 5 karakter olmalidir.");
-        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.dosyaTarihi", mtvHeader?.DosyaTarihi, 8, true, "MTV dosya tarihi YYYYMMDD formatinda 8 karakter olmalidir.");
-        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.kurumHesapNo", mtvHeader?.KurumHesapNo, 17, true, "MTV kurum hesap no 17 karakter olmalidir.");
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.subeKodu", mtvHeader?.SubeKodu, 5, true, "Vergi sube kodu 5 karakter olmalidir.");
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.kurumKodu", mtvHeader?.KurumKodu, 5, true, "Vergi kurum kodu 5 karakter olmalidir.");
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.dosyaTarihi", mtvHeader?.DosyaTarihi, 8, true, "Vergi dosya tarihi YYYYMMDD formatinda 8 karakter olmalidir.");
+        ValidateFixedLengthSetting(fieldErrors, "patternSettings.mtvHeader.kurumHesapNo", mtvHeader?.KurumHesapNo, 17, true, "Vergi kurum hesap no 17 karakter olmalidir.");
 
         foreach (var error in fieldErrors)
         {
@@ -536,7 +547,7 @@ public sealed class MappingService : IMappingService
 
         throw new MappingValidationException(new Dictionary<string, string[]>
         {
-            ["patternType"] = new[] { "Desen tipi filtresi maas veya mtv olmalidir." }
+            ["patternType"] = new[] { "Desen tipi filtresi maas, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." }
         });
     }
 
@@ -785,7 +796,9 @@ public sealed class MappingService : IMappingService
             AddError(errors, "mappings", "Mapping listesi zorunludur.");
             return ToValidationErrors(errors);
         }
-        else if (request.Mappings.Count == 0)
+
+        var mappings = request.Mappings;
+        if (mappings.Count == 0)
         {
             AddError(errors, "mappings", "En az bir alan eslestirmesi yapilmalidir.");
         }
@@ -803,9 +816,9 @@ public sealed class MappingService : IMappingService
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var mappedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        for (var index = 0; index < request.Mappings.Count; index++)
+        for (var index = 0; index < mappings.Count; index++)
         {
-            var mappingDefinition = request.Mappings[index];
+            var mappingDefinition = mappings[index];
             var sourceKey = $"mappings[{index}].sourceField";
             var targetKey = $"mappings[{index}].targetField";
             var transformKey = $"mappings[{index}].transformType";
@@ -1321,9 +1334,25 @@ public sealed class MappingService : IMappingService
 
     private static string NormalizePatternType(string? patternType)
     {
-        return string.IsNullOrWhiteSpace(patternType)
-            ? DefaultPatternType
-            : patternType.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(patternType))
+        {
+            return DefaultPatternType;
+        }
+
+        var normalizedPatternType = patternType.Trim().ToLowerInvariant();
+        return normalizedPatternType == LegacyMtvPatternType
+            ? MtvPatternType
+            : normalizedPatternType;
+    }
+
+    private static bool IsMtvPattern(string patternType)
+    {
+        return patternType == MtvPatternType;
+    }
+
+    private static bool IsVergiPattern(string patternType)
+    {
+        return patternType is MtvPatternType or GumrukPatternType or TopluVergiPatternType;
     }
 
     private static PatternSettingsDocument? ToPatternSettingsDocument(PatternSettingsDto? settings)
