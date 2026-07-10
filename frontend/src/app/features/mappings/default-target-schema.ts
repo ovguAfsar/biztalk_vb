@@ -1,7 +1,9 @@
 import { MappingPatternType, SaveTargetSchemaRequest, TargetField } from '../../core/models/mapping.models';
 
 export const DEFAULT_TARGET_SCHEMA_NAME = 'Banka Ödeme JSON Hedefi';
-export const MTV_TARGET_SCHEMA_NAME = 'MTV Data Dosya Hedefi';
+export const MTV_TARGET_SCHEMA_NAME = 'Vergi MTV Data Dosya Hedefi';
+export const GUMRUK_TARGET_SCHEMA_NAME = 'Gümrük Vergisi Data Dosya Hedefi';
+export const TOPLU_VERGI_TARGET_SCHEMA_NAME = 'Toplu Vergi Data Dosya Hedefi';
 
 export const DEFAULT_TARGET_FIELDS: TargetField[] = [
   {
@@ -399,11 +401,67 @@ export const MTV_TARGET_FIELDS: TargetField[] = [
   }
 ];
 
+const COMMON_VERGI_DATA_FIELDS: TargetField[] = MTV_TARGET_FIELDS.filter(field =>
+  !['plakaNo', 'taksitNo', 'adres', 'telefon', 'tahakkukFisNo'].includes(field.name)
+);
+
+export const GUMRUK_TARGET_FIELDS: TargetField[] = [
+  ...COMMON_VERGI_DATA_FIELDS.map(field => ({ ...field })),
+  {
+    name: 'beyannameNo',
+    displayName: 'Beyanname No',
+    type: 'text',
+    required: true,
+    sampleValue: '',
+    length: 20,
+    startPosition: 211,
+    format: 'fixed-width',
+    align: 'left',
+    padChar: ' ',
+    requiredForOutput: true
+  } satisfies TargetField
+].sort((firstField, secondField) =>
+  (firstField.startPosition ?? Number.MAX_SAFE_INTEGER) - (secondField.startPosition ?? Number.MAX_SAFE_INTEGER)
+);
+
+export const TOPLU_VERGI_TARGET_FIELDS: TargetField[] = [
+  ...COMMON_VERGI_DATA_FIELDS.map(field => ({ ...field })),
+  {
+    name: 'tahakkukFisNo',
+    displayName: 'Tahakkuk Fiş No',
+    type: 'text',
+    required: true,
+    sampleValue: '',
+    length: 20,
+    startPosition: 211,
+    format: 'fixed-width',
+    align: 'left',
+    padChar: ' ',
+    requiredForOutput: true
+  } satisfies TargetField
+].sort((firstField, secondField) =>
+  (firstField.startPosition ?? Number.MAX_SAFE_INTEGER) - (secondField.startPosition ?? Number.MAX_SAFE_INTEGER)
+);
+
 export function createDefaultTargetSchemaRequest(patternType: MappingPatternType = 'maas'): SaveTargetSchemaRequest {
-  if (patternType === 'mtv') {
+  if (patternType === 'mtv' || patternType === 'vergi_mtv') {
     return {
       targetName: MTV_TARGET_SCHEMA_NAME,
       fields: MTV_TARGET_FIELDS.map(field => ({ ...field }))
+    };
+  }
+
+  if (patternType === 'vergi_gumruk') {
+    return {
+      targetName: GUMRUK_TARGET_SCHEMA_NAME,
+      fields: GUMRUK_TARGET_FIELDS.map(field => ({ ...field }))
+    };
+  }
+
+  if (patternType === 'vergi_toplu') {
+    return {
+      targetName: TOPLU_VERGI_TARGET_SCHEMA_NAME,
+      fields: TOPLU_VERGI_TARGET_FIELDS.map(field => ({ ...field }))
     };
   }
 

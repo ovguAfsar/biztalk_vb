@@ -146,25 +146,21 @@
 
 .mapping-filter {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
   overflow: hidden;
   border: 1px solid #cfd8e6;
   border-radius: 8px;
-  background: #ffffff;
+  background: #dfe5ef;
 }
 
 .mapping-filter button {
   min-height: 36px;
   border: 0;
-  border-right: 1px solid #dfe5ef;
-  background: transparent;
+  background: #ffffff;
   color: #38445a;
   cursor: pointer;
   font-weight: 760;
-}
-
-.mapping-filter button:last-child {
-  border-right: 0;
 }
 
 .mapping-filter button:hover,
@@ -297,10 +293,55 @@
   font-weight: 720;
 }
 
-.pattern-options {
+.pattern-select-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  border-radius: 8px;
+  background: #f1f3f5;
+  padding: 14px 20px;
+}
+
+.pattern-select-row > label {
+  color: #1f2937;
+  font-size: 0.9rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.pattern-select-wrap {
+  position: relative;
+}
+
+.pattern-select-wrap::after {
+  position: absolute;
+  top: 50%;
+  right: 15px;
+  border-top: 6px solid #7b8491;
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+  content: '';
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.pattern-select-wrap select {
+  width: 100%;
+  min-height: 46px;
+  appearance: none;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #172033;
+  cursor: pointer;
+  padding: 11px 42px 11px 14px;
+}
+
+.pattern-select-wrap select:focus {
+  border-color: #fcbd00;
+  box-shadow: 0 0 0 3px rgb(252 189 0 / 16%);
+  outline: none;
 }
 
 .pattern-option {
@@ -545,8 +586,7 @@
 
   .mtv-header-grid,
   .option-grid,
-  .option-grid--target,
-  .pattern-options {
+  .option-grid--target {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -562,9 +602,13 @@
 
   .option-grid,
   .option-grid--target,
-  .mtv-header-grid,
-  .pattern-options {
+  .mtv-header-grid {
     grid-template-columns: 1fr;
+  }
+
+  .pattern-select-row {
+    grid-template-columns: 1fr;
+    gap: 9px;
   }
 
   .form-actions {
