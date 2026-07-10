@@ -6,7 +6,7 @@ public interface IMappingRepository
 {
     Task CreateAsync(MappingDocument mapping, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<MappingDocument>> GetAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<MappingDocument>> GetAllAsync(string? patternType, CancellationToken cancellationToken);
 
     Task<MappingDocument?> GetByIdAsync(string id, CancellationToken cancellationToken);
 
@@ -16,6 +16,8 @@ public interface IMappingRepository
         string? description,
         string sourceType,
         string targetType,
+        string patternType,
+        PatternSettingsDocument? patternSettings,
         string status,
         DateTime updatedAt,
         CancellationToken cancellationToken);

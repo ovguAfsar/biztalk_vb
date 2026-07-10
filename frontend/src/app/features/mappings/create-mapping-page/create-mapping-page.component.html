@@ -36,6 +36,30 @@
           >
         </label>
 
+        <div class="mapping-filter" aria-label="Desene göre filtrele">
+          <button
+            type="button"
+            [class.mapping-filter__button--active]="selectedPatternFilter === 'all'"
+            (click)="updatePatternFilter('all')"
+          >
+            Tümü
+          </button>
+          <button
+            type="button"
+            [class.mapping-filter__button--active]="selectedPatternFilter === 'maas'"
+            (click)="updatePatternFilter('maas')"
+          >
+            Maaş
+          </button>
+          <button
+            type="button"
+            [class.mapping-filter__button--active]="selectedPatternFilter === 'mtv'"
+            (click)="updatePatternFilter('mtv')"
+          >
+            MTV
+          </button>
+        </div>
+
         <p class="mappings-panel__state" *ngIf="isMappingsLoading">Yükleniyor...</p>
         <p class="validation-message" *ngIf="mappingsError">{{ mappingsError }}</p>
         <p class="mappings-panel__state" *ngIf="!isMappingsLoading && !mappingsError && mappings.length === 0">
@@ -54,6 +78,7 @@
             (click)="selectMapping(mapping)"
           >
             <span class="mapping-list__name">{{ mapping.name }}</span>
+            <span class="mapping-list__meta">Desen: {{ getPatternTypeLabel(mapping.patternType) }}</span>
             <span class="mapping-list__meta">Durum: {{ getStatusLabel(mapping.status) }}</span>
             <span class="mapping-list__meta">Oluşturma: {{ mapping.createdAt | date:'dd.MM.yyyy HH:mm' }}</span>
             <span class="mapping-list__meta">Güncelleme: {{ mapping.updatedAt | date:'dd.MM.yyyy HH:mm' }}</span>
@@ -92,6 +117,80 @@
             <p class="validation-message" *ngIf="descriptionInvalid">Açıklama zorunludur.</p>
         </div>
       </div>
+
+      <fieldset class="option-section pattern-section" aria-label="Dosya deseni seçimi">
+        <legend>Dosya Deseni</legend>
+        <div class="pattern-options">
+          <label
+            class="pattern-option"
+            *ngFor="let option of patternTypeOptions"
+            [class.pattern-option--selected]="form.controls.patternType.value === option.value"
+          >
+            <input type="radio" formControlName="patternType" [value]="option.value">
+            <span class="pattern-option__body">
+              <span class="pattern-option__title">{{ option.label }}</span>
+              <span class="pattern-option__description">{{ option.description }}</span>
+            </span>
+          </label>
+        </div>
+        <p class="validation-message" *ngIf="patternTypeInvalid">Dosya deseni seçimi zorunludur.</p>
+      </fieldset>
+
+      <fieldset class="option-section mtv-header-section" *ngIf="isMtvPattern" aria-label="MTV Header bilgileri">
+        <legend>MTV Header Bilgileri</legend>
+        <div class="mtv-header-grid">
+          <div class="field">
+            <label for="mtv-sube-kodu">Şube Kodu</label>
+            <input
+              id="mtv-sube-kodu"
+              type="text"
+              inputmode="numeric"
+              maxlength="5"
+              formControlName="mtvSubeKodu"
+              autocomplete="off"
+            >
+          </div>
+
+          <div class="field">
+            <label for="mtv-kurum-kodu">Kurum Kodu</label>
+            <input
+              id="mtv-kurum-kodu"
+              type="text"
+              inputmode="numeric"
+              maxlength="5"
+              formControlName="mtvKurumKodu"
+              autocomplete="off"
+            >
+          </div>
+
+          <div class="field">
+            <label for="mtv-dosya-tarihi">Dosya Tarihi</label>
+            <input
+              id="mtv-dosya-tarihi"
+              type="text"
+              inputmode="numeric"
+              maxlength="8"
+              formControlName="mtvDosyaTarihi"
+              autocomplete="off"
+            >
+          </div>
+
+          <div class="field">
+            <label for="mtv-kurum-hesap-no">Kurum Hesap No</label>
+            <input
+              id="mtv-kurum-hesap-no"
+              type="text"
+              inputmode="numeric"
+              maxlength="17"
+              formControlName="mtvKurumHesapNo"
+              autocomplete="off"
+            >
+          </div>
+        </div>
+        <p class="validation-message" *ngIf="mtvHeaderInvalid">
+          MTV Header için Şube Kodu 5, Kurum Kodu 5, Dosya Tarihi 8, Kurum Hesap No 17 rakam olmalıdır.
+        </p>
+      </fieldset>
 
       <fieldset class="option-section" aria-label="Kaynak dosya yükleme">
         <label

@@ -21,10 +21,23 @@ public sealed class MappingsController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<MappingResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<MappingResponse>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<MappingResponse>>> GetAll(
+        [FromQuery] string? patternType,
+        CancellationToken cancellationToken)
     {
-        var response = await _mappingService.GetAllAsync(cancellationToken);
-        return Ok(response);
+        try
+        {
+            var response = await _mappingService.GetAllAsync(patternType, cancellationToken);
+            return Ok(response);
+        }
+        catch (MappingValidationException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(exception.Errors)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Mapping filtre bilgileri gecersiz."
+            });
+        }
     }
 
     [HttpGet("{id}")]

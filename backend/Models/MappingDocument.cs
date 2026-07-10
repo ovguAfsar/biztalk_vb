@@ -22,6 +22,12 @@ public sealed class MappingDocument
     [BsonElement("targetType")]
     public required string TargetType { get; init; }
 
+    [BsonElement("patternType")]
+    public string? PatternType { get; init; }
+
+    [BsonElement("patternSettings")]
+    public PatternSettingsDocument? PatternSettings { get; init; }
+
     [BsonElement("status")]
     public required string Status { get; init; }
 
@@ -39,6 +45,27 @@ public sealed class MappingDocument
 
     [BsonElement("updatedAt")]
     public required DateTime UpdatedAt { get; init; }
+}
+
+public sealed class PatternSettingsDocument
+{
+    [BsonElement("mtvHeader")]
+    public MtvHeaderSettingsDocument? MtvHeader { get; init; }
+}
+
+public sealed class MtvHeaderSettingsDocument
+{
+    [BsonElement("subeKodu")]
+    public string? SubeKodu { get; init; }
+
+    [BsonElement("kurumKodu")]
+    public string? KurumKodu { get; init; }
+
+    [BsonElement("dosyaTarihi")]
+    public string? DosyaTarihi { get; init; }
+
+    [BsonElement("kurumHesapNo")]
+    public string? KurumHesapNo { get; init; }
 }
 
 public sealed class SourceSchemaDocument
