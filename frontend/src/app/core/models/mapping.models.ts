@@ -150,6 +150,7 @@ export interface AiMappingField {
 }
 
 export interface AiMappingSuggestionRequest {
+  patternType?: MappingPatternType;
   sourceFields: AiMappingField[];
   targetFields: AiMappingField[];
 }

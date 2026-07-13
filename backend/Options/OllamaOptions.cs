@@ -10,5 +10,5 @@ public sealed class OllamaOptions
     public string BaseUrl { get; init; } = "http://localhost:11434";
 
     [Required]
-    public string Model { get; init; } = "llama3.2";
+    public string Model { get; init; } = "qwen2.5:3b";
 }

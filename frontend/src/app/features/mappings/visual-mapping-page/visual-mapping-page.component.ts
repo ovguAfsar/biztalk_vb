@@ -381,6 +381,7 @@ export class VisualMappingPageComponent implements OnInit {
 
     this.isAiMatching = true;
     this.mappingApi.suggestMappingsWithAi({
+      patternType: this.mapping?.patternType,
       sourceFields: this.sourceFields.map(field => ({
         name: field.name,
         displayName: field.displayName,
