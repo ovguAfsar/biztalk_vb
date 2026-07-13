@@ -51,9 +51,27 @@ public sealed class PatternSettingsDocument
 {
     [BsonElement("mtvHeader")]
     public MtvHeaderSettingsDocument? MtvHeader { get; init; }
+
+    [BsonElement("tosHeader")]
+    public TosHeaderSettingsDocument? TosHeader { get; init; }
 }
 
 public sealed class MtvHeaderSettingsDocument
+{
+    [BsonElement("subeKodu")]
+    public string? SubeKodu { get; init; }
+
+    [BsonElement("kurumKodu")]
+    public string? KurumKodu { get; init; }
+
+    [BsonElement("dosyaTarihi")]
+    public string? DosyaTarihi { get; init; }
+
+    [BsonElement("kurumHesapNo")]
+    public string? KurumHesapNo { get; init; }
+}
+
+public sealed class TosHeaderSettingsDocument
 {
     [BsonElement("subeKodu")]
     public string? SubeKodu { get; init; }

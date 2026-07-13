@@ -18,6 +18,7 @@ public sealed class MappingService : IMappingService
     private const string DraftStatus = "draft";
     private const string CompletedStatus = "completed";
     private const string DefaultPatternType = "maas";
+    private const string TosPatternType = "tos";
     private const string LegacyMtvPatternType = "mtv";
     private const string MtvPatternType = "vergi_mtv";
     private const string GumrukPatternType = "vergi_gumruk";
@@ -60,6 +61,7 @@ public sealed class MappingService : IMappingService
     private static readonly HashSet<string> AllowedPatternTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         DefaultPatternType,
+        TosPatternType,
         LegacyMtvPatternType,
         MtvPatternType,
         GumrukPatternType,
@@ -377,9 +379,12 @@ public sealed class MappingService : IMappingService
             errors.AddRange(rowErrors.Select(error => PrefixRowMessage(index, inputRecords.Count, error)));
         }
 
-        object output = IsVergiPattern(NormalizePatternType(mapping.PatternType))
+        var patternType = NormalizePatternType(mapping.PatternType);
+        object output = IsVergiPattern(patternType)
             ? BuildMtvFileOutput(outputs, mapping, warnings, errors)
-            : outputs;
+            : patternType == TosPatternType
+                ? BuildTosFileOutput(outputs, mapping, warnings, errors)
+                : outputs;
 
         return new TestMappingResponse
         {
@@ -427,7 +432,7 @@ public sealed class MappingService : IMappingService
         if (!string.IsNullOrWhiteSpace(request.PatternType)
             && !AllowedPatternTypes.Contains(request.PatternType.Trim()))
         {
-            errors["patternType"] = new[] { "Desen tipi maas, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." };
+            errors["patternType"] = new[] { "Desen tipi maas, tos, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." };
         }
 
         ValidatePatternSettings(errors, patternType, request.PatternSettings);
@@ -478,7 +483,7 @@ public sealed class MappingService : IMappingService
         if (!string.IsNullOrWhiteSpace(request.PatternType)
             && !AllowedPatternTypes.Contains(request.PatternType.Trim()))
         {
-            errors["patternType"] = new[] { "Desen tipi maas, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." };
+            errors["patternType"] = new[] { "Desen tipi maas, tos, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." };
         }
 
         ValidatePatternSettings(errors, patternType, request.PatternSettings);
@@ -491,8 +496,25 @@ public sealed class MappingService : IMappingService
         string patternType,
         PatternSettingsDto? patternSettings)
     {
-        if (!IsVergiPattern(patternType))
+        if (!IsVergiPattern(patternType) && patternType != TosPatternType)
         {
+            return;
+        }
+
+        if (patternType == TosPatternType)
+        {
+            var tosHeader = patternSettings?.TosHeader;
+            var tosErrors = new Dictionary<string, string>();
+            ValidateFixedLengthSetting(tosErrors, "patternSettings.tosHeader.subeKodu", tosHeader?.SubeKodu, 5, true, "TOS sube kodu 5 karakter olmalidir.");
+            ValidateFixedLengthSetting(tosErrors, "patternSettings.tosHeader.kurumKodu", tosHeader?.KurumKodu, 5, true, "TOS kurum kodu 5 karakter olmalidir.");
+            ValidateFixedLengthSetting(tosErrors, "patternSettings.tosHeader.dosyaTarihi", tosHeader?.DosyaTarihi, 8, true, "TOS dosya tarihi YYYYMMDD formatinda 8 karakter olmalidir.");
+            ValidateFixedLengthSetting(tosErrors, "patternSettings.tosHeader.kurumHesapNo", tosHeader?.KurumHesapNo, 26, false, "TOS kurum hesap no 26 karakter olmalidir.");
+
+            foreach (var error in tosErrors)
+            {
+                errors[error.Key] = new[] { error.Value };
+            }
+
             return;
         }
 
@@ -547,7 +569,7 @@ public sealed class MappingService : IMappingService
 
         throw new MappingValidationException(new Dictionary<string, string[]>
         {
-            ["patternType"] = new[] { "Desen tipi filtresi maas, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." }
+            ["patternType"] = new[] { "Desen tipi filtresi maas, tos, vergi_mtv, vergi_gumruk veya vergi_toplu olmalidir." }
         });
     }
 
@@ -1357,38 +1379,52 @@ public sealed class MappingService : IMappingService
 
     private static PatternSettingsDocument? ToPatternSettingsDocument(PatternSettingsDto? settings)
     {
-        if (settings?.MtvHeader is null)
+        if (settings?.MtvHeader is null && settings?.TosHeader is null)
         {
             return null;
         }
 
         return new PatternSettingsDocument
         {
-            MtvHeader = new MtvHeaderSettingsDocument
+            MtvHeader = settings!.MtvHeader is null ? null : new MtvHeaderSettingsDocument
             {
                 SubeKodu = NormalizeOptionalString(settings.MtvHeader.SubeKodu),
                 KurumKodu = NormalizeOptionalString(settings.MtvHeader.KurumKodu),
                 DosyaTarihi = NormalizeOptionalString(settings.MtvHeader.DosyaTarihi),
                 KurumHesapNo = NormalizeOptionalString(settings.MtvHeader.KurumHesapNo)
+            },
+            TosHeader = settings.TosHeader is null ? null : new TosHeaderSettingsDocument
+            {
+                SubeKodu = NormalizeOptionalString(settings.TosHeader.SubeKodu),
+                KurumKodu = NormalizeOptionalString(settings.TosHeader.KurumKodu),
+                DosyaTarihi = NormalizeOptionalString(settings.TosHeader.DosyaTarihi),
+                KurumHesapNo = NormalizeOptionalString(settings.TosHeader.KurumHesapNo)
             }
         };
     }
 
     private static PatternSettingsDto? ToPatternSettingsDto(PatternSettingsDocument? settings)
     {
-        if (settings?.MtvHeader is null)
+        if (settings?.MtvHeader is null && settings?.TosHeader is null)
         {
             return null;
         }
 
         return new PatternSettingsDto
         {
-            MtvHeader = new MtvHeaderSettingsDto
+            MtvHeader = settings.MtvHeader is null ? null : new MtvHeaderSettingsDto
             {
                 SubeKodu = settings.MtvHeader.SubeKodu,
                 KurumKodu = settings.MtvHeader.KurumKodu,
                 DosyaTarihi = settings.MtvHeader.DosyaTarihi,
                 KurumHesapNo = settings.MtvHeader.KurumHesapNo
+            },
+            TosHeader = settings.TosHeader is null ? null : new TosHeaderSettingsDto
+            {
+                SubeKodu = settings.TosHeader.SubeKodu,
+                KurumKodu = settings.TosHeader.KurumKodu,
+                DosyaTarihi = settings.TosHeader.DosyaTarihi,
+                KurumHesapNo = settings.TosHeader.KurumHesapNo
             }
         };
     }
@@ -1427,6 +1463,123 @@ public sealed class MappingService : IMappingService
             ["data"] = data,
             ["footer"] = footer,
             ["fileContent"] = string.Join(Environment.NewLine, lines)
+        };
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildTosFileOutput(
+        IReadOnlyList<IReadOnlyDictionary<string, object?>> dataOutputs,
+        MappingDocument mapping,
+        ICollection<string> warnings,
+        ICollection<string> errors)
+    {
+        var header = BuildTosHeader(mapping.PatternSettings?.TosHeader, errors);
+        var isLineBased = mapping.TargetSchema!.Fields.Any(field =>
+            field.Name.Equals("kaynakHesapNo", StringComparison.OrdinalIgnoreCase));
+        var recordLength = isLineBased ? 511 : 519;
+        var data = dataOutputs.Select(output =>
+        {
+            var fields = output.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.OrdinalIgnoreCase);
+            foreach (var field in mapping.TargetSchema.Fields.Where(field => field.FixedValue is not null))
+            {
+                fields[field.Name] = field.FixedValue;
+            }
+
+            return new Dictionary<string, object?>
+            {
+                ["fields"] = fields,
+                ["line"] = BuildFixedWidthLine(fields, mapping.TargetSchema.Fields, recordLength, errors),
+                ["length"] = recordLength
+            };
+        }).ToList();
+
+        if (mapping.PatternSettings?.TosHeader is null)
+        {
+            warnings.Add("TOS Header ayarlari bulunamadi; header bos/default degerlerle uretildi.");
+        }
+
+        if (isLineBased)
+        {
+            var lines = data.Select((item, index) =>
+            {
+                var amount = TryGetOutputDecimal(dataOutputs[index], "miktar", out var value) ? value : 0m;
+                var footer = BuildTosFooter(1, amount);
+                return string.Concat(header["line"], item["line"], footer["line"]);
+            }).ToList();
+
+            return new Dictionary<string, object?>
+            {
+                ["recordType"] = "tosLineBasedFile",
+                ["variant"] = "satir_bazli_kaynak_hesap_no",
+                ["header"] = header,
+                ["data"] = data,
+                ["fileContent"] = string.Join(Environment.NewLine, lines)
+            };
+        }
+
+        var totalAmount = dataOutputs.Sum(output => TryGetOutputDecimal(output, "miktar", out var amount) ? amount : 0m);
+        var aadFooter = BuildTosFooter(dataOutputs.Count, totalAmount);
+        var aadLines = new[] { header["line"]?.ToString() ?? string.Empty }
+            .Concat(data.Select(item => item["line"]?.ToString() ?? string.Empty))
+            .Concat(new[] { aadFooter["line"]?.ToString() ?? string.Empty });
+
+        return new Dictionary<string, object?>
+        {
+            ["recordType"] = "tosAadFile",
+            ["variant"] = "genis_100_aciklamali_aad",
+            ["header"] = header,
+            ["data"] = data,
+            ["footer"] = aadFooter,
+            ["fileContent"] = string.Join(Environment.NewLine, aadLines)
+        };
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildTosHeader(
+        TosHeaderSettingsDocument? headerSettings,
+        ICollection<string> errors)
+    {
+        var fields = new Dictionary<string, object?>
+        {
+            ["kayitTipi"] = "H",
+            ["dosyaTarihi"] = headerSettings?.DosyaTarihi ?? DateTime.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+            ["bankaKodu"] = "0015",
+            ["kurumKodu"] = headerSettings?.KurumKodu ?? string.Empty,
+            ["kurumHesapNo"] = headerSettings?.KurumHesapNo ?? string.Empty,
+            ["subeKodu"] = headerSettings?.SubeKodu ?? string.Empty
+        };
+        var schema = new List<TargetFieldDocument>
+        {
+            CreateOutputField("kayitTipi", 0, 1, "left", " "),
+            CreateOutputField("dosyaTarihi", 1, 8, "right", "0"),
+            CreateOutputField("bankaKodu", 9, 4, "right", "0"),
+            CreateOutputField("kurumKodu", 13, 5, "right", "0"),
+            CreateOutputField("kurumHesapNo", 18, 26, "left", " "),
+            CreateOutputField("subeKodu", 44, 5, "right", "0")
+        };
+
+        return new Dictionary<string, object?>
+        {
+            ["fields"] = fields,
+            ["line"] = BuildFixedWidthLine(fields, schema, 49, errors),
+            ["length"] = 49
+        };
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildTosFooter(int recordCount, decimal totalAmount)
+    {
+        var fields = new Dictionary<string, object?>
+        {
+            ["kayitTipi"] = "F",
+            ["bankaKodu"] = "0015",
+            ["toplamIslemAdedi"] = recordCount.ToString(CultureInfo.InvariantCulture).PadLeft(6, '0'),
+            ["toplamTutar"] = totalAmount.ToString("0.00", CultureInfo.InvariantCulture).PadLeft(21, '0')
+        };
+        var line = string.Concat(fields["kayitTipi"], fields["bankaKodu"], fields["toplamIslemAdedi"], fields["toplamTutar"]);
+
+        return new Dictionary<string, object?>
+        {
+            ["fields"] = fields,
+            ["line"] = line,
+            ["length"] = 32
         };
     }
 

@@ -16,20 +16,40 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     {
         ["account"] = "hesap",
         ["acct"] = "hesap",
+        ["ack"] = "aciklama",
         ["accrual"] = "tahakkuk",
+        ["ad"] = "ad",
         ["address"] = "adres",
         ["adres"] = "adres",
+        ["alacakli"] = "alici",
+        ["alc"] = "alici",
+        ["alici"] = "alici",
         ["amount"] = "tutar",
+        ["amt"] = "tutar",
         ["ay"] = "ay",
         ["aykodu"] = "ay",
         ["bank"] = "banka",
         ["banka"] = "banka",
+        ["bnk"] = "banka",
+        ["borclu"] = "kaynak",
+        ["brn"] = "sube",
         ["branch"] = "sube",
         ["customs"] = "gumruk",
         ["declaration"] = "beyanname",
         ["daire"] = "daire",
         ["date"] = "tarih",
+        ["desc"] = "aciklama",
+        ["description"] = "aciklama",
         ["doviz"] = "doviz",
+        ["dvz"] = "doviz",
+        ["currency"] = "doviz",
+        ["ccy"] = "doviz",
+        ["dur"] = "durum",
+        ["durum"] = "durum",
+        ["eftref"] = "referans",
+        ["eft"] = "eft",
+        ["email"] = "email",
+        ["eposta"] = "email",
         ["fis"] = "fis",
         ["gumruk"] = "gumruk",
         ["installment"] = "taksit",
@@ -38,41 +58,70 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         ["phone"] = "telefon",
         ["plate"] = "plaka",
         ["receipt"] = "fis",
+        ["receiver"] = "alici",
+        ["recipient"] = "alici",
         ["tax"] = "vergi",
         ["year"] = "yil",
         ["beyanname"] = "beyanname",
         ["company"] = "kurum",
         ["customer"] = "musteri",
+        ["gonderen"] = "kaynak",
         ["hesap"] = "hesap",
         ["hesapno"] = "hesap",
+        ["hsp"] = "hesap",
+        ["hs"] = "hesap",
         ["iban"] = "iban",
         ["identity"] = "tc",
+        ["isim"] = "ad",
         ["kimlik"] = "tc",
+        ["kaynak"] = "kaynak",
         ["kod"] = "kod",
         ["kodu"] = "kod",
         ["kurum"] = "kurum",
+        ["krm"] = "kurum",
         ["maas"] = "maas",
         ["miktar"] = "tutar",
+        ["mno"] = "musteri",
+        ["mstr"] = "musteri",
         ["musteri"] = "musteri",
+        ["mail"] = "email",
+        ["name"] = "ad",
         ["no"] = "no",
         ["numara"] = "no",
         ["numarasi"] = "no",
         ["number"] = "no",
         ["odeme"] = "odeme",
         ["payment"] = "odeme",
+        ["param"] = "parametre",
+        ["parametre"] = "parametre",
+        ["prm"] = "parametre",
+        ["ref"] = "referans",
+        ["referans"] = "referans",
+        ["reference"] = "referans",
+        ["sbe"] = "sube",
+        ["src"] = "kaynak",
+        ["sub"] = "sube",
         ["sube"] = "sube",
+        ["soyad"] = "soyad",
+        ["soyadi"] = "soyad",
+        ["surname"] = "soyad",
         ["tc"] = "tc",
         ["tckn"] = "tc",
         ["tahakkuk"] = "tahakkuk",
         ["taksit"] = "taksit",
         ["telefon"] = "telefon",
+        ["tel"] = "telefon",
+        ["gsm"] = "telefon",
         ["tarih"] = "tarih",
+        ["ttr"] = "tutar",
+        ["tut"] = "tutar",
         ["tutar"] = "tutar",
         ["type"] = "tur",
         ["tur"] = "tur",
         ["turu"] = "tur",
         ["vergi"] = "vergi",
         ["vkn"] = "vergi",
+        ["vd"] = "daire",
         ["yil"] = "yil"
     };
     private readonly HttpClient _httpClient;
@@ -176,30 +225,10 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     {
         var builder = new StringBuilder();
         builder.AppendLine("You are a data mapping expert for Turkish banking payroll and tax payment files.");
-        builder.AppendLine($"Mapping domain: {DescribePatternType(request.PatternType)}.");
+        builder.AppendLine($"Mapping domain: {DescribePatternType(request)}.");
         builder.AppendLine("Match each source field to the most appropriate target field by MEANING, not just exact text.");
         builder.AppendLine("Source names may be abbreviations, shortened, misspelled, or in Turkish. Understand the intent.");
-        builder.AppendLine("Examples of correct matches:");
-        builder.AppendLine("- \"hsp\" -> \"hesapNo\" (hsp is short for hesap/account)");
-        builder.AppendLine("- \"Alici_Iban\" -> \"iban\"");
-        builder.AppendLine("- \"musteri_ad\" -> \"adSoyad\"");
-        builder.AppendLine("- \"ttr\" -> \"tutar\" (ttr is short for tutar/amount)");
-        builder.AppendLine("- \"tc_kimlik\" -> \"tc\"");
-        builder.AppendLine("- \"sube\" -> \"subeKodu\"");
-        builder.AppendLine("- \"krm\" -> \"kurumKodu\"");
-        builder.AppendLine("- \"hsp\" -> \"hesapNo\"");
-        builder.AppendLine("- \"ttr\" -> \"tutar\"");
-        builder.AppendLine("- \"sube\" -> \"subeKodu\"");
-        builder.AppendLine("- \"dvz\" -> \"dovizCinsi\"");
-        builder.AppendLine("- \"ack\" -> \"aciklama\"");
-        builder.AppendLine("Tax mapping examples:");
-        builder.AppendLine("- \"vkn\" -> \"vergiNoTCKimlik\"");
-        builder.AppendLine("- \"plaka\" -> \"plakaNo\"");
-        builder.AppendLine("- \"yil\" -> \"vergiYili\"");
-        builder.AppendLine("- \"taksit\" -> \"taksitNo\"");
-        builder.AppendLine("- \"tahakkuk_no\" -> \"tahakkukFisNo\"");
-        builder.AppendLine("- \"beyanname\" -> \"beyannameNo\"");
-        builder.AppendLine("- \"vergi_daire\" -> \"vergiDairesiKodu\"");
+        AppendPatternExamples(builder, request.PatternType);
         builder.AppendLine("Use only exact names from the lists below. Do not invent fields. One target can be used once.");
         builder.AppendLine("If you are not confident about a match, do NOT include it (leave it out).");
         builder.AppendLine("Return only JSON, no explanation: {\"mappings\":[{\"sourceField\":\"sourceName\",\"targetField\":\"targetName\",\"confidence\":0.0}]}");
@@ -220,11 +249,59 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         return builder.ToString();
     }
 
-    private static string DescribePatternType(string? patternType)
+    private static void AppendPatternExamples(StringBuilder builder, string? patternType)
     {
-        return patternType?.Trim().ToLowerInvariant() switch
+        builder.AppendLine("Examples of correct matches:");
+        switch (patternType?.Trim().ToLowerInvariant())
+        {
+            case "tos":
+                builder.AppendLine("- \"alc_hsp\", \"alici_hesap\", \"hsp\" -> \"alacakliHesap\"");
+                builder.AppendLine("- \"kaynak_hsp\", \"gonderen_hesap\", \"borclu_hsp\" -> \"kaynakHesapNo\"");
+                builder.AppendLine("- \"alc_bnk\", \"alici_banka\" -> \"alacakliBanka\"");
+                builder.AppendLine("- \"alc_sbe\", \"alici_sube\" -> \"alacakliSube\"");
+                builder.AppendLine("- \"ttr\", \"tut\", \"amt\" -> \"miktar\"");
+                builder.AppendLine("- \"dvz\", \"ccy\", \"currency\" -> \"dovizCinsi\"");
+                builder.AppendLine("- \"ack\", \"desc\", \"hareket_notu\" -> \"aciklama\"");
+                builder.AppendLine("- \"alc_ad\", \"alici_isim\", \"adsoyad\" -> \"alacakliAdSoyadi\"");
+                builder.AppendLine("- \"alc_tel\", \"gsm\" -> \"alacakliTelefonu\"");
+                builder.AppendLine("- \"alc_vkn\", \"tckn\" -> \"alacakliVergiNo\"");
+                builder.AppendLine("- \"alc_vd\", \"vergi_dairesi\" -> \"alacakliVergiDairesi\"");
+                builder.AppendLine("- \"ref\", \"referans_no\" -> \"referans\"");
+                builder.AppendLine("- \"eftref\", \"eft_referans\" -> \"eftReference\"");
+                break;
+            case "mtv":
+            case "vergi_mtv":
+            case "vergi_gumruk":
+            case "vergi_toplu":
+                builder.AppendLine("- \"vkn\" -> \"vergiNoTCKimlik\"");
+                builder.AppendLine("- \"plaka\" -> \"plakaNo\"");
+                builder.AppendLine("- \"yil\" -> \"vergiYili\"");
+                builder.AppendLine("- \"taksit\" -> \"taksitNo\"");
+                builder.AppendLine("- \"tahakkuk_no\" -> \"tahakkukFisNo\"");
+                builder.AppendLine("- \"beyanname\" -> \"beyannameNo\"");
+                builder.AppendLine("- \"vergi_daire\" -> \"vergiDairesiKodu\"");
+                break;
+            default:
+                builder.AppendLine("- \"hsp\" -> \"hesapNo\"");
+                builder.AppendLine("- \"Alici_Iban\" -> \"iban\"");
+                builder.AppendLine("- \"musteri_ad\" -> \"adSoyad\"");
+                builder.AppendLine("- \"ttr\" -> \"tutar\"");
+                builder.AppendLine("- \"tc_kimlik\" -> \"tc\"");
+                builder.AppendLine("- \"sube\" -> \"subeKodu\"");
+                builder.AppendLine("- \"dvz\" -> \"dovizCinsi\"");
+                builder.AppendLine("- \"ack\" -> \"aciklama\"");
+                break;
+        }
+    }
+
+    private static string DescribePatternType(AiMappingSuggestionRequest request)
+    {
+        return request.PatternType?.Trim().ToLowerInvariant() switch
         {
             "mtv" or "vergi_mtv" => "Turkish motor vehicle tax (MTV)",
+            "tos" when request.TargetFields?.Any(field => field.Name?.Equals("kaynakHesapNo", StringComparison.OrdinalIgnoreCase) == true) == true
+                => "Turkish bank TOS line-based source-account payment file",
+            "tos" => "Turkish bank TOS wide 100-character-description AAD payment file",
             "vergi_gumruk" => "Turkish customs tax payment",
             "vergi_toplu" => "Turkish bulk tax payment",
             _ => "Turkish bank payroll payment"
@@ -398,6 +475,47 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
             ["taksitno"] = new[] { "taksit", "no" },
             ["tahakkukfisno"] = new[] { "tahakkuk", "fis", "no" },
             ["beyannameno"] = new[] { "beyanname", "no" },
+            ["alacaklihesap"] = new[] { "alici", "hesap" },
+            ["alacaklihesapno"] = new[] { "alici", "hesap", "no" },
+            ["alicihesap"] = new[] { "alici", "hesap" },
+            ["alicihesapno"] = new[] { "alici", "hesap", "no" },
+            ["alchsp"] = new[] { "alici", "hesap" },
+            ["alchspno"] = new[] { "alici", "hesap", "no" },
+            ["alacaklibanka"] = new[] { "alici", "banka" },
+            ["alicibanka"] = new[] { "alici", "banka" },
+            ["alcbnk"] = new[] { "alici", "banka" },
+            ["alacaklisube"] = new[] { "alici", "sube" },
+            ["alicisube"] = new[] { "alici", "sube" },
+            ["alcsbe"] = new[] { "alici", "sube" },
+            ["alacakliadsoyadi"] = new[] { "alici", "ad", "soyad" },
+            ["aliciadsoyad"] = new[] { "alici", "ad", "soyad" },
+            ["alcad"] = new[] { "alici", "ad" },
+            ["adsoyad"] = new[] { "ad", "soyad" },
+            ["alacakliadresi"] = new[] { "alici", "adres" },
+            ["aliciadres"] = new[] { "alici", "adres" },
+            ["alacaklitelefonu"] = new[] { "alici", "telefon" },
+            ["alicitelefon"] = new[] { "alici", "telefon" },
+            ["alctel"] = new[] { "alici", "telefon" },
+            ["alacaklivergino"] = new[] { "alici", "vergi", "no" },
+            ["alicivergino"] = new[] { "alici", "vergi", "no" },
+            ["alcvkn"] = new[] { "alici", "vergi", "no" },
+            ["alacaklivergidairesi"] = new[] { "alici", "vergi", "daire" },
+            ["alicivergidairesi"] = new[] { "alici", "vergi", "daire" },
+            ["alcvd"] = new[] { "alici", "vergi", "daire" },
+            ["alacaklimusterino"] = new[] { "alici", "musteri", "no" },
+            ["alacaklibabaadi"] = new[] { "alici", "baba", "ad" },
+            ["alacakliemail"] = new[] { "alici", "email" },
+            ["kaynakhesapno"] = new[] { "kaynak", "hesap", "no" },
+            ["kaynakhsp"] = new[] { "kaynak", "hesap" },
+            ["kaynakhspno"] = new[] { "kaynak", "hesap", "no" },
+            ["gonderenhesap"] = new[] { "kaynak", "hesap" },
+            ["borcluhesap"] = new[] { "kaynak", "hesap" },
+            ["odemetarihi"] = new[] { "odeme", "tarih" },
+            ["dovizcinsi"] = new[] { "doviz", "tur" },
+            ["islemkodu"] = new[] { "islem", "kod" },
+            ["durumkodu"] = new[] { "durum", "kod" },
+            ["eftreference"] = new[] { "eft", "referans" },
+            ["eftreferans"] = new[] { "eft", "referans" },
             ["subekodu"] = new[] { "sube", "kod" },
             ["kurumkodu"] = new[] { "kurum", "kod" },
             ["tcno"] = new[] { "tc", "no" },

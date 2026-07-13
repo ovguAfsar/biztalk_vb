@@ -4,6 +4,8 @@ export const DEFAULT_TARGET_SCHEMA_NAME = 'Banka Ödeme JSON Hedefi';
 export const MTV_TARGET_SCHEMA_NAME = 'Vergi MTV Data Dosya Hedefi';
 export const GUMRUK_TARGET_SCHEMA_NAME = 'Gümrük Vergisi Data Dosya Hedefi';
 export const TOPLU_VERGI_TARGET_SCHEMA_NAME = 'Toplu Vergi Data Dosya Hedefi';
+export const TOS_AAD_TARGET_SCHEMA_NAME = 'TÖS Geniş 100 Açıklamalı AAD Hedefi';
+export const TOS_SATIR_TARGET_SCHEMA_NAME = 'TÖS Satır Bazlı Kaynak Hesap No Hedefi';
 
 export const DEFAULT_TARGET_FIELDS: TargetField[] = [
   {
@@ -443,7 +445,85 @@ export const TOPLU_VERGI_TARGET_FIELDS: TargetField[] = [
   (firstField.startPosition ?? Number.MAX_SAFE_INTEGER) - (secondField.startPosition ?? Number.MAX_SAFE_INTEGER)
 );
 
-export function createDefaultTargetSchemaRequest(patternType: MappingPatternType = 'maas'): SaveTargetSchemaRequest {
+const TOS_COMMON_TARGET_FIELDS: TargetField[] = [
+  tosField('kayitTipi', 'Kayıt Tipi', 'text', false, 0, 1, 'D'),
+  tosField('odemeTarihi', 'Ödeme Tarihi', 'date', true, 1, 8, undefined, 'YYYYMMDD'),
+  tosField('alacakliBanka', 'Alacaklı Banka Kodu', 'text', false, 9, 4),
+  tosField('alacakliSube', 'Alacaklı Şube Kodu', 'text', false, 13, 5),
+  tosField('alacakliHesap', 'Alacaklı Hesap Numarası', 'text', true, 18, 26),
+  tosField('miktar', 'Ödeme Miktarı', 'number', true, 44, 21, undefined, 'amount-21-2', 'right', '0'),
+  tosField('dovizCinsi', 'Döviz Cinsi', 'text', true, 65, 3),
+  tosField('aciklama', 'Hareket Açıklaması', 'text', false, 68, 100),
+  tosField('alacakliAdSoyadi', 'Alacaklı Adı Soyadı', 'text', true, 168, 40),
+  tosField('alacakliAdresi', 'Alacaklı Adresi', 'text', false, 208, 50),
+  tosField('alacakliTelefonu', 'Alacaklı Telefonu', 'text', false, 258, 20),
+  tosField('alacakliVergiNo', 'Alacaklı Vergi No / TCKN', 'text', false, 278, 11),
+  tosField('alacakliVergiDairesi', 'Alacaklı Vergi Dairesi', 'text', false, 289, 15),
+  tosField('alacakliMusteriNo', 'Alacaklı Müşteri No', 'text', false, 304, 10),
+  tosField('alacakliBabaAdi', 'Alacaklı Baba Adı', 'text', false, 314, 20),
+  tosField('alacakliEmail', 'Alacaklı E-posta', 'text', false, 334, 50),
+  tosField('referans', 'Referans No', 'text', false, 384, 16),
+  tosField('parametre', 'Parametre', 'text', false, 400, 40),
+  tosField('islemKodu', 'İşlem Kodu', 'text', false, 440, 2, '00')
+];
+
+export const TOS_AAD_TARGET_FIELDS: TargetField[] = [
+  ...TOS_COMMON_TARGET_FIELDS.map(field => ({ ...field })),
+  tosField('durumKodu', 'Durum Kodu', 'text', false, 487, 2),
+  tosField('eftReference', 'EFT Referans No', 'text', false, 489, 30)
+];
+
+export const TOS_SATIR_TARGET_FIELDS: TargetField[] = [
+  ...TOS_COMMON_TARGET_FIELDS.map(field => ({ ...field })),
+  tosField('kaynakHesapNo', 'Kaynak Hesap No', 'text', true, 442, 26),
+  tosField('durumKodu', 'Durum Kodu', 'text', false, 479, 2),
+  tosField('eftReference', 'EFT Referans No', 'text', false, 481, 30)
+];
+
+function tosField(
+  name: string,
+  displayName: string,
+  type: TargetField['type'],
+  required: boolean,
+  startPosition: number,
+  length: number,
+  fixedValue?: string,
+  format = 'fixed-width',
+  align: TargetField['align'] = 'left',
+  padChar = ' '
+): TargetField {
+  return {
+    name,
+    displayName,
+    type,
+    required,
+    sampleValue: fixedValue ?? '',
+    length,
+    startPosition,
+    format,
+    align,
+    padChar,
+    fixedValue,
+    requiredForOutput: true
+  };
+}
+
+export function createDefaultTargetSchemaRequest(
+  patternType: MappingPatternType = 'maas',
+  isFixedWidthRawSource = false
+): SaveTargetSchemaRequest {
+  if (patternType === 'tos') {
+    return isFixedWidthRawSource
+      ? {
+          targetName: TOS_SATIR_TARGET_SCHEMA_NAME,
+          fields: TOS_SATIR_TARGET_FIELDS.map(field => ({ ...field }))
+        }
+      : {
+          targetName: TOS_AAD_TARGET_SCHEMA_NAME,
+          fields: TOS_AAD_TARGET_FIELDS.map(field => ({ ...field }))
+        };
+  }
+
   if (patternType === 'mtv' || patternType === 'vergi_mtv') {
     return {
       targetName: MTV_TARGET_SCHEMA_NAME,
