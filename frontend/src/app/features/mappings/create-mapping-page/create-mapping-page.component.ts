@@ -42,6 +42,10 @@ export class CreateMappingPageComponent implements OnInit {
     mtvKurumKodu: [''],
     mtvDosyaTarihi: [''],
     mtvKurumHesapNo: [''],
+    tosSubeKodu: [''],
+    tosKurumKodu: [''],
+    tosDosyaTarihi: [''],
+    tosKurumHesapNo: [''],
     sourceType: ['file', [Validators.required]]
   });
 
@@ -66,7 +70,7 @@ export class CreateMappingPageComponent implements OnInit {
     label?: string;
     options: Array<{ value: MappingPatternType; label: string }>;
   }> = [
-    { options: [{ value: 'maas', label: 'Maaş' }] },
+    { options: [{ value: 'maas', label: 'Maaş' }, { value: 'tos', label: 'TÖS' }] },
     {
       label: 'Vergi',
       options: [
@@ -105,6 +109,20 @@ export class CreateMappingPageComponent implements OnInit {
     return this.isVergiPattern && !this.isMtvHeaderValid();
   }
 
+  protected get isTosPattern(): boolean {
+    return this.form.controls.patternType.value === 'tos';
+  }
+
+  protected get tosHeaderInvalid(): boolean {
+    return this.isTosPattern && !this.isTosHeaderValid();
+  }
+
+  protected get tosVariantLabel(): string {
+    return this.isFixedWidthRawSource
+      ? 'TÖS Satır Bazlı Kaynak Hesap No'
+      : 'TÖS Geniş 100 Açıklamalı AAD';
+  }
+
   protected get hasSourceFile(): boolean {
     return Boolean(this.detectedSourceType)
       && (this.sourceFields.length > 0 || this.sourceRecords.length > 0);
@@ -130,7 +148,11 @@ export class CreateMappingPageComponent implements OnInit {
   }
 
   protected get canContinue(): boolean {
-    return this.form.valid && !this.mtvHeaderInvalid && this.hasSourceFile && !this.isSubmitting;
+    return this.form.valid
+      && !this.mtvHeaderInvalid
+      && !this.tosHeaderInvalid
+      && this.hasSourceFile
+      && !this.isSubmitting;
   }
 
   protected get isEditingMapping(): boolean {
@@ -234,6 +256,10 @@ export class CreateMappingPageComponent implements OnInit {
       mtvKurumKodu: '',
       mtvDosyaTarihi: this.getTodayAsYYYYMMDD(),
       mtvKurumHesapNo: '',
+      tosSubeKodu: '',
+      tosKurumKodu: '',
+      tosDosyaTarihi: this.getTodayAsYYYYMMDD(),
+      tosKurumHesapNo: '',
       sourceType: 'file'
     });
     this.sourceFileName = '';
@@ -334,6 +360,11 @@ export class CreateMappingPageComponent implements OnInit {
       return;
     }
 
+    if (this.tosHeaderInvalid) {
+      this.errorMessage = 'TÖS Header bilgileri eksiksiz ve doğru formatta girilmelidir.';
+      return;
+    }
+
     if (!this.hasSourceFile) {
       this.sourceFileError = 'Kaynak dosyası seçin. Desteklenen formatlar: .xlsx, .xls, .csv, .txt';
       return;
@@ -355,6 +386,15 @@ export class CreateMappingPageComponent implements OnInit {
               kurumHesapNo: value.mtvKurumHesapNo.trim()
             }
           }
+        : this.isTosPattern
+          ? {
+              tosHeader: {
+                subeKodu: value.tosSubeKodu.trim(),
+                kurumKodu: value.tosKurumKodu.trim(),
+                dosyaTarihi: value.tosDosyaTarihi.trim(),
+                kurumHesapNo: value.tosKurumHesapNo.trim()
+              }
+            }
         : undefined
     };
     const sourceRequest: SaveSourceSchemaRequest = {
@@ -377,7 +417,10 @@ export class CreateMappingPageComponent implements OnInit {
       }))
       .pipe(concatMap(() => this.selectedMapping?.targetSchema
         ? of(null)
-        : this.mappingApi.saveTargetSchema(mappingId, createDefaultTargetSchemaRequest(value.patternType))))
+        : this.mappingApi.saveTargetSchema(
+            mappingId,
+            createDefaultTargetSchemaRequest(value.patternType, this.isFixedWidthRawSource)
+          )))
       .pipe(finalize(() => {
         this.isSubmitting = false;
       }))
@@ -385,7 +428,7 @@ export class CreateMappingPageComponent implements OnInit {
         next: () => {
           this.successMessage = this.selectedMapping
             ? 'Mapping güncellendi.'
-            : 'Mapping taslağı, kaynak dosyası ve varsayılan JSON hedefi kaydedildi.';
+            : 'Mapping taslağı, kaynak dosyası ve hedef şeması kaydedildi.';
           void this.router.navigate(['/mappings', mappingId, 'map']);
         },
         error: (error: unknown) => {
@@ -424,6 +467,10 @@ export class CreateMappingPageComponent implements OnInit {
       mtvKurumKodu: mapping.patternSettings?.mtvHeader?.kurumKodu ?? '',
       mtvDosyaTarihi: mapping.patternSettings?.mtvHeader?.dosyaTarihi ?? this.getTodayAsYYYYMMDD(),
       mtvKurumHesapNo: mapping.patternSettings?.mtvHeader?.kurumHesapNo ?? '',
+      tosSubeKodu: mapping.patternSettings?.tosHeader?.subeKodu ?? '',
+      tosKurumKodu: mapping.patternSettings?.tosHeader?.kurumKodu ?? '',
+      tosDosyaTarihi: mapping.patternSettings?.tosHeader?.dosyaTarihi ?? this.getTodayAsYYYYMMDD(),
+      tosKurumHesapNo: mapping.patternSettings?.tosHeader?.kurumHesapNo ?? '',
       sourceType: mapping.sourceType
     });
 
@@ -532,6 +579,14 @@ export class CreateMappingPageComponent implements OnInit {
       && /^\d{5}$/.test(value.mtvKurumKodu.trim())
       && /^\d{8}$/.test(value.mtvDosyaTarihi.trim())
       && /^\d{17}$/.test(value.mtvKurumHesapNo.trim());
+  }
+
+  private isTosHeaderValid(): boolean {
+    const value = this.form.getRawValue();
+    return /^\d{5}$/.test(value.tosSubeKodu.trim())
+      && /^\d{5}$/.test(value.tosKurumKodu.trim())
+      && /^\d{8}$/.test(value.tosDosyaTarihi.trim())
+      && /^[A-Za-z0-9]{26}$/.test(value.tosKurumHesapNo.trim());
   }
 
   private getTodayAsYYYYMMDD(): string {

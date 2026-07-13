@@ -1,7 +1,7 @@
 export type MappingSourceType = 'file' | 'excel' | 'txt' | 'json' | 'xml' | 'api' | 'database' | 'manual';
 export type MappingTargetType = 'json' | 'xml' | 'api' | 'database' | 'file';
 export type MappingStatus = 'draft' | 'completed';
-export type MappingPatternType = 'maas' | 'mtv' | 'vergi_mtv' | 'vergi_gumruk' | 'vergi_toplu';
+export type MappingPatternType = 'maas' | 'tos' | 'mtv' | 'vergi_mtv' | 'vergi_gumruk' | 'vergi_toplu';
 export type SourceFieldType = 'text' | 'number' | 'date' | 'boolean' | 'object' | 'array';
 export type MappingTransformType = 'direct' | 'concat' | 'constant' | 'dateFormat' | 'uppercase' | 'lowercase' | 'trim';
 export type TargetFieldAlign = 'left' | 'right';
@@ -47,9 +47,17 @@ export interface TargetField {
 
 export interface PatternSettings {
   mtvHeader?: MtvHeaderSettings;
+  tosHeader?: TosHeaderSettings;
 }
 
 export interface MtvHeaderSettings {
+  subeKodu?: string;
+  kurumKodu?: string;
+  dosyaTarihi?: string;
+  kurumHesapNo?: string;
+}
+
+export interface TosHeaderSettings {
   subeKodu?: string;
   kurumKodu?: string;
   dosyaTarihi?: string;

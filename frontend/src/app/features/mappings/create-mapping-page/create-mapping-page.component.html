@@ -53,6 +53,13 @@
           </button>
           <button
             type="button"
+            [class.mapping-filter__button--active]="selectedPatternFilter === 'tos'"
+            (click)="updatePatternFilter('tos')"
+          >
+            TÖS
+          </button>
+          <button
+            type="button"
             [class.mapping-filter__button--active]="selectedPatternFilter === 'vergi_mtv'"
             (click)="updatePatternFilter('vergi_mtv')"
           >
@@ -210,6 +217,37 @@
         </div>
         <p class="validation-message" *ngIf="mtvHeaderInvalid">
           Vergi Header için Şube Kodu 5, Kurum Kodu 5, Dosya Tarihi 8, Kurum Hesap No 17 rakam olmalıdır.
+        </p>
+      </fieldset>
+
+      <fieldset class="option-section mtv-header-section" *ngIf="isTosPattern" aria-label="TÖS Header bilgileri">
+        <legend>TÖS Header Bilgileri</legend>
+        <div class="mtv-header-grid">
+          <div class="field">
+            <label for="tos-sube-kodu">Şube Kodu</label>
+            <input id="tos-sube-kodu" type="text" inputmode="numeric" maxlength="5" formControlName="tosSubeKodu" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label for="tos-kurum-kodu">Kurum Kodu</label>
+            <input id="tos-kurum-kodu" type="text" inputmode="numeric" maxlength="5" formControlName="tosKurumKodu" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label for="tos-dosya-tarihi">Dosya Tarihi</label>
+            <input id="tos-dosya-tarihi" type="text" inputmode="numeric" maxlength="8" formControlName="tosDosyaTarihi" autocomplete="off">
+          </div>
+
+          <div class="field">
+            <label for="tos-kurum-hesap-no">Kurum Hesap No</label>
+            <input id="tos-kurum-hesap-no" type="text" maxlength="26" formControlName="tosKurumHesapNo" autocomplete="off">
+          </div>
+        </div>
+        <p class="validation-message" *ngIf="tosHeaderInvalid">
+          TÖS Header için Şube Kodu 5, Kurum Kodu 5, Dosya Tarihi 8 rakam; Kurum Hesap No 26 karakter olmalıdır.
+        </p>
+        <p class="source-upload__description" *ngIf="hasSourceFile">
+          Otomatik seçilen TÖS deseni: <strong>{{ tosVariantLabel }}</strong>
         </p>
       </fieldset>
 
