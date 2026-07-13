@@ -2,6 +2,8 @@ namespace MappingStudio.Api.DTOs;
 
 public sealed class AiMappingSuggestionRequest
 {
+    public string? PatternType { get; init; }
+
     public IReadOnlyList<AiMappingFieldDto>? SourceFields { get; init; }
 
     public IReadOnlyList<AiMappingFieldDto>? TargetFields { get; init; }

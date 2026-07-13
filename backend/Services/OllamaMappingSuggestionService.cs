@@ -16,12 +16,31 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     {
         ["account"] = "hesap",
         ["acct"] = "hesap",
+        ["accrual"] = "tahakkuk",
+        ["address"] = "adres",
+        ["adres"] = "adres",
         ["amount"] = "tutar",
         ["ay"] = "ay",
         ["aykodu"] = "ay",
         ["bank"] = "banka",
         ["banka"] = "banka",
         ["branch"] = "sube",
+        ["customs"] = "gumruk",
+        ["declaration"] = "beyanname",
+        ["daire"] = "daire",
+        ["date"] = "tarih",
+        ["doviz"] = "doviz",
+        ["fis"] = "fis",
+        ["gumruk"] = "gumruk",
+        ["installment"] = "taksit",
+        ["license"] = "plaka",
+        ["office"] = "daire",
+        ["phone"] = "telefon",
+        ["plate"] = "plaka",
+        ["receipt"] = "fis",
+        ["tax"] = "vergi",
+        ["year"] = "yil",
+        ["beyanname"] = "beyanname",
         ["company"] = "kurum",
         ["customer"] = "musteri",
         ["hesap"] = "hesap",
@@ -44,10 +63,17 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         ["sube"] = "sube",
         ["tc"] = "tc",
         ["tckn"] = "tc",
+        ["tahakkuk"] = "tahakkuk",
+        ["taksit"] = "taksit",
+        ["telefon"] = "telefon",
+        ["tarih"] = "tarih",
         ["tutar"] = "tutar",
         ["type"] = "tur",
         ["tur"] = "tur",
-        ["turu"] = "tur"
+        ["turu"] = "tur",
+        ["vergi"] = "vergi",
+        ["vkn"] = "vergi",
+        ["yil"] = "yil"
     };
     private readonly HttpClient _httpClient;
     private readonly OllamaOptions _options;
@@ -76,7 +102,7 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         try
         {
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(TimeSpan.FromSeconds(20));
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(45));
 
             var ollamaRequest = new OllamaGenerateRequest
             {
@@ -87,7 +113,7 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
                 Options = new Dictionary<string, object>
                 {
                     ["temperature"] = 0,
-                    ["num_predict"] = 256
+                    ["num_predict"] = 512
                 }
             };
 
@@ -149,7 +175,8 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
     private static string BuildPrompt(AiMappingSuggestionRequest request)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("You are a data mapping expert for Turkish banking payment/payroll files.");
+        builder.AppendLine("You are a data mapping expert for Turkish banking payroll and tax payment files.");
+        builder.AppendLine($"Mapping domain: {DescribePatternType(request.PatternType)}.");
         builder.AppendLine("Match each source field to the most appropriate target field by MEANING, not just exact text.");
         builder.AppendLine("Source names may be abbreviations, shortened, misspelled, or in Turkish. Understand the intent.");
         builder.AppendLine("Examples of correct matches:");
@@ -165,6 +192,14 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         builder.AppendLine("- \"sube\" -> \"subeKodu\"");
         builder.AppendLine("- \"dvz\" -> \"dovizCinsi\"");
         builder.AppendLine("- \"ack\" -> \"aciklama\"");
+        builder.AppendLine("Tax mapping examples:");
+        builder.AppendLine("- \"vkn\" -> \"vergiNoTCKimlik\"");
+        builder.AppendLine("- \"plaka\" -> \"plakaNo\"");
+        builder.AppendLine("- \"yil\" -> \"vergiYili\"");
+        builder.AppendLine("- \"taksit\" -> \"taksitNo\"");
+        builder.AppendLine("- \"tahakkuk_no\" -> \"tahakkukFisNo\"");
+        builder.AppendLine("- \"beyanname\" -> \"beyannameNo\"");
+        builder.AppendLine("- \"vergi_daire\" -> \"vergiDairesiKodu\"");
         builder.AppendLine("Use only exact names from the lists below. Do not invent fields. One target can be used once.");
         builder.AppendLine("If you are not confident about a match, do NOT include it (leave it out).");
         builder.AppendLine("Return only JSON, no explanation: {\"mappings\":[{\"sourceField\":\"sourceName\",\"targetField\":\"targetName\",\"confidence\":0.0}]}");
@@ -183,6 +218,17 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
         }
 
         return builder.ToString();
+    }
+
+    private static string DescribePatternType(string? patternType)
+    {
+        return patternType?.Trim().ToLowerInvariant() switch
+        {
+            "mtv" or "vergi_mtv" => "Turkish motor vehicle tax (MTV)",
+            "vergi_gumruk" => "Turkish customs tax payment",
+            "vergi_toplu" => "Turkish bulk tax payment",
+            _ => "Turkish bank payroll payment"
+        };
     }
 
     private static IReadOnlyList<AiMappingSuggestionDto> ParseSuggestions(
@@ -344,6 +390,14 @@ public sealed class OllamaMappingSuggestionService : IOllamaMappingSuggestionSer
             ["odemekodu"] = new[] { "odeme", "kod" },
             ["maasturu"] = new[] { "maas", "tur" },
             ["maastutari"] = new[] { "maas", "tutar" },
+            ["vergino"] = new[] { "vergi", "no" },
+            ["verginotckimlik"] = new[] { "vergi", "tc", "no" },
+            ["vergiyili"] = new[] { "vergi", "yil" },
+            ["vergidairesikodu"] = new[] { "vergi", "daire", "kod" },
+            ["plakano"] = new[] { "plaka", "no" },
+            ["taksitno"] = new[] { "taksit", "no" },
+            ["tahakkukfisno"] = new[] { "tahakkuk", "fis", "no" },
+            ["beyannameno"] = new[] { "beyanname", "no" },
             ["subekodu"] = new[] { "sube", "kod" },
             ["kurumkodu"] = new[] { "kurum", "kod" },
             ["tcno"] = new[] { "tc", "no" },
