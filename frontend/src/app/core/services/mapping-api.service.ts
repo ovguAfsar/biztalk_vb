@@ -46,6 +46,10 @@ export class MappingApiService {
     return this.http.put<MappingDetailsResponse>(`${this.baseUrl}/${encodeURIComponent(id)}`, request);
   }
 
+  deleteMapping(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${encodeURIComponent(id)}`);
+  }
+
   saveSourceSchema(id: string, request: SaveSourceSchemaRequest): Observable<SaveSourceSchemaResponse> {
     return this.http.put<SaveSourceSchemaResponse>(`${this.baseUrl}/${encodeURIComponent(id)}/source`, request);
   }

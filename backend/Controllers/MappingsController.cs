@@ -123,6 +123,35 @@ public sealed class MappingsController : ControllerBase
         }
     }
 
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _mappingService.DeleteAsync(id, cancellationToken);
+            return NoContent();
+        }
+        catch (MappingValidationException exception)
+        {
+            return BadRequest(new ValidationProblemDetails(exception.Errors)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "Mapping bilgileri gecersiz."
+            });
+        }
+        catch (MappingNotFoundException)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Mapping bulunamadi."
+            });
+        }
+    }
+
     [HttpPut("{id}/source")]
     [ProducesResponseType(typeof(SourceSchemaResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

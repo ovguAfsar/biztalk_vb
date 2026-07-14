@@ -60,6 +60,13 @@ public sealed class MappingRepository : IMappingRepository
         return await _mappings.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        var filter = Builders<MappingDocument>.Filter.Eq(mapping => mapping.Id, id);
+        var result = await _mappings.DeleteOneAsync(filter, cancellationToken);
+        return result.DeletedCount > 0;
+    }
+
     public async Task<MappingDocument?> UpdateAsync(
         string id,
         string name,

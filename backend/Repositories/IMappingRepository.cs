@@ -10,6 +10,8 @@ public interface IMappingRepository
 
     Task<MappingDocument?> GetByIdAsync(string id, CancellationToken cancellationToken);
 
+    Task<bool> DeleteAsync(string id, CancellationToken cancellationToken);
+
     Task<MappingDocument?> UpdateAsync(
         string id,
         string name,
