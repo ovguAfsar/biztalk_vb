@@ -84,7 +84,11 @@
                 </a>
               </td>
               <td>
-                <span class="status-badge" [class.status-badge--completed]="mapping.status === 'completed'">
+                <span
+                  class="status-badge"
+                  [class.status-badge--in-progress]="mapping.status === 'in_progress'"
+                  [class.status-badge--completed]="mapping.status === 'completed'"
+                >
                   {{ getStatusLabel(mapping.status) }}
                 </span>
               </td>
@@ -107,10 +111,37 @@
         </table>
       </div>
       <div class="mapping-list-footer" *ngIf="!isLoading && filteredMappings.length > 0">
-        <span>{{ visibleMappings.length }} / {{ filteredMappings.length }} gösteriliyor</span>
-        <button class="show-all-action" type="button" *ngIf="hasMoreMappings" (click)="showMoreMappings()">
-          Daha Fazla Göster
-        </button>
+        <span>{{ firstVisibleMappingNumber }}–{{ lastVisibleMappingNumber }} / {{ filteredMappings.length }} gösteriliyor</span>
+        <nav class="pagination" aria-label="Mapping sayfaları">
+          <button
+            class="pagination__button pagination__button--wide"
+            type="button"
+            [disabled]="currentPage === 1"
+            (click)="goToPage(currentPage - 1)"
+          >
+            Önceki
+          </button>
+          <div class="pagination__numbers">
+            <button
+              class="pagination__button"
+              type="button"
+              *ngFor="let page of pageNumbers"
+              [class.pagination__button--active]="page === currentPage"
+              [attr.aria-current]="page === currentPage ? 'page' : null"
+              (click)="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+          </div>
+          <button
+            class="pagination__button pagination__button--wide"
+            type="button"
+            [disabled]="currentPage === totalPages"
+            (click)="goToPage(currentPage + 1)"
+          >
+            Sonraki
+          </button>
+        </nav>
       </div>
     </section>
 
@@ -121,11 +152,11 @@
       </article>
       <article class="stat-card">
         <span class="stat-card__mark stat-card__mark--active" aria-hidden="true"></span>
-        <span><small>Aktif Mapping</small><strong>{{ activeMappings }}</strong></span>
+        <span><small>Tamamlanan Mapping</small><strong>{{ activeMappings }}</strong></span>
       </article>
       <article class="stat-card">
         <span class="stat-card__mark stat-card__mark--draft" aria-hidden="true"></span>
-        <span><small>Taslak Mapping</small><strong>{{ draftMappings }}</strong></span>
+        <span><small>Devam Eden Mapping</small><strong>{{ draftMappings }}</strong></span>
       </article>
     </section>
   </section>

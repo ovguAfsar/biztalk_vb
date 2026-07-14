@@ -650,5 +650,22 @@
         </div>
       </section>
     </div>
+
+    <div class="modal-backdrop" *ngIf="isExitDialogOpen" role="presentation">
+      <section class="required-fields-modal" role="dialog" aria-modal="true" aria-labelledby="mapping-exit-title">
+        <h2 id="mapping-exit-title">Kaydedilmemiş eşleştirmeler var</h2>
+        <p>Çıkmadan önce eşleştirmelerinizi kaydetmek ister misiniz?</p>
+        <p class="alert alert--error" *ngIf="saveError">{{ saveError }}</p>
+        <div class="modal-actions">
+          <button class="primary-action" type="button" [disabled]="isSaving || isDiscarding" (click)="saveMappingsAndLeave()">
+            {{ isSaving ? 'Kaydediliyor...' : 'Kaydet ve Çık' }}
+          </button>
+          <button class="delete-action" type="button" [disabled]="isSaving || isDiscarding" (click)="discardMappingChangesAndLeave()">
+            {{ isDiscarding ? 'Siliniyor...' : 'Kaydetmeden Çık' }}
+          </button>
+          <button class="back-action" type="button" [disabled]="isSaving || isDiscarding" (click)="stayOnMappingPage()">Sayfada Kal</button>
+        </div>
+      </section>
+    </div>
   </section>
 </main>

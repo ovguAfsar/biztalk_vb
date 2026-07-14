@@ -23,7 +23,8 @@ export class DashboardPageComponent implements OnInit {
   protected errorMessage = '';
   protected mappingSearchTerm = '';
   protected selectedPatternFilter: MappingDetailsResponse['patternType'] | 'all' = 'all';
-  protected visibleMappingCount = 5;
+  protected currentPage = 1;
+  protected readonly pageSize = 5;
 
   protected get filteredMappings(): MappingDetailsResponse[] {
     const searchTerm = this.mappingSearchTerm.trim().toLocaleLowerCase('tr-TR');
@@ -42,11 +43,24 @@ export class DashboardPageComponent implements OnInit {
   }
 
   protected get visibleMappings(): MappingDetailsResponse[] {
-    return this.filteredMappings.slice(0, this.visibleMappingCount);
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.filteredMappings.slice(startIndex, startIndex + this.pageSize);
   }
 
-  protected get hasMoreMappings(): boolean {
-    return this.visibleMappingCount < this.filteredMappings.length;
+  protected get totalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredMappings.length / this.pageSize));
+  }
+
+  protected get pageNumbers(): number[] {
+    return Array.from({ length: this.totalPages }, (_, index) => index + 1);
+  }
+
+  protected get firstVisibleMappingNumber(): number {
+    return this.filteredMappings.length === 0 ? 0 : (this.currentPage - 1) * this.pageSize + 1;
+  }
+
+  protected get lastVisibleMappingNumber(): number {
+    return Math.min(this.currentPage * this.pageSize, this.filteredMappings.length);
   }
 
   protected get totalMappings(): number {
@@ -58,7 +72,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   protected get draftMappings(): number {
-    return this.mappings.filter(mapping => mapping.status === 'draft').length;
+    return this.mappings.filter(mapping => mapping.status === 'draft' || mapping.status === 'in_progress').length;
   }
 
   ngOnInit(): void {
@@ -66,21 +80,32 @@ export class DashboardPageComponent implements OnInit {
   }
 
   protected getStatusLabel(status: MappingStatus): string {
-    return status === 'completed' ? 'Tamamlandı' : 'Taslak';
+    switch (status) {
+      case 'completed':
+        return 'Tamamlandı';
+      case 'in_progress':
+        return 'Devam Ediyor';
+      default:
+        return 'Devam Ediyor';
+    }
   }
 
   protected updateMappingSearchTerm(event: Event): void {
     this.mappingSearchTerm = (event.target as HTMLInputElement).value;
-    this.visibleMappingCount = 5;
+    this.currentPage = 1;
   }
 
   protected updatePatternFilter(event: Event): void {
     this.selectedPatternFilter = (event.target as HTMLSelectElement).value as MappingDetailsResponse['patternType'] | 'all';
-    this.visibleMappingCount = 5;
+    this.currentPage = 1;
   }
 
-  protected showMoreMappings(): void {
-    this.visibleMappingCount += 5;
+  protected goToPage(page: number): void {
+    if (page < 1 || page > this.totalPages || page === this.currentPage) {
+      return;
+    }
+
+    this.currentPage = page;
   }
 
   protected deleteMapping(mapping: MappingDetailsResponse): void {
@@ -97,6 +122,7 @@ export class DashboardPageComponent implements OnInit {
       .subscribe({
         next: () => {
           this.mappings = this.mappings.filter(item => item.id !== mapping.id);
+          this.currentPage = Math.min(this.currentPage, this.totalPages);
         },
         error: (error: unknown) => {
           this.errorMessage = this.getErrorMessage(error, 'Mapping silinemedi.');

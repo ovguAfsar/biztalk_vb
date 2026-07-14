@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 
 import { pendingMappingChangesGuard } from './features/mappings/create-mapping-page/pending-mapping-changes.guard';
+import { pendingVisualMappingChangesGuard } from './features/mappings/visual-mapping-page/pending-visual-mapping-changes.guard';
 import { DashboardPageComponent } from './features/dashboard/dashboard-page.component';
 import { CreateMappingPageComponent } from './features/mappings/create-mapping-page/create-mapping-page.component';
 import { MappingTestPageComponent } from './features/mappings/mapping-test-page/mapping-test-page.component';
@@ -24,7 +25,8 @@ export const routes: Routes = [
   },
   {
     path: 'mappings/:mappingId/map',
-    component: VisualMappingPageComponent
+    component: VisualMappingPageComponent,
+    canDeactivate: [pendingVisualMappingChangesGuard]
   },
   {
     path: 'mappings/:mappingId/test',
