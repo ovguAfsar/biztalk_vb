@@ -21,10 +21,32 @@ export class DashboardPageComponent implements OnInit {
   protected isLoading = false;
   protected deletingMappingId = '';
   protected errorMessage = '';
-  protected showAllMappings = false;
+  protected mappingSearchTerm = '';
+  protected selectedPatternFilter: MappingDetailsResponse['patternType'] | 'all' = 'all';
+  protected visibleMappingCount = 5;
+
+  protected get filteredMappings(): MappingDetailsResponse[] {
+    const searchTerm = this.mappingSearchTerm.trim().toLocaleLowerCase('tr-TR');
+    return this.mappings.filter(mapping => {
+      const normalizedPattern = mapping.patternType === 'mtv' ? 'vergi_mtv' : mapping.patternType;
+      const matchesPattern = this.selectedPatternFilter === 'all'
+        || normalizedPattern === this.selectedPatternFilter;
+      const matchesSearch = !searchTerm || [
+        mapping.name,
+        mapping.description ?? '',
+        this.getStatusLabel(mapping.status)
+      ].join(' ').toLocaleLowerCase('tr-TR').includes(searchTerm);
+
+      return matchesPattern && matchesSearch;
+    });
+  }
 
   protected get visibleMappings(): MappingDetailsResponse[] {
-    return this.showAllMappings ? this.mappings : this.mappings.slice(0, 5);
+    return this.filteredMappings.slice(0, this.visibleMappingCount);
+  }
+
+  protected get hasMoreMappings(): boolean {
+    return this.visibleMappingCount < this.filteredMappings.length;
   }
 
   protected get totalMappings(): number {
@@ -47,8 +69,18 @@ export class DashboardPageComponent implements OnInit {
     return status === 'completed' ? 'Tamamlandı' : 'Taslak';
   }
 
-  protected toggleAllMappings(): void {
-    this.showAllMappings = !this.showAllMappings;
+  protected updateMappingSearchTerm(event: Event): void {
+    this.mappingSearchTerm = (event.target as HTMLInputElement).value;
+    this.visibleMappingCount = 5;
+  }
+
+  protected updatePatternFilter(event: Event): void {
+    this.selectedPatternFilter = (event.target as HTMLSelectElement).value as MappingDetailsResponse['patternType'] | 'all';
+    this.visibleMappingCount = 5;
+  }
+
+  protected showMoreMappings(): void {
+    this.visibleMappingCount += 5;
   }
 
   protected deleteMapping(mapping: MappingDetailsResponse): void {

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { concatMap, finalize, of, switchMap } from 'rxjs';
@@ -67,6 +67,10 @@ export class CreateMappingPageComponent implements OnInit {
   protected isMappingsPanelOpen = false;
   protected mappingSearchTerm = '';
   protected selectedPatternFilter: MappingPatternType | 'all' = 'all';
+  protected isExitDialogOpen = false;
+  protected isSourceDirty = false;
+  private allowNavigation = false;
+  private exitDecisionResolver?: (canLeave: boolean) => void;
   protected readonly patternTypeGroups: Array<{
     label?: string;
     options: Array<{ value: MappingPatternType; label: string }>;
@@ -157,6 +161,10 @@ export class CreateMappingPageComponent implements OnInit {
       && !this.tosHeaderInvalid
       && this.hasSourceFile
       && !this.isSubmitting;
+  }
+
+  protected get hasUnsavedChanges(): boolean {
+    return this.form.dirty || this.isSourceDirty;
   }
 
   protected get isEditingMapping(): boolean {
@@ -342,6 +350,7 @@ export class CreateMappingPageComponent implements OnInit {
       const importedSource = this.toSourceImport(result.fields, result.records);
       this.sourceFields = importedSource.fields;
       this.sourceRecords = importedSource.records;
+      this.isSourceDirty = true;
     } catch (error: unknown) {
       this.sourceFileName = '';
       this.detectedSourceType = '';
@@ -354,9 +363,18 @@ export class CreateMappingPageComponent implements OnInit {
   }
 
   protected onSubmit(): void {
+    this.saveMapping(true, false);
+  }
+
+  protected saveAsDraft(): void {
+    this.saveMapping(false, true);
+  }
+
+  private saveMapping(navigateAfterSave: boolean, forceDraft: boolean, afterSave?: () => void): void {
     this.successMessage = '';
     this.errorMessage = '';
     this.createdMapping = undefined;
+    const shouldBeDraft = forceDraft || this.hasUnsavedChanges;
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -413,7 +431,10 @@ export class CreateMappingPageComponent implements OnInit {
     };
     let mappingId = this.selectedMapping?.id ?? '';
     const metadataRequest = this.selectedMapping
-      ? this.mappingApi.updateMapping(this.selectedMapping.id, { ...request, status: this.selectedMapping.status })
+      ? this.mappingApi.updateMapping(this.selectedMapping.id, {
+          ...request,
+          status: shouldBeDraft ? 'draft' : this.selectedMapping.status
+        })
       : this.mappingApi.createMapping(request);
 
     this.isSubmitting = true;
@@ -434,15 +455,76 @@ export class CreateMappingPageComponent implements OnInit {
       }))
       .subscribe({
         next: () => {
-          this.successMessage = this.selectedMapping
-            ? 'Mapping güncellendi.'
-            : 'Mapping taslağı, kaynak dosyası ve hedef şeması kaydedildi.';
-          void this.router.navigate(['/mappings', mappingId, 'map']);
+          if (this.createdMapping) {
+            this.selectedMapping = {
+            ...this.createdMapping,
+              status: shouldBeDraft ? 'draft' : this.createdMapping.status
+            };
+          }
+          this.form.markAsPristine();
+          this.isSourceDirty = false;
+          this.successMessage = forceDraft
+            ? 'Mapping taslak olarak kaydedildi.'
+            : this.selectedMapping
+              ? 'Mapping güncellendi.'
+              : 'Mapping taslağı, kaynak dosyası ve hedef şeması kaydedildi.';
+          afterSave?.();
+          if (navigateAfterSave) {
+            this.allowNavigation = true;
+            void this.router.navigate(['/mappings', mappingId, 'map']);
+          }
         },
         error: (error: unknown) => {
           this.errorMessage = this.getErrorMessage(error);
         }
       });
+  }
+
+  canLeavePage(): boolean | Promise<boolean> {
+    if (this.allowNavigation || !this.hasUnsavedChanges || this.isSubmitting) {
+      return true;
+    }
+
+    this.isExitDialogOpen = true;
+    return new Promise<boolean>(resolve => {
+      this.exitDecisionResolver = resolve;
+    });
+  }
+
+  protected saveDraftAndLeave(): void {
+    if (!this.canContinue) {
+      this.errorMessage = 'Taslak kaydetmek için zorunlu alanları doldurun ve kaynak dosyasını seçin.';
+      this.closeExitDialog(false);
+      return;
+    }
+
+    this.saveMapping(false, true, () => {
+      this.allowNavigation = true;
+      this.closeExitDialog(true);
+    });
+  }
+
+  protected discardChangesAndLeave(): void {
+    this.allowNavigation = true;
+    this.closeExitDialog(true);
+  }
+
+  protected stayOnPage(): void {
+    this.closeExitDialog(false);
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  protected warnBeforeBrowserUnload(event: BeforeUnloadEvent): void {
+    if (!this.allowNavigation && this.hasUnsavedChanges) {
+      event.preventDefault();
+    }
+  }
+
+  private closeExitDialog(canLeave: boolean): void {
+    this.isExitDialogOpen = false;
+    const resolver = this.exitDecisionResolver;
+    this.exitDecisionResolver = undefined;
+    resolver?.(canLeave);
   }
 
   private loadMappings(): void {
@@ -503,6 +585,8 @@ export class CreateMappingPageComponent implements OnInit {
     this.detectedSourceType = mapping.sourceSchema ? mapping.sourceType : '';
     this.sourceFields = mapping.sourceSchema?.fields ?? [];
     this.sourceRecords = mapping.sourceSchema?.records ?? [];
+    this.form.markAsPristine();
+    this.isSourceDirty = false;
   }
 
   private toSourceFields(importedFields: SourceFieldImport[], usedFieldNames = new Set<string>()): SourceField[] {
