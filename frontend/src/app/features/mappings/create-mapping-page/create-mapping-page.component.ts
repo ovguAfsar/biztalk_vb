@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { concatMap, finalize, of, switchMap } from 'rxjs';
 
 import {
@@ -32,6 +32,7 @@ export class CreateMappingPageComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly mappingApi = inject(MappingApiService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
   protected readonly form = this.formBuilder.nonNullable.group({
@@ -82,7 +83,10 @@ export class CreateMappingPageComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.loadMappings();
+    const mappingId = this.route.snapshot.paramMap.get('mappingId');
+    if (mappingId) {
+      this.loadMappingForEditing(mappingId);
+    }
   }
 
   protected get nameInvalid(): boolean {
@@ -269,6 +273,10 @@ export class CreateMappingPageComponent implements OnInit {
     this.isMappingsPanelOpen = false;
   }
 
+  protected returnToDashboard(): void {
+    void this.router.navigate(['/']);
+  }
+
   protected async onSourceFileSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -452,6 +460,23 @@ export class CreateMappingPageComponent implements OnInit {
         },
         error: (error: unknown) => {
           this.mappingsError = this.getErrorMessage(error);
+        }
+      });
+  }
+
+  private loadMappingForEditing(mappingId: string): void {
+    this.isMappingsLoading = true;
+    this.errorMessage = '';
+    this.mappingApi.getMappingById(mappingId)
+      .pipe(finalize(() => {
+        this.isMappingsLoading = false;
+      }))
+      .subscribe({
+        next: (mapping) => {
+          this.applySelectedMapping(mapping);
+        },
+        error: (error: unknown) => {
+          this.errorMessage = this.getErrorMessage(error);
         }
       });
   }

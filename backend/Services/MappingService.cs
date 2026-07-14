@@ -152,6 +152,17 @@ public sealed class MappingService : IMappingService
         return ToResponse(mapping);
     }
 
+    public async Task DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        ValidateMappingId(id);
+
+        var deleted = await _mappingRepository.DeleteAsync(id, cancellationToken);
+        if (!deleted)
+        {
+            throw new MappingNotFoundException(id);
+        }
+    }
+
     public async Task<MappingResponse> UpdateAsync(
         string id,
         UpdateMappingRequest? request,

@@ -10,6 +10,8 @@ public interface IMappingService
 
     Task<MappingResponse> GetByIdAsync(string id, CancellationToken cancellationToken);
 
+    Task DeleteAsync(string id, CancellationToken cancellationToken);
+
     Task<MappingResponse> UpdateAsync(
         string id,
         UpdateMappingRequest? request,

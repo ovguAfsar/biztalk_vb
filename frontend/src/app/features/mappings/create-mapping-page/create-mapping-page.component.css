@@ -1,23 +1,13 @@
 .create-page {
   min-height: 100vh;
-  padding: 48px 20px;
-}
-
-.create-layout {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1040px);
-  gap: 28px;
-  align-items: start;
-  justify-content: center;
-}
-
-.create-layout--panel-open {
-  grid-template-columns: 280px minmax(0, 1040px);
+  background: #fdb515 !important;
+  padding: 72px 20px 48px;
 }
 
 .wizard-shell {
   min-width: 0;
-  width: 100%;
+  width: min(1040px, 100%);
+  margin: 0 auto;
 }
 
 .mappings-panel {
@@ -205,6 +195,27 @@
 
 .wizard-header {
   margin-bottom: 34px;
+}
+
+.dashboard-back {
+  margin: 0 0 18px;
+  border: 1px solid #000;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: .86rem;
+  font-weight: 800;
+  padding: 8px 13px;
+}
+
+.dashboard-back:hover {
+  background: #000;
+  color: #fff !important;
+}
+
+.loading-message {
+  margin: -18px 0 24px;
+  font-weight: 750;
 }
 
 .wizard-header h1 {
