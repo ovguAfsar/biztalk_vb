@@ -24,9 +24,11 @@ interface PendingConnection {
 }
 
 interface FixedWidthPositionRow {
+  targetFieldName: string;
   name: string;
   displayName: string;
   type: SourceFieldType;
+  required: boolean;
   startPosition: number | null;
   endPosition: number | null;
 }
@@ -158,6 +160,14 @@ export class VisualMappingPageComponent implements OnInit {
 
   protected get fixedWidthRawRecords(): Record<string, string>[] {
     return this.mapping?.sourceSchema?.records ?? [];
+  }
+
+  protected get pendingFixedWidthTargetFields(): TargetField[] {
+    return this.mapping ? this.getPendingFixedWidthTargetFields(this.mapping) : [];
+  }
+
+  protected get requiredPendingFixedWidthTargetFields(): TargetField[] {
+    return this.pendingFixedWidthTargetFields.filter(field => field.required);
   }
 
   protected get canSaveFixedWidthPositions(): boolean {
@@ -697,22 +707,54 @@ export class VisualMappingPageComponent implements OnInit {
     return String(row.endPosition! - row.startPosition! + 1);
   }
 
+  protected isFixedWidthRequiredMissing(row: FixedWidthPositionRow): boolean {
+    return row.required && !this.isCompleteFixedWidthRow(row);
+  }
+
   protected closeFixedWidthPositionModal(): void {
+    const pendingCount = this.pendingFixedWidthTargetFields.length;
+    if (pendingCount > 0) {
+      this.autoMatchMessage = `${pendingCount} sabit genişlik alanı bekliyor. Kaynak panelinden pozisyonları tanımlayabilirsin.`;
+    }
+
     this.showFixedWidthPositionModal = false;
   }
 
-  protected saveFixedWidthPositions(): void {
+  protected openDeferredFixedWidthPositions(): void {
+    if (!this.mapping) {
+      return;
+    }
+
+    if (this.fixedWidthPositionRows.length === 0) {
+      this.openFixedWidthPositionModal(this.mapping);
+      return;
+    }
+
     this.fixedWidthPositionErrors = this.validateFixedWidthPositionRows();
+    this.showFixedWidthPositionModal = true;
+  }
+
+  protected saveFixedWidthPositions(): void {
+    this.fixedWidthPositionErrors = [
+      ...this.validateFixedWidthPositionRows(),
+      ...this.validateRequiredFixedWidthPositionRows()
+    ];
     if (this.fixedWidthPositionErrors.length > 0 || !this.mapping?.sourceSchema) {
       return;
     }
 
     const positionedRows = this.fixedWidthPositionRows.filter(row => this.isCompleteFixedWidthRow(row));
+    if (positionedRows.length === 0) {
+      this.fixedWidthPositionErrors = ['Kaynak oluşturmak için en az bir alan pozisyonu girin veya Sonra Tanımla ile bekletin.'];
+      return;
+    }
+
     const rawRecords = this.fixedWidthRawRecords;
     const sourceFields = positionedRows.map(row => this.toSourceFieldFromPositionRow(row, rawRecords[0]?.['line'] ?? ''));
-    const records = positionedRows.length === 0
-      ? rawRecords
-      : rawRecords.map(record => this.readFixedWidthRecord(record['line'] ?? '', positionedRows));
+    const records = rawRecords.map(record => ({
+      line: record['line'] ?? '',
+      ...this.readFixedWidthRecord(record['line'] ?? '', positionedRows)
+    }));
     const request: SaveSourceSchemaRequest = {
       sourceName: this.mapping.sourceSchema.sourceName,
       sourceType: this.mapping.sourceType,
@@ -745,8 +787,9 @@ export class VisualMappingPageComponent implements OnInit {
           this.showFixedWidthPositionModal = false;
           this.mappingDefinitions = this.mappingDefinitions.filter(mappingDefinition =>
             response.fields.some(field => field.name === mappingDefinition.sourceField));
-          if (response.fields.length === 0) {
-            this.autoMatchMessage = 'Pozisyon girilmediği için kaynak kolon oluşturulmadı.';
+          const pendingCount = this.pendingFixedWidthTargetFields.length;
+          if (pendingCount > 0) {
+            this.autoMatchMessage = `${response.fields.length} kaynak kolon oluşturuldu. ${pendingCount} alan sonra tanımlanmak üzere bekliyor.`;
           } else {
             this.autoMatchMessage = 'Kaynak kolonlar oluşturuldu. Eşlemek için Otomatik Eşle veya AI ile Eşle butonunu kullanabilirsin.';
           }
@@ -895,21 +938,28 @@ export class VisualMappingPageComponent implements OnInit {
   }
 
   private shouldPromptForFixedWidthPositions(mapping: MappingDetailsResponse): boolean {
-    const records = mapping.sourceSchema?.records ?? [];
-    return mapping.sourceType === 'txt'
-      && (mapping.sourceSchema?.fields.length ?? 0) === 0
-      && records.length > 0
-      && records.every(record => typeof record['line'] === 'string');
+    if (!this.hasFixedWidthRawLines(mapping)) {
+      return false;
+    }
+
+    const sourceFieldCount = mapping.sourceSchema?.fields.length ?? 0;
+    return sourceFieldCount === 0 || this.getPendingFixedWidthTargetFields(mapping).some(field => field.required);
   }
 
   private openFixedWidthPositionModal(mapping: MappingDetailsResponse): void {
-    this.fixedWidthPositionRows = (mapping.targetSchema?.fields ?? []).map(field => ({
-      name: field.name,
-      displayName: field.displayName ?? this.splitFieldName(field.name),
-      type: field.type,
-      startPosition: null,
-      endPosition: null
-    }));
+    this.fixedWidthPositionRows = (mapping.targetSchema?.fields ?? []).map(field => {
+      const existingSourceField = this.getFixedWidthSourceFieldForTarget(mapping, field.name);
+
+      return {
+        targetFieldName: field.name,
+        name: existingSourceField?.name ?? field.name,
+        displayName: existingSourceField?.displayName ?? field.displayName ?? this.splitFieldName(field.name),
+        type: (existingSourceField?.type ?? field.type) as SourceFieldType,
+        required: field.required,
+        startPosition: existingSourceField?.startPosition ?? null,
+        endPosition: existingSourceField?.endPosition ?? null
+      };
+    });
     this.fixedWidthPositionErrors = [];
     this.showFixedWidthPositionModal = true;
   }
@@ -973,6 +1023,19 @@ export class VisualMappingPageComponent implements OnInit {
     return errors;
   }
 
+  private validateRequiredFixedWidthPositionRows(): string[] {
+    const missingRequiredRows = this.fixedWidthPositionRows.filter(row => this.isFixedWidthRequiredMissing(row));
+    if (missingRequiredRows.length === 0) {
+      return [];
+    }
+
+    return [
+      `Zorunlu alanların pozisyonu tamamlanmalı: ${missingRequiredRows
+        .map(row => row.displayName.trim() || row.name.trim() || row.targetFieldName)
+        .join(', ')}.`
+    ];
+  }
+
   private isCompleteFixedWidthRow(row: FixedWidthPositionRow): boolean {
     return row.startPosition !== null
       && row.startPosition !== undefined
@@ -1004,6 +1067,35 @@ export class VisualMappingPageComponent implements OnInit {
     const startIndex = Math.max(row.startPosition! - 1, 0);
     const endIndex = Math.min(row.endPosition!, line.length);
     return line.substring(startIndex, endIndex).trim();
+  }
+
+  private hasFixedWidthRawLines(mapping: MappingDetailsResponse): boolean {
+    const records = mapping.sourceSchema?.records ?? [];
+    return mapping.sourceType === 'txt'
+      && records.length > 0
+      && records.every(record => typeof record['line'] === 'string');
+  }
+
+  private getPendingFixedWidthTargetFields(mapping: MappingDetailsResponse): TargetField[] {
+    if (!this.hasFixedWidthRawLines(mapping)) {
+      return [];
+    }
+
+    const positionedSourceFieldNames = new Set(
+      (mapping.sourceSchema?.fields ?? [])
+        .filter(field => field.startPosition !== undefined && field.startPosition !== null
+          && field.endPosition !== undefined && field.endPosition !== null)
+        .map(field => field.name.trim().toLowerCase())
+    );
+
+    return (mapping.targetSchema?.fields ?? [])
+      .filter(field => !positionedSourceFieldNames.has(field.name.trim().toLowerCase()));
+  }
+
+  private getFixedWidthSourceFieldForTarget(mapping: MappingDetailsResponse, targetFieldName: string): SourceField | undefined {
+    const normalizedTargetFieldName = targetFieldName.trim().toLowerCase();
+    return (mapping.sourceSchema?.fields ?? [])
+      .find(field => field.name.trim().toLowerCase() === normalizedTargetFieldName);
   }
 
   private setActiveDragTarget(fieldName: string): void {
