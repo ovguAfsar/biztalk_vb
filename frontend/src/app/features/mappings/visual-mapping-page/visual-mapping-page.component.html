@@ -41,6 +41,29 @@
                 {{ usageCount }} eşleşme
               </span>
             </button>
+
+            <section class="fixed-width-pending-panel" *ngIf="pendingFixedWidthTargetFields.length > 0">
+              <div class="fixed-width-pending-panel__header">
+                <div>
+                  <strong>Bekleyen sabit genişlik alanları</strong>
+                  <span>{{ pendingFixedWidthTargetFields.length }} alan</span>
+                </div>
+                <span class="fixed-width-pending-panel__required" *ngIf="requiredPendingFixedWidthTargetFields.length > 0">
+                  {{ requiredPendingFixedWidthTargetFields.length }} zorunlu
+                </span>
+              </div>
+
+              <ul class="fixed-width-pending-list">
+                <li *ngFor="let field of pendingFixedWidthTargetFields; trackBy: trackByFieldName">
+                  <span>{{ getTargetFieldLabel(field) }}</span>
+                  <strong *ngIf="field.required">Zorunlu</strong>
+                </li>
+              </ul>
+
+              <button class="secondary-action" type="button" (click)="openDeferredFixedWidthPositions()">
+                Pozisyonları Tanımla
+              </button>
+            </section>
           </div>
         </aside>
 
@@ -504,7 +527,12 @@
               <span>Uzunluk</span>
             </div>
 
-            <div class="fixed-width-grid__row" role="row" *ngFor="let row of fixedWidthPositionRows; let index = index">
+            <div
+              class="fixed-width-grid__row"
+              role="row"
+              *ngFor="let row of fixedWidthPositionRows; let index = index"
+              [class.fixed-width-grid__row--required-missing]="isFixedWidthRequiredMissing(row)"
+            >
               <input
                 type="text"
                 [value]="row.name"
