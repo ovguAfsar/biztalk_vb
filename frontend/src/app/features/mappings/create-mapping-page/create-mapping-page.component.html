@@ -178,6 +178,9 @@
       </div>
 
       <div class="form-actions">
+        <button class="draft-action" type="button" [disabled]="!canContinue" (click)="saveAsDraft()">
+          Taslak Olarak Kaydet
+        </button>
         <button class="primary-action" type="submit" [disabled]="!canContinue">
           <span *ngIf="!isSubmitting">{{ isEditingMapping ? 'Güncelle ve Devam Et' : 'Devam Et' }}</span>
           <span *ngIf="isSubmitting">Kaydediliyor...</span>
@@ -185,4 +188,20 @@
       </div>
     </form>
   </section>
+
+  <div class="exit-dialog" *ngIf="isExitDialogOpen" role="dialog" aria-modal="true" aria-labelledby="exit-dialog-title">
+    <div class="exit-dialog__card">
+      <h2 id="exit-dialog-title">Kaydedilmemiş değişiklikler var</h2>
+      <p>Çıkmadan önce çalışmanızı taslak olarak kaydetmek ister misiniz?</p>
+      <div class="exit-dialog__actions">
+        <button class="draft-action" type="button" [disabled]="isSubmitting" (click)="saveDraftAndLeave()">
+          {{ isSubmitting ? 'Kaydediliyor...' : 'Taslak Olarak Kaydet' }}
+        </button>
+        <button class="discard-action" type="button" [disabled]="isSubmitting" (click)="discardChangesAndLeave()">
+          Kaydetmeden Çık
+        </button>
+        <button class="stay-action" type="button" [disabled]="isSubmitting" (click)="stayOnPage()">Sayfada Kal</button>
+      </div>
+    </div>
+  </div>
 </main>

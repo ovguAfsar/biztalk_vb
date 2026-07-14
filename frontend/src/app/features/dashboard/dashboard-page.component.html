@@ -21,17 +21,35 @@
           <p>ÇALIŞMA ALANI</p>
           <h2 id="recent-work-title">Mappings</h2>
         </div>
-        <div class="section-heading__actions">
-          <span class="section-heading__count">{{ totalMappings }} mapping</span>
-          <button
-            class="show-all-action"
-            type="button"
-            *ngIf="mappings.length > 5"
-            (click)="toggleAllMappings()"
+        <span class="section-heading__count">{{ totalMappings }} mapping</span>
+      </div>
+
+      <div class="mapping-tools" *ngIf="!isLoading && mappings.length > 0">
+        <label class="mapping-search" for="dashboard-mapping-search">
+          <span class="visually-hidden">Mappinglerde ara</span>
+          <input
+            id="dashboard-mapping-search"
+            type="search"
+            placeholder="Mapping adı, açıklama veya durum ara..."
+            [value]="mappingSearchTerm"
+            (input)="updateMappingSearchTerm($event)"
           >
-            {{ showAllMappings ? 'İlk 5’i Gör' : 'Tümünü Gör' }}
-          </button>
-        </div>
+        </label>
+        <label class="pattern-filter" for="dashboard-pattern-filter">
+          <span>Dosya Deseni</span>
+          <select
+            id="dashboard-pattern-filter"
+            [value]="selectedPatternFilter"
+            (change)="updatePatternFilter($event)"
+          >
+            <option value="all">Tümü</option>
+            <option value="maas">Maaş</option>
+            <option value="tos">TÖS</option>
+            <option value="vergi_mtv">MTV</option>
+            <option value="vergi_gumruk">Gümrük Vergisi</option>
+            <option value="vergi_toplu">Toplu Vergi</option>
+          </select>
+        </label>
       </div>
 
       <p class="dashboard-state" *ngIf="isLoading">Mapping kayıtları yükleniyor...</p>
@@ -40,8 +58,11 @@
         <strong>Henüz mapping bulunmuyor.</strong>
         <span>İlk mapping çalışmanızı oluşturmak için yukarıdaki kartı kullanabilirsiniz.</span>
       </div>
+      <div class="dashboard-state" *ngIf="!isLoading && !errorMessage && mappings.length > 0 && filteredMappings.length === 0">
+        <strong>Arama ve filtreye uygun mapping bulunamadı.</strong>
+      </div>
 
-      <div class="mapping-table-wrap" *ngIf="!isLoading && mappings.length > 0">
+      <div class="mapping-table-wrap" *ngIf="!isLoading && filteredMappings.length > 0">
         <table class="mapping-table">
           <thead>
             <tr>
@@ -84,6 +105,12 @@
             </tr>
           </tbody>
         </table>
+      </div>
+      <div class="mapping-list-footer" *ngIf="!isLoading && filteredMappings.length > 0">
+        <span>{{ visibleMappings.length }} / {{ filteredMappings.length }} gösteriliyor</span>
+        <button class="show-all-action" type="button" *ngIf="hasMoreMappings" (click)="showMoreMappings()">
+          Daha Fazla Göster
+        </button>
       </div>
     </section>
 

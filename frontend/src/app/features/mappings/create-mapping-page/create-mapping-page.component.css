@@ -548,9 +548,77 @@
 
 .form-actions {
   display: flex;
+  gap: 12px;
   justify-content: flex-end;
   border-top: 1px solid #dfe5ef;
   padding-top: 24px;
+}
+
+.draft-action,
+.discard-action,
+.stay-action {
+  min-height: 44px;
+  border: 1px solid #000;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 780;
+  padding: 11px 16px;
+}
+
+.draft-action:hover:not(:disabled) {
+  background: #000;
+  color: #fff !important;
+}
+
+.discard-action {
+  border-color: #9f3028;
+  background: #f7d9d5;
+}
+
+.stay-action {
+  background: #fcbd00;
+}
+
+.draft-action:disabled,
+.discard-action:disabled,
+.stay-action:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.exit-dialog {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 58%) !important;
+  padding: 20px;
+}
+
+.exit-dialog__card {
+  width: min(560px, 100%);
+  border: 2px solid #000;
+  border-radius: 16px;
+  background: #fff !important;
+  padding: 26px;
+  box-shadow: 10px 10px 0 #fcbd00;
+}
+
+.exit-dialog__card h2 {
+  margin: 0;
+}
+
+.exit-dialog__card p {
+  margin: 12px 0 24px;
+  line-height: 1.55;
+}
+
+.exit-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .primary-action {
@@ -623,10 +691,12 @@
   }
 
   .form-actions {
+    flex-direction: column;
     justify-content: stretch;
   }
 
-  .primary-action {
+  .primary-action,
+  .draft-action {
     width: 100%;
   }
 }

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 
+import { pendingMappingChangesGuard } from './features/mappings/create-mapping-page/pending-mapping-changes.guard';
 import { DashboardPageComponent } from './features/dashboard/dashboard-page.component';
 import { CreateMappingPageComponent } from './features/mappings/create-mapping-page/create-mapping-page.component';
 import { MappingTestPageComponent } from './features/mappings/mapping-test-page/mapping-test-page.component';
@@ -13,11 +14,13 @@ export const routes: Routes = [
   },
   {
     path: 'mappings/create',
-    component: CreateMappingPageComponent
+    component: CreateMappingPageComponent,
+    canDeactivate: [pendingMappingChangesGuard]
   },
   {
     path: 'mappings/:mappingId/edit',
-    component: CreateMappingPageComponent
+    component: CreateMappingPageComponent,
+    canDeactivate: [pendingMappingChangesGuard]
   },
   {
     path: 'mappings/:mappingId/map',
