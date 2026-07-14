@@ -208,7 +208,7 @@ export class CreateMappingPageComponent implements OnInit {
   }
 
   protected getStatusLabel(status: MappingStatus): string {
-    return status === 'completed' ? 'Tamamlandı' : 'Taslak';
+    return status === 'completed' ? 'Tamamlandı' : 'Devam Ediyor';
   }
 
   protected getPatternTypeLabel(patternType: MappingPatternType): string {
@@ -279,10 +279,6 @@ export class CreateMappingPageComponent implements OnInit {
     this.sourceFields = [];
     this.sourceRecords = [];
     this.isMappingsPanelOpen = false;
-  }
-
-  protected returnToDashboard(): void {
-    void this.router.navigate(['/']);
   }
 
   protected async onSourceFileSelected(event: Event): Promise<void> {
@@ -374,7 +370,12 @@ export class CreateMappingPageComponent implements OnInit {
     this.successMessage = '';
     this.errorMessage = '';
     this.createdMapping = undefined;
-    const shouldBeDraft = forceDraft || this.hasUnsavedChanges;
+    const desiredStatus: MappingStatus = forceDraft
+      ? 'draft'
+      : this.hasUnsavedChanges
+        ? 'draft'
+        : this.selectedMapping?.status ?? 'draft';
+    const isNewMapping = !this.selectedMapping;
 
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -433,9 +434,14 @@ export class CreateMappingPageComponent implements OnInit {
     const metadataRequest = this.selectedMapping
       ? this.mappingApi.updateMapping(this.selectedMapping.id, {
           ...request,
-          status: shouldBeDraft ? 'draft' : this.selectedMapping.status
+          status: desiredStatus
         })
-      : this.mappingApi.createMapping(request);
+      : this.mappingApi.createMapping(request).pipe(
+          switchMap(createdMapping => this.mappingApi.updateMapping(createdMapping.id, {
+            ...request,
+            status: desiredStatus
+          }))
+        );
 
     this.isSubmitting = true;
     metadataRequest
@@ -457,21 +463,23 @@ export class CreateMappingPageComponent implements OnInit {
         next: () => {
           if (this.createdMapping) {
             this.selectedMapping = {
-            ...this.createdMapping,
-              status: shouldBeDraft ? 'draft' : this.createdMapping.status
+              ...this.createdMapping,
+              status: desiredStatus
             };
           }
           this.form.markAsPristine();
           this.isSourceDirty = false;
           this.successMessage = forceDraft
-            ? 'Mapping taslak olarak kaydedildi.'
+            ? 'Mapping kaydedildi. Daha sonra devam edebilirsiniz.'
             : this.selectedMapping
               ? 'Mapping güncellendi.'
               : 'Mapping taslağı, kaynak dosyası ve hedef şeması kaydedildi.';
           afterSave?.();
           if (navigateAfterSave) {
             this.allowNavigation = true;
-            void this.router.navigate(['/mappings', mappingId, 'map']);
+            void this.router.navigate(['/mappings', mappingId, 'map'], {
+              queryParams: isNewMapping ? { new: 'true' } : undefined
+            });
           }
         },
         error: (error: unknown) => {

@@ -1,7 +1,6 @@
 <main class="create-page">
   <section class="wizard-shell" aria-labelledby="create-mapping-title">
     <header class="wizard-header">
-      <button class="dashboard-back" type="button" (click)="returnToDashboard()">← Ana Sayfa</button>
       <h1 id="create-mapping-title">{{ isEditingMapping ? 'Mapping Düzenle' : 'Yeni Mapping Oluştur' }}</h1>
       <app-wizard-stepper [currentStep]="1"></app-wizard-stepper>
     </header>
@@ -179,7 +178,7 @@
 
       <div class="form-actions">
         <button class="draft-action" type="button" [disabled]="!canContinue" (click)="saveAsDraft()">
-          Taslak Olarak Kaydet
+          Kaydet
         </button>
         <button class="primary-action" type="submit" [disabled]="!canContinue">
           <span *ngIf="!isSubmitting">{{ isEditingMapping ? 'Güncelle ve Devam Et' : 'Devam Et' }}</span>
@@ -192,10 +191,10 @@
   <div class="exit-dialog" *ngIf="isExitDialogOpen" role="dialog" aria-modal="true" aria-labelledby="exit-dialog-title">
     <div class="exit-dialog__card">
       <h2 id="exit-dialog-title">Kaydedilmemiş değişiklikler var</h2>
-      <p>Çıkmadan önce çalışmanızı taslak olarak kaydetmek ister misiniz?</p>
+      <p>Çıkmadan önce çalışmanızı kaydedip daha sonra devam etmek ister misiniz?</p>
       <div class="exit-dialog__actions">
         <button class="draft-action" type="button" [disabled]="isSubmitting" (click)="saveDraftAndLeave()">
-          {{ isSubmitting ? 'Kaydediliyor...' : 'Taslak Olarak Kaydet' }}
+          {{ isSubmitting ? 'Kaydediliyor...' : 'Kaydet ve Çık' }}
         </button>
         <button class="discard-action" type="button" [disabled]="isSubmitting" (click)="discardChangesAndLeave()">
           Kaydetmeden Çık

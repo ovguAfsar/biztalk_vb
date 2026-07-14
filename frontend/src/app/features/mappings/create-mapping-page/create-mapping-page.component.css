@@ -197,22 +197,6 @@
   margin-bottom: 34px;
 }
 
-.dashboard-back {
-  margin: 0 0 18px;
-  border: 1px solid #000;
-  border-radius: 999px;
-  background: #fff;
-  cursor: pointer;
-  font-size: .86rem;
-  font-weight: 800;
-  padding: 8px 13px;
-}
-
-.dashboard-back:hover {
-  background: #000;
-  color: #fff !important;
-}
-
 .loading-message {
   margin: -18px 0 24px;
   font-weight: 750;

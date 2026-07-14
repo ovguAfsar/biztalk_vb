@@ -16,6 +16,7 @@ namespace MappingStudio.Api.Services;
 public sealed class MappingService : IMappingService
 {
     private const string DraftStatus = "draft";
+    private const string InProgressStatus = "in_progress";
     private const string CompletedStatus = "completed";
     private const string DefaultPatternType = "maas";
     private const string TosPatternType = "tos";
@@ -28,6 +29,7 @@ public sealed class MappingService : IMappingService
     private static readonly HashSet<string> AllowedStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
         DraftStatus,
+        InProgressStatus,
         CompletedStatus
     };
 
@@ -487,7 +489,7 @@ public sealed class MappingService : IMappingService
         if (!string.IsNullOrWhiteSpace(request.Status)
             && !AllowedStatuses.Contains(request.Status.Trim()))
         {
-            errors["status"] = new[] { "Mapping durumu draft veya completed olmalidir." };
+            errors["status"] = new[] { "Mapping durumu draft, in_progress veya completed olmalidir." };
         }
 
         var patternType = NormalizePatternType(request.PatternType);
@@ -831,7 +833,7 @@ public sealed class MappingService : IMappingService
         }
 
         var mappings = request.Mappings;
-        if (mappings.Count == 0)
+        if (mappings.Count == 0 && !request.AllowIncomplete)
         {
             AddError(errors, "mappings", "En az bir alan eslestirmesi yapilmalidir.");
         }
@@ -904,7 +906,7 @@ public sealed class MappingService : IMappingService
             .Select(field => string.IsNullOrWhiteSpace(field.DisplayName) ? field.Name : field.DisplayName)
             .ToList();
 
-        if (missingRequiredTargetFields.Count > 0)
+        if (missingRequiredTargetFields.Count > 0 && !request.AllowIncomplete)
         {
             AddError(
                 errors,

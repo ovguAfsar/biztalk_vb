@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, ElementRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, HostListener, OnInit, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs';
 
@@ -93,6 +93,12 @@ export class VisualMappingPageComponent implements OnInit {
   protected fixedWidthPositionRows: FixedWidthPositionRow[] = [];
   protected fixedWidthPositionErrors: string[] = [];
   protected isSavingFixedWidthPositions = false;
+  protected isExitDialogOpen = false;
+  protected isDiscarding = false;
+  private savedMappingsSnapshot = '[]';
+  private allowNavigation = false;
+  private isNewMappingSession = false;
+  private exitDecisionResolver?: (canLeave: boolean) => void;
 
   ngOnInit(): void {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
@@ -103,6 +109,7 @@ export class VisualMappingPageComponent implements OnInit {
     }
 
     this.mappingId = mappingId;
+    this.isNewMappingSession = this.route.snapshot.queryParamMap.get('new') === 'true';
     this.loadMapping(mappingId);
   }
 
@@ -156,6 +163,10 @@ export class VisualMappingPageComponent implements OnInit {
     return this.mappingDefinitions.length > 0
       && this.missingRequiredTargetFields.length === 0
       && !this.isSaving;
+  }
+
+  protected get hasUnsavedMappingChanges(): boolean {
+    return JSON.stringify(this.mappingDefinitions) !== this.savedMappingsSnapshot;
   }
 
   protected get fixedWidthRawRecords(): Record<string, string>[] {
@@ -592,14 +603,19 @@ export class VisualMappingPageComponent implements OnInit {
     this.closeClearMappingsPopup();
   }
 
-  protected saveMappings(confirmWarnings = false): void {
+  protected saveMappings(
+    confirmWarnings = false,
+    navigateAfterSave = true,
+    afterSave?: () => void,
+    allowIncomplete = false
+  ): void {
     this.successMessage = '';
     this.saveError = '';
     if (!confirmWarnings) {
       this.mappingValidationWarnings = [];
     }
 
-    if (this.missingRequiredTargetFields.length > 0) {
+    if (!allowIncomplete && this.missingRequiredTargetFields.length > 0) {
       this.activeBottomTab = 'warnings';
       this.requiredFieldsPopupMessage = `Zorunlu alanlar boş bırakılamaz: ${this.missingRequiredTargetFields
         .map(field => this.getTargetFieldLabel(field))
@@ -610,13 +626,13 @@ export class VisualMappingPageComponent implements OnInit {
       return;
     }
 
-    if (this.mappingDefinitions.length === 0) {
+    if (!allowIncomplete && this.mappingDefinitions.length === 0) {
       this.saveError = 'Devam etmeden önce en az bir alan eşleştirmesi yapın.';
       return;
     }
 
     const clientWarnings = this.getMappingTypeWarnings();
-    if (clientWarnings.length > 0 && !confirmWarnings) {
+    if (!allowIncomplete && clientWarnings.length > 0 && !confirmWarnings) {
       this.mappingValidationWarnings = clientWarnings;
       this.activeBottomTab = 'warnings';
       this.changeDetector.detectChanges();
@@ -625,7 +641,11 @@ export class VisualMappingPageComponent implements OnInit {
 
     this.isSaving = true;
 
-    this.mappingApi.saveMappings(this.mappingId, { mappings: this.mappingDefinitions, confirmWarnings })
+    this.mappingApi.saveMappings(this.mappingId, {
+      mappings: this.mappingDefinitions,
+      confirmWarnings,
+      allowIncomplete
+    })
       .pipe(finalize(() => {
         this.isSaving = false;
         this.changeDetector.detectChanges();
@@ -641,8 +661,14 @@ export class VisualMappingPageComponent implements OnInit {
           }
 
           this.mappingDefinitions = response.mappings;
+          this.savedMappingsSnapshot = JSON.stringify(response.mappings);
+          this.isNewMappingSession = false;
           this.successMessage = 'Alan eşleştirmeleri kaydedildi.';
-          void this.router.navigate(['/mappings', this.mappingId, 'test']);
+          afterSave?.();
+          if (navigateAfterSave) {
+            this.allowNavigation = true;
+            void this.router.navigate(['/mappings', this.mappingId, 'test']);
+          }
           this.changeDetector.detectChanges();
         },
         error: (error: unknown) => {
@@ -671,6 +697,76 @@ export class VisualMappingPageComponent implements OnInit {
   protected continueDespiteMappingWarnings(): void {
     this.mappingValidationWarnings = [];
     this.saveMappings(true);
+  }
+
+  canLeavePage(): boolean | Promise<boolean> {
+    if (this.allowNavigation || (!this.hasUnsavedMappingChanges && !this.isNewMappingSession)) {
+      return true;
+    }
+
+    this.isExitDialogOpen = true;
+    return new Promise<boolean>(resolve => {
+      this.exitDecisionResolver = resolve;
+    });
+  }
+
+  protected saveMappingsAndLeave(): void {
+    this.saveError = '';
+
+    if (!this.hasUnsavedMappingChanges) {
+      this.isNewMappingSession = false;
+      this.allowNavigation = true;
+      this.closeExitDialog(true);
+      return;
+    }
+
+    this.saveMappings(true, false, () => {
+      this.allowNavigation = true;
+      this.closeExitDialog(true);
+    }, true);
+  }
+
+  protected discardMappingChangesAndLeave(): void {
+    if (!this.isNewMappingSession) {
+      this.allowNavigation = true;
+      this.closeExitDialog(true);
+      return;
+    }
+
+    this.isDiscarding = true;
+    this.mappingApi.deleteMapping(this.mappingId)
+      .pipe(finalize(() => {
+        this.isDiscarding = false;
+        this.changeDetector.detectChanges();
+      }))
+      .subscribe({
+        next: () => {
+          this.allowNavigation = true;
+          this.closeExitDialog(true);
+        },
+        error: (error: unknown) => {
+          this.saveError = this.getErrorMessage(error, 'Kaydedilmemiş mapping kaydı silinemedi.');
+          this.closeExitDialog(false);
+        }
+      });
+  }
+
+  protected stayOnMappingPage(): void {
+    this.closeExitDialog(false);
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  protected warnBeforeBrowserUnload(event: BeforeUnloadEvent): void {
+    if (!this.allowNavigation && (this.hasUnsavedMappingChanges || this.isNewMappingSession)) {
+      event.preventDefault();
+    }
+  }
+
+  private closeExitDialog(canLeave: boolean): void {
+    this.isExitDialogOpen = false;
+    const resolver = this.exitDecisionResolver;
+    this.exitDecisionResolver = undefined;
+    resolver?.(canLeave);
   }
 
   protected setActiveBottomTab(tab: BottomPanelTab): void {
@@ -911,6 +1007,7 @@ export class VisualMappingPageComponent implements OnInit {
         next: (mapping) => {
           this.mapping = mapping;
           this.mappingDefinitions = mapping.mappingDefinitions ?? [];
+          this.savedMappingsSnapshot = JSON.stringify(this.mappingDefinitions);
 
           if (!mapping.sourceSchema) {
             this.loadError = 'Önce kaynak veri tanımlanmalıdır.';

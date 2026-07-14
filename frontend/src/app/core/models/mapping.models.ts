@@ -1,6 +1,6 @@
 export type MappingSourceType = 'file' | 'excel' | 'txt' | 'json' | 'xml' | 'api' | 'database' | 'manual';
 export type MappingTargetType = 'json' | 'xml' | 'api' | 'database' | 'file';
-export type MappingStatus = 'draft' | 'completed';
+export type MappingStatus = 'draft' | 'in_progress' | 'completed';
 export type MappingPatternType = 'maas' | 'tos' | 'mtv' | 'vergi_mtv' | 'vergi_gumruk' | 'vergi_toplu';
 export type SourceFieldType = 'text' | 'number' | 'date' | 'boolean' | 'object' | 'array';
 export type MappingTransformType = 'direct' | 'concat' | 'constant' | 'dateFormat' | 'uppercase' | 'lowercase' | 'trim';
@@ -131,6 +131,7 @@ export interface SaveTargetSchemaResponse {
 export interface SaveMappingsRequest {
   mappings: MappingDefinition[];
   confirmWarnings?: boolean;
+  allowIncomplete?: boolean;
 }
 
 export interface SaveMappingsResponse {

@@ -71,6 +71,42 @@ body * {
   display: block;
 }
 
+.app-home-link {
+  position: fixed;
+  z-index: 40;
+  top: 22px;
+  left: 28px;
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #000000;
+  border-radius: 999px;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-size: .88rem;
+  font-weight: 800;
+  padding: 9px 14px;
+  text-decoration: none;
+  box-shadow: 0 3px 12px rgb(0 0 0 / 14%);
+}
+
+.app-home-link:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+.app-home-link:hover * {
+  color: #ffffff !important;
+}
+
+@media (max-width: 560px) {
+  .app-home-link {
+    top: 16px;
+    left: 16px;
+  }
+}
+
 main,
 .create-page,
 .source-page,
