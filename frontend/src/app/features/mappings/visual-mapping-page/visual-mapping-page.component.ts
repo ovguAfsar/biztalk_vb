@@ -80,6 +80,7 @@ export class VisualMappingPageComponent implements OnInit {
   protected activeBottomTab: BottomPanelTab = 'properties';
   protected isLoading = true;
   protected isSaving = false;
+  protected isMarkingTemplate = false;
   protected loadError = '';
   protected saveError = '';
   protected successMessage = '';
@@ -98,6 +99,7 @@ export class VisualMappingPageComponent implements OnInit {
   private savedMappingsSnapshot = '[]';
   private allowNavigation = false;
   private isNewMappingSession = false;
+  protected isTemplateSavePending = false;
   private exitDecisionResolver?: (canLeave: boolean) => void;
 
   ngOnInit(): void {
@@ -686,17 +688,79 @@ export class VisualMappingPageComponent implements OnInit {
     this.saveMappings();
   }
 
+  protected markAsTemplate(): void {
+    if (!this.mapping || this.mapping.sourceTemplateId || this.mapping.isTemplate || this.isMarkingTemplate) {
+      return;
+    }
+
+    this.isTemplateSavePending = true;
+    this.saveMappings(false, false, () => {
+      this.persistAsTemplate();
+    });
+  }
+
+  private persistAsTemplate(): void {
+    if (!this.mapping) {
+      return;
+    }
+
+    this.successMessage = '';
+    this.saveError = '';
+    this.isMarkingTemplate = true;
+    this.mappingApi.updateMapping(this.mappingId, {
+      name: this.mapping.name,
+      description: this.mapping.description,
+      institution: this.mapping.institution,
+      sourceType: this.mapping.sourceType,
+      targetType: this.mapping.targetType,
+      patternType: this.mapping.patternType,
+      patternSettings: this.mapping.patternSettings,
+      status: this.mapping.status,
+      isTemplate: true
+    })
+      .pipe(finalize(() => {
+        this.isMarkingTemplate = false;
+        this.changeDetector.detectChanges();
+      }))
+      .subscribe({
+        next: (mapping) => {
+          this.mapping = mapping;
+          this.isTemplateSavePending = false;
+          this.successMessage = 'Mapping şablon olarak kaydedildi. Yeni mapping oluştururken seçilebilir.';
+        },
+        error: (error: unknown) => {
+          this.saveError = this.getErrorMessage(error, 'Mapping şablon olarak kaydedilemedi.');
+        }
+      });
+  }
+
   protected closeRequiredFieldsPopup(): void {
     this.requiredFieldsPopupMessage = '';
+    this.isTemplateSavePending = false;
   }
 
   protected closeMappingValidationWarnings(): void {
     this.mappingValidationWarnings = [];
+    this.isTemplateSavePending = false;
   }
 
   protected continueDespiteMappingWarnings(): void {
     this.mappingValidationWarnings = [];
+    if (this.isTemplateSavePending) {
+      this.saveMappings(true, false, () => {
+        this.persistAsTemplate();
+      });
+      return;
+    }
+
     this.saveMappings(true);
+  }
+
+  protected saveIncompleteAsTemplate(): void {
+    this.requiredFieldsPopupMessage = '';
+    this.saveMappings(true, false, () => {
+      this.persistAsTemplate();
+    }, true);
   }
 
   canLeavePage(): boolean | Promise<boolean> {

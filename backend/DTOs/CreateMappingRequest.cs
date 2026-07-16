@@ -10,6 +10,8 @@ public sealed class CreateMappingRequest
 
     public string? TemplateMappingId { get; init; }
 
+    public bool IsTemplate { get; init; }
+
     public string? SourceType { get; init; }
 
     public string? TargetType { get; init; }

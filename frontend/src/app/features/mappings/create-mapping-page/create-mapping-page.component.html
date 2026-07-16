@@ -29,16 +29,22 @@
             [disabled]="isMappingsLoading"
           >
             <option value="">Şablonsuz / Sıfırdan oluştur</option>
-            <option *ngFor="let mapping of mappings" [value]="mapping.id">
+            <option *ngFor="let mapping of templateMappings" [value]="mapping.id">
               {{ mapping.name }}{{ mapping.institution ? ' — ' + mapping.institution : '' }}
+              ({{ getTemplateSourceTypeLabel(mapping.sourceType) }})
             </option>
           </select>
         </div>
+        <p class="template-empty-state" *ngIf="!isMappingsLoading && templateMappings.length === 0">
+          Henüz şablon olarak kaydedilmiş bir mapping bulunmuyor. Yeni bir mapping oluşturup canvas ekranından
+          şablon olarak kaydedebilirsiniz.
+        </p>
         <div class="template-summary" *ngIf="selectedTemplate">
           <span>Seçilen şablon</span>
           <strong>{{ selectedTemplate.name }}</strong>
           <small>
             {{ selectedTemplate.institution || 'Kurum belirtilmemiş' }} ·
+            {{ getTemplateSourceTypeLabel(selectedTemplate.sourceType) }} ·
             {{ getPatternTypeLabel(selectedTemplate.patternType) }} ·
             {{ selectedTemplate.mappingDefinitions?.length || 0 }} eşleme
           </small>

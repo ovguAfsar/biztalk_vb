@@ -8,6 +8,8 @@ public sealed class UpdateMappingRequest
 
     public string? Institution { get; init; }
 
+    public bool? IsTemplate { get; init; }
+
     public string? SourceType { get; init; }
 
     public string? TargetType { get; init; }
