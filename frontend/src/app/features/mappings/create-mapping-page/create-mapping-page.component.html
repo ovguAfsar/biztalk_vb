@@ -8,6 +8,45 @@
     <p class="loading-message" *ngIf="isMappingsLoading">Mapping bilgileri yükleniyor...</p>
 
     <form class="mapping-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
+      <section class="template-section" *ngIf="!isEditingMapping" aria-labelledby="template-section-title">
+        <header class="template-section__header">
+          <span class="template-section__icon" aria-hidden="true">↗</span>
+          <div>
+            <h2 id="template-section-title">Şablon Seç</h2>
+            <p>Önceki bir mapping'in kurallarını yeni çalışma için başlangıç noktası olarak kullanın.</p>
+          </div>
+          <span class="template-section__optional">Opsiyonel</span>
+        </header>
+        <div class="template-select-row">
+          <div>
+            <strong>Kayıtlı bir mapping'i yeniden kullan</strong>
+            <p>Kaynak alan yapısı, pozisyonlar, hedef şema, eşlemeler ve transform tipleri yeni mapping'e kopyalanır.</p>
+          </div>
+          <select
+            id="mapping-template"
+            [value]="selectedTemplate?.id ?? ''"
+            (change)="selectTemplate($event)"
+            [disabled]="isMappingsLoading"
+          >
+            <option value="">Şablonsuz / Sıfırdan oluştur</option>
+            <option *ngFor="let mapping of mappings" [value]="mapping.id">
+              {{ mapping.name }}{{ mapping.institution ? ' — ' + mapping.institution : '' }}
+            </option>
+          </select>
+        </div>
+        <div class="template-summary" *ngIf="selectedTemplate">
+          <span>Seçilen şablon</span>
+          <strong>{{ selectedTemplate.name }}</strong>
+          <small>
+            {{ selectedTemplate.institution || 'Kurum belirtilmemiş' }} ·
+            {{ getPatternTypeLabel(selectedTemplate.patternType) }} ·
+            {{ selectedTemplate.mappingDefinitions?.length || 0 }} eşleme
+          </small>
+          <p>Şablon kaydı değiştirilmeyecek; kaydettiğinizde yeni bir mapping oluşturulacak.</p>
+        </div>
+        <p class="validation-message" *ngIf="mappingsError">{{ mappingsError }}</p>
+      </section>
+
       <div class="form-grid">
         <div class="field">
           <label for="mapping-name">Mapping Adı</label>
@@ -19,6 +58,17 @@
             [class.field__control--invalid]="nameInvalid"
           >
           <p class="validation-message" *ngIf="nameInvalid">Mapping adı zorunludur.</p>
+        </div>
+
+        <div class="field">
+          <label for="mapping-institution">Kurum <span class="optional-label">Opsiyonel</span></label>
+          <input
+            id="mapping-institution"
+            type="text"
+            formControlName="institution"
+            autocomplete="organization"
+            placeholder="Örn. Turkcell, VakıfBank"
+          >
         </div>
 
         <div class="field">
@@ -40,6 +90,8 @@
             <select
               id="mapping-pattern-type"
               formControlName="patternType"
+              [attr.aria-readonly]="selectedTemplate ? 'true' : null"
+              [attr.disabled]="selectedTemplate ? true : null"
               [class.field__control--invalid]="patternTypeInvalid"
             >
               <option value="" disabled>Seçiniz</option>
@@ -54,6 +106,9 @@
             </select>
           </div>
         </div>
+        <p class="template-pattern-note" *ngIf="selectedTemplate">
+          Desen türü seçilen şablondan alınmıştır.
+        </p>
         <p class="validation-message" *ngIf="patternTypeInvalid">Dosya deseni seçimi zorunludur.</p>
       </fieldset>
 
@@ -169,6 +224,13 @@
           </span>
         </label>
         <p class="validation-message" *ngIf="sourceFileError">{{ sourceFileError }}</p>
+        <div class="template-compatibility-warning" *ngIf="templateCompatibilityWarning" role="alert">
+          <span class="template-compatibility-warning__icon" aria-hidden="true">!</span>
+          <div>
+            <strong>Şablon ve dosya formatı uyumsuz</strong>
+            <p>{{ templateCompatibilityWarning }}</p>
+          </div>
+        </div>
       </fieldset>
 
       <div class="feedback" aria-live="polite">

@@ -72,6 +72,7 @@ public sealed class MappingsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(MappingResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MappingResponse>> Create(
         [FromBody] CreateMappingRequest? request,
         CancellationToken cancellationToken)
@@ -87,6 +88,14 @@ public sealed class MappingsController : ControllerBase
             {
                 Status = StatusCodes.Status400BadRequest,
                 Title = "Mapping bilgileri gecersiz."
+            });
+        }
+        catch (MappingNotFoundException)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Secilen sablon mapping bulunamadi."
             });
         }
     }

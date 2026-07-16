@@ -16,6 +16,9 @@ public sealed class MappingDocument
     [BsonElement("description")]
     public string? Description { get; init; }
 
+    [BsonElement("institution")]
+    public string? Institution { get; init; }
+
     [BsonElement("sourceType")]
     public required string SourceType { get; init; }
 

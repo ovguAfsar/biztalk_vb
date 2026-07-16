@@ -16,6 +16,7 @@ public interface IMappingRepository
         string id,
         string name,
         string? description,
+        string? institution,
         string sourceType,
         string targetType,
         string patternType,

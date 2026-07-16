@@ -9,6 +9,8 @@ export type TargetFieldAlign = 'left' | 'right';
 export interface MappingCreateRequest {
   name: string;
   description?: string;
+  institution?: string;
+  templateMappingId?: string;
   sourceType: MappingSourceType;
   targetType: MappingTargetType;
   patternType?: MappingPatternType;
@@ -85,6 +87,7 @@ export interface MappingCreateResponse {
   id: string;
   name: string;
   description?: string;
+  institution?: string;
   sourceType: MappingSourceType;
   targetType: MappingTargetType;
   patternType: MappingPatternType;

@@ -71,6 +71,7 @@ public sealed class MappingRepository : IMappingRepository
         string id,
         string name,
         string? description,
+        string? institution,
         string sourceType,
         string targetType,
         string patternType,
@@ -83,6 +84,7 @@ public sealed class MappingRepository : IMappingRepository
         var update = Builders<MappingDocument>.Update
             .Set(mapping => mapping.Name, name)
             .Set(mapping => mapping.Description, description)
+            .Set(mapping => mapping.Institution, institution)
             .Set(mapping => mapping.SourceType, sourceType)
             .Set(mapping => mapping.TargetType, targetType)
             .Set(mapping => mapping.PatternType, patternType)

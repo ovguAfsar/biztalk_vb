@@ -34,6 +34,7 @@ export class DashboardPageComponent implements OnInit {
         || normalizedPattern === this.selectedPatternFilter;
       const matchesSearch = !searchTerm || [
         mapping.name,
+        mapping.institution ?? '',
         mapping.description ?? '',
         this.getStatusLabel(mapping.status)
       ].join(' ').toLocaleLowerCase('tr-TR').includes(searchTerm);
