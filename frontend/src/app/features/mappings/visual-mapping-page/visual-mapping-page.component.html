@@ -124,37 +124,51 @@
                   orient="auto"
                   markerUnits="strokeWidth"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" class="connection-arrowhead" />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#000000" />
+                </marker>
+                <marker
+                  id="connection-arrow-highlighted"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="5"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#fcbd00" />
+                </marker>
+                <marker
+                  id="connection-arrow-dimmed"
+                  markerWidth="10"
+                  markerHeight="10"
+                  refX="9"
+                  refY="5"
+                  orient="auto"
+                  markerUnits="strokeWidth"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#c7cdd6" />
                 </marker>
               </defs>
 
               <ng-container *ngFor="let mappingDefinition of mappingDefinitions">
-                <line
+                <path
                   class="connection-line"
                   *ngFor="let sourceField of getConnectionSourceFields(mappingDefinition)"
-                  [attr.x1]="getSourcePortX(sourceField)"
-                  [attr.y1]="getSourceLineY(sourceField)"
-                  [attr.x2]="functionInputX"
-                  [attr.y2]="getConnectionLabelY(mappingDefinition)"
+                  [class.connection-line--highlighted]="isMappingHighlighted(mappingDefinition.targetField)"
+                  [class.connection-line--dimmed]="isMappingDimmed(mappingDefinition.targetField)"
+                  [style.marker-end]="'url(#' + getMarkerId(mappingDefinition.targetField) + ')'"
+                  [attr.d]="getConnectionPath(sourceField, mappingDefinition)"
                 />
+                <g
+                  class="connection-function"
+                  [class.connection-function--highlighted]="isMappingHighlighted(mappingDefinition.targetField)"
+                  [class.connection-function--dimmed]="isMappingDimmed(mappingDefinition.targetField)"
+                  [attr.transform]="'translate(' + getConnectionLabelX(mappingDefinition) + ' ' + getConnectionLabelY(mappingDefinition) + ')'"
+                >
+                  <rect x="-34" y="-13" width="68" height="26" rx="6" />
+                  <text text-anchor="middle" y="4">{{ getFunctionNodeLabel(mappingDefinition) }}</text>
+                </g>
               </ng-container>
-              <line
-                class="connection-line connection-line--arrow"
-                *ngFor="let mappingDefinition of mappingDefinitions"
-                [attr.x1]="functionOutputX"
-                [attr.y1]="getConnectionLabelY(mappingDefinition)"
-                [attr.x2]="getTargetPortX(mappingDefinition.targetField)"
-                [attr.y2]="getTargetLineY(mappingDefinition.targetField)"
-              />
-
-              <g
-                class="connection-function"
-                *ngFor="let mappingDefinition of mappingDefinitions"
-                [attr.transform]="'translate(500 ' + getConnectionLabelY(mappingDefinition) + ')'"
-              >
-                <rect x="-48" y="-18" width="96" height="36" rx="8" />
-                <text text-anchor="middle" y="5">{{ getFunctionNodeLabel(mappingDefinition) }}</text>
-              </g>
 
               <line
                 class="connection-line connection-line--preview"
@@ -181,6 +195,8 @@
                 [class.canvas-node--selected]="selectedSourceField === field.name"
                 [attr.title]="getSourceUsageLabel(field.name)"
                 (click)="selectSourceField(field.name)"
+                (mouseenter)="setHoveredSourceField(field.name)"
+                (mouseleave)="clearHoveredMapping()"
               >
                 <span class="canvas-node__content">
                   <span class="canvas-node__label">{{ getCanvasFieldName(field) }}</span>
@@ -223,6 +239,8 @@
                     [class.canvas-node--mapped]="isTargetMapped(field.name)"
                     [class.canvas-node--required-missing]="isRequiredTargetUnmapped(field.name)"
                     (click)="selectTargetField(field.name)"
+                    (mouseenter)="setHoveredTargetField(field.name)"
+                    (mouseleave)="clearHoveredMapping()"
                     (dragenter)="enterTargetDropZone($event, field.name)"
                     (dragover)="enterTargetDropZone($event, field.name)"
                     (drop)="dropOnTarget($event, field.name)"
@@ -286,6 +304,8 @@
                     [class.canvas-node--selected]="selectedTargetField === field.name"
                     [class.canvas-node--mapped]="isTargetMapped(field.name)"
                     (click)="selectTargetField(field.name)"
+                    (mouseenter)="setHoveredTargetField(field.name)"
+                    (mouseleave)="clearHoveredMapping()"
                     (dragenter)="enterTargetDropZone($event, field.name)"
                     (dragover)="enterTargetDropZone($event, field.name)"
                     (drop)="dropOnTarget($event, field.name)"
@@ -340,7 +360,13 @@
               İlk eşleştirmeyi oluşturmak için kaynak alanı hedef alanın üzerine bırakın ve bağlama türünü seçin.
             </p>
 
-            <div class="mapping-row" *ngFor="let mappingDefinition of mappingDefinitions">
+            <div
+              class="mapping-row"
+              *ngFor="let mappingDefinition of mappingDefinitions"
+              [class.mapping-row--highlighted]="isMappingHighlighted(mappingDefinition.targetField)"
+              (mouseenter)="setHoveredMapping(mappingDefinition.targetField)"
+              (mouseleave)="clearHoveredMapping()"
+            >
               <span>{{ getMappingSourceLabel(mappingDefinition) }}</span>
               <span class="mapping-row__arrow">→</span>
               <span>{{ getTargetLabelByName(mappingDefinition.targetField) }}</span>

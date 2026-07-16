@@ -459,16 +459,25 @@
 }
 
 .connection-line {
+  fill: none;
   stroke: #000000;
   stroke-linecap: round;
   stroke-width: 3;
+  transition: stroke 140ms ease, stroke-width 140ms ease, opacity 140ms ease;
 }
 
-.connection-line--arrow {
-  marker-end: url("#connection-arrow");
+.connection-line--highlighted {
+  stroke: #fcbd00 !important;
+  stroke-width: 4.5;
+}
+
+.connection-line--dimmed {
+  stroke: #c7cdd6 !important;
+  opacity: 0.45;
 }
 
 .connection-line--preview {
+  fill: none;
   stroke: #000000;
   stroke-dasharray: 10 8;
   stroke-width: 4;
@@ -480,24 +489,30 @@
   stroke-width: 3;
 }
 
-.connection-arrowhead {
-  fill: #000000;
-}
-
 .connection-function rect {
   fill: #ffffff;
   stroke: #000000;
   stroke-width: 2;
+  transition: stroke 140ms ease;
 }
 
 .connection-function text {
   fill: #000000;
-  font-size: 20px;
+  font-size: 12px;
   font-weight: 760;
   paint-order: stroke;
   stroke: #ffffff;
   stroke-linejoin: round;
-  stroke-width: 4px;
+  stroke-width: 3px;
+}
+
+.connection-function--highlighted rect {
+  stroke: #fcbd00 !important;
+  stroke-width: 3;
+}
+
+.connection-function--dimmed {
+  opacity: 0.45;
 }
 
 .canvas-column {
@@ -792,6 +807,12 @@
   font-size: 0.85rem;
   font-weight: 650;
   padding: 8px 10px;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.mapping-row--highlighted {
+  border-color: #fcbd00;
+  background: #fff7df;
 }
 
 .mapping-row span {

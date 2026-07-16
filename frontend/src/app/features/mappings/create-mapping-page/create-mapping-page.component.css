@@ -783,33 +783,50 @@
   gap: 10px;
 }
 
-.primary-action {
+.form-actions .primary-action {
   min-width: 148px;
-  border: 0;
+  border: 2px solid #000 !important;
   border-radius: 8px;
-  background: #fcbd00;
-  color: #ffffff;
+  background: #fff !important;
+  color: #000000 !important;
   cursor: pointer;
-  font-weight: 760;
+  font-weight: 780;
   padding: 13px 20px;
-  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  box-shadow: none !important;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
-.primary-action:hover:not(:disabled) {
-  background: #e5a900;
-  box-shadow: 0 12px 24px rgb(252 189 0 / 22%);
+.form-actions .primary-action * {
+  color: #000000 !important;
+}
+
+.form-actions .primary-action:hover:not(:disabled) {
+  border-color: #000 !important;
+  background: #000 !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 24px rgb(0 0 0 / 18%) !important;
   transform: translateY(-1px);
 }
 
-.primary-action:focus-visible {
-  outline: 3px solid rgb(252 189 0 / 24%);
+.form-actions .primary-action:hover:not(:disabled) * {
+  color: #ffffff !important;
+}
+
+.form-actions .primary-action:focus-visible {
+  outline: 3px solid rgb(0 0 0 / 24%);
   outline-offset: 2px;
 }
 
-.primary-action:disabled {
+.form-actions .primary-action:disabled {
   cursor: not-allowed;
-  background: #9ca8ba;
-  box-shadow: none;
+  border-color: #9ca8ba !important;
+  background: #fff !important;
+  color: #9ca8ba !important;
+  box-shadow: none !important;
+}
+
+.form-actions .primary-action:disabled * {
+  color: #9ca8ba !important;
 }
 
 @media (max-width: 900px) {

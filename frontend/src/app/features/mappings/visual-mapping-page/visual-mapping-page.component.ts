@@ -47,8 +47,6 @@ export class VisualMappingPageComponent implements OnInit {
   private readonly mappingApi = inject(MappingApiService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   protected readonly sourcePortX = 204;
-  protected readonly functionInputX = 452;
-  protected readonly functionOutputX = 548;
   protected readonly targetPortX = 786;
   private readonly sourceFirstPortY = 93;
   private readonly sourcePortStepY = 72;
@@ -96,6 +94,7 @@ export class VisualMappingPageComponent implements OnInit {
   protected isSavingFixedWidthPositions = false;
   protected isExitDialogOpen = false;
   protected isDiscarding = false;
+  protected hoveredMappingTargetFields: string[] = [];
   private savedMappingsSnapshot = '[]';
   private allowNavigation = false;
   private isNewMappingSession = false;
@@ -1023,13 +1022,66 @@ export class VisualMappingPageComponent implements OnInit {
     return this.getPortCenter('.connector-port--target', targetField)?.x ?? this.targetPortX;
   }
 
-  protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
-    const sourceFields = this.getConnectionSourceFields(mappingDefinition);
-    const sourceAverageY = sourceFields.length > 0
-      ? sourceFields.reduce((total, sourceField) => total + this.getSourceLineY(sourceField), 0) / sourceFields.length
-      : this.getSourceLineY(mappingDefinition.sourceField);
+  protected getConnectionPath(sourceField: string, mappingDefinition: MappingDefinition): string {
+    return this.buildCurvePath(
+      this.getSourcePortX(sourceField),
+      this.getSourceLineY(sourceField),
+      this.getTargetPortX(mappingDefinition.targetField),
+      this.getTargetLineY(mappingDefinition.targetField)
+    );
+  }
 
-    return (sourceAverageY + this.getTargetLineY(mappingDefinition.targetField)) / 2 - 8;
+  protected getConnectionLabelX(mappingDefinition: MappingDefinition): number {
+    return this.getTargetPortX(mappingDefinition.targetField) - 84;
+  }
+
+  protected getConnectionLabelY(mappingDefinition: MappingDefinition): number {
+    return this.getTargetLineY(mappingDefinition.targetField);
+  }
+
+  protected getMarkerId(targetField: string): string {
+    if (this.isMappingHighlighted(targetField)) {
+      return 'connection-arrow-highlighted';
+    }
+
+    if (this.isMappingDimmed(targetField)) {
+      return 'connection-arrow-dimmed';
+    }
+
+    return 'connection-arrow';
+  }
+
+  protected isMappingHighlighted(targetField: string): boolean {
+    return this.hoveredMappingTargetFields.includes(targetField);
+  }
+
+  protected isMappingDimmed(targetField: string): boolean {
+    return this.hoveredMappingTargetFields.length > 0 && !this.hoveredMappingTargetFields.includes(targetField);
+  }
+
+  protected setHoveredMapping(targetField: string): void {
+    this.hoveredMappingTargetFields = [targetField];
+  }
+
+  protected setHoveredSourceField(sourceFieldName: string): void {
+    this.hoveredMappingTargetFields = this.mappingDefinitions
+      .filter(mapping => this.getConnectionSourceFields(mapping).includes(sourceFieldName))
+      .map(mapping => mapping.targetField);
+  }
+
+  protected setHoveredTargetField(targetFieldName: string): void {
+    this.hoveredMappingTargetFields = this.mappingDefinitions.some(mapping => mapping.targetField === targetFieldName)
+      ? [targetFieldName]
+      : [];
+  }
+
+  protected clearHoveredMapping(): void {
+    this.hoveredMappingTargetFields = [];
+  }
+
+  private buildCurvePath(x1: number, y1: number, x2: number, y2: number): string {
+    const midX = (x1 + x2) / 2;
+    return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
   }
 
   protected getFunctionNodeLabel(mappingDefinition: MappingDefinition): string {
