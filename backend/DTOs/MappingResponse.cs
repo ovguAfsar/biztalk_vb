@@ -8,6 +8,8 @@ public sealed class MappingResponse
 
     public string? Description { get; init; }
 
+    public string? Institution { get; init; }
+
     public required string SourceType { get; init; }
 
     public required string TargetType { get; init; }

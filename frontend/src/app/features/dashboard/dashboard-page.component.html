@@ -30,7 +30,7 @@
           <input
             id="dashboard-mapping-search"
             type="search"
-            placeholder="Mapping adı, açıklama veya durum ara..."
+            placeholder="Mapping adı, kurum, açıklama veya durum ara..."
             [value]="mappingSearchTerm"
             (input)="updateMappingSearchTerm($event)"
           >
@@ -67,6 +67,7 @@
           <thead>
             <tr>
               <th>Mapping Adı</th>
+              <th>Kurum</th>
               <th>Durum</th>
               <th>Son Güncelleme</th>
               <th><span class="visually-hidden">İşlemler</span></th>
@@ -82,6 +83,12 @@
                     <small *ngIf="mapping.description">{{ mapping.description }}</small>
                   </span>
                 </a>
+              </td>
+              <td>
+                <span class="institution-name" *ngIf="mapping.institution; else noInstitution">
+                  {{ mapping.institution }}
+                </span>
+                <ng-template #noInstitution><span class="institution-empty">—</span></ng-template>
               </td>
               <td>
                 <span

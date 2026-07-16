@@ -1186,13 +1186,26 @@ export class VisualMappingPageComponent implements OnInit {
     );
 
     return (mapping.targetSchema?.fields ?? [])
-      .filter(field => !positionedSourceFieldNames.has(field.name.trim().toLowerCase()));
+      .filter(field => {
+        const normalizedTargetFieldName = field.name.trim().toLowerCase();
+        const mappedSourceFieldName = mapping.mappingDefinitions
+          ?.find(definition => definition.targetField.trim().toLowerCase() === normalizedTargetFieldName)
+          ?.sourceField
+          .trim()
+          .toLowerCase();
+        return !positionedSourceFieldNames.has(mappedSourceFieldName ?? normalizedTargetFieldName);
+      });
   }
 
   private getFixedWidthSourceFieldForTarget(mapping: MappingDetailsResponse, targetFieldName: string): SourceField | undefined {
     const normalizedTargetFieldName = targetFieldName.trim().toLowerCase();
+    const mappedSourceFieldName = mapping.mappingDefinitions
+      ?.find(definition => definition.targetField.trim().toLowerCase() === normalizedTargetFieldName)
+      ?.sourceField;
+    const normalizedSourceFieldName = mappedSourceFieldName?.trim().toLowerCase() ?? normalizedTargetFieldName;
+
     return (mapping.sourceSchema?.fields ?? [])
-      .find(field => field.name.trim().toLowerCase() === normalizedTargetFieldName);
+      .find(field => field.name.trim().toLowerCase() === normalizedSourceFieldName);
   }
 
   private setActiveDragTarget(fieldName: string): void {

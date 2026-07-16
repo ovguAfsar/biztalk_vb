@@ -6,6 +6,10 @@ public sealed class CreateMappingRequest
 
     public string? Description { get; init; }
 
+    public string? Institution { get; init; }
+
+    public string? TemplateMappingId { get; init; }
+
     public string? SourceType { get; init; }
 
     public string? TargetType { get; init; }

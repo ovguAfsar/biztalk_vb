@@ -113,17 +113,36 @@ public sealed class MappingService : IMappingService
         }
 
         var validRequest = request!;
+        MappingDocument? template = null;
+        if (!string.IsNullOrWhiteSpace(validRequest.TemplateMappingId))
+        {
+            ValidateMappingId(validRequest.TemplateMappingId);
+            template = await _mappingRepository.GetByIdAsync(validRequest.TemplateMappingId, cancellationToken);
+            if (template is null)
+            {
+                throw new MappingNotFoundException(validRequest.TemplateMappingId);
+            }
+        }
+
         var now = DateTime.UtcNow;
         var mapping = new MappingDocument
         {
             Id = ObjectId.GenerateNewId().ToString(),
             Name = validRequest.Name!.Trim(),
             Description = string.IsNullOrWhiteSpace(validRequest.Description) ? null : validRequest.Description.Trim(),
+            Institution = NormalizeOptionalString(validRequest.Institution),
             SourceType = validRequest.SourceType!.Trim().ToLowerInvariant(),
             TargetType = validRequest.TargetType!.Trim().ToLowerInvariant(),
-            PatternType = NormalizePatternType(validRequest.PatternType),
-            PatternSettings = ToPatternSettingsDocument(validRequest.PatternSettings),
+            PatternType = template is null
+                ? NormalizePatternType(validRequest.PatternType)
+                : NormalizePatternType(template.PatternType),
+            PatternSettings = validRequest.PatternSettings is null
+                ? ClonePatternSettings(template?.PatternSettings)
+                : ToPatternSettingsDocument(validRequest.PatternSettings),
             Status = DraftStatus,
+            SourceSchema = CloneSourceSchemaStructure(template?.SourceSchema),
+            TargetSchema = CloneTargetSchema(template?.TargetSchema),
+            MappingDefinitions = CloneMappingDefinitions(template?.MappingDefinitions),
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -196,6 +215,7 @@ public sealed class MappingService : IMappingService
             id,
             validRequest.Name!.Trim(),
             string.IsNullOrWhiteSpace(validRequest.Description) ? null : validRequest.Description.Trim(),
+            NormalizeOptionalString(validRequest.Institution),
             validRequest.SourceType!.Trim().ToLowerInvariant(),
             validRequest.TargetType!.Trim().ToLowerInvariant(),
             patternType,
@@ -1227,6 +1247,7 @@ public sealed class MappingService : IMappingService
             Id = mapping.Id,
             Name = mapping.Name,
             Description = mapping.Description,
+            Institution = mapping.Institution,
             SourceType = mapping.SourceType,
             TargetType = mapping.TargetType,
             PatternType = NormalizePatternType(mapping.PatternType),
@@ -1388,6 +1409,96 @@ public sealed class MappingService : IMappingService
     private static bool IsVergiPattern(string patternType)
     {
         return patternType is MtvPatternType or GumrukPatternType or TopluVergiPatternType;
+    }
+
+    private static SourceSchemaDocument? CloneSourceSchemaStructure(SourceSchemaDocument? sourceSchema)
+    {
+        if (sourceSchema is null)
+        {
+            return null;
+        }
+
+        return new SourceSchemaDocument
+        {
+            SourceName = sourceSchema.SourceName,
+            Fields = sourceSchema.Fields.Select(field => new SourceFieldDocument
+            {
+                Name = field.Name,
+                DisplayName = field.DisplayName,
+                Type = field.Type,
+                Required = field.Required,
+                SampleValue = null,
+                StartPosition = field.StartPosition,
+                EndPosition = field.EndPosition,
+                Length = field.Length
+            }).ToList(),
+            Records = null
+        };
+    }
+
+    private static TargetSchemaDocument? CloneTargetSchema(TargetSchemaDocument? targetSchema)
+    {
+        if (targetSchema is null)
+        {
+            return null;
+        }
+
+        return new TargetSchemaDocument
+        {
+            TargetName = targetSchema.TargetName,
+            Fields = targetSchema.Fields.Select(field => new TargetFieldDocument
+            {
+                Name = field.Name,
+                DisplayName = field.DisplayName,
+                Type = field.Type,
+                Required = field.Required,
+                SampleValue = field.SampleValue,
+                Length = field.Length,
+                StartPosition = field.StartPosition,
+                Format = field.Format,
+                Align = field.Align,
+                PadChar = field.PadChar,
+                FixedValue = field.FixedValue,
+                RequiredForOutput = field.RequiredForOutput
+            }).ToList()
+        };
+    }
+
+    private static List<MappingDefinitionDocument>? CloneMappingDefinitions(
+        IReadOnlyList<MappingDefinitionDocument>? mappingDefinitions)
+    {
+        return mappingDefinitions?.Select(mapping => new MappingDefinitionDocument
+        {
+            SourceField = mapping.SourceField,
+            TargetField = mapping.TargetField,
+            TransformType = mapping.TransformType
+        }).ToList();
+    }
+
+    private static PatternSettingsDocument? ClonePatternSettings(PatternSettingsDocument? settings)
+    {
+        if (settings?.MtvHeader is null && settings?.TosHeader is null)
+        {
+            return null;
+        }
+
+        return new PatternSettingsDocument
+        {
+            MtvHeader = settings.MtvHeader is null ? null : new MtvHeaderSettingsDocument
+            {
+                SubeKodu = settings.MtvHeader.SubeKodu,
+                KurumKodu = settings.MtvHeader.KurumKodu,
+                DosyaTarihi = settings.MtvHeader.DosyaTarihi,
+                KurumHesapNo = settings.MtvHeader.KurumHesapNo
+            },
+            TosHeader = settings.TosHeader is null ? null : new TosHeaderSettingsDocument
+            {
+                SubeKodu = settings.TosHeader.SubeKodu,
+                KurumKodu = settings.TosHeader.KurumKodu,
+                DosyaTarihi = settings.TosHeader.DosyaTarihi,
+                KurumHesapNo = settings.TosHeader.KurumHesapNo
+            }
+        };
     }
 
     private static PatternSettingsDocument? ToPatternSettingsDocument(PatternSettingsDto? settings)

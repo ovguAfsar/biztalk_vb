@@ -38,6 +38,7 @@ export class CreateMappingPageComponent implements OnInit {
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required]],
     description: ['', [Validators.required]],
+    institution: [''],
     patternType: ['' as MappingPatternType, [Validators.required]],
     mtvSubeKodu: [''],
     mtvKurumKodu: [''],
@@ -62,6 +63,7 @@ export class CreateMappingPageComponent implements OnInit {
   protected isSourceDragActive = false;
   protected mappings: MappingDetailsResponse[] = [];
   protected selectedMapping?: MappingDetailsResponse;
+  protected selectedTemplate?: MappingDetailsResponse;
   protected isMappingsLoading = false;
   protected mappingsError = '';
   protected isMappingsPanelOpen = false;
@@ -90,7 +92,10 @@ export class CreateMappingPageComponent implements OnInit {
     const mappingId = this.route.snapshot.paramMap.get('mappingId');
     if (mappingId) {
       this.loadMappingForEditing(mappingId);
+      return;
     }
+
+    this.loadMappings();
   }
 
   protected get nameInvalid(): boolean {
@@ -159,8 +164,26 @@ export class CreateMappingPageComponent implements OnInit {
     return this.form.valid
       && !this.mtvHeaderInvalid
       && !this.tosHeaderInvalid
+      && !this.templateCompatibilityWarning
       && this.hasSourceFile
       && !this.isSubmitting;
+  }
+
+  protected get templateCompatibilityWarning(): string {
+    if (!this.selectedTemplate || !this.detectedSourceType) {
+      return '';
+    }
+
+    const templateSourceType = this.selectedTemplate.sourceType;
+    if (!this.isDetectedFileSourceType(templateSourceType)
+      || !this.isDetectedFileSourceType(this.detectedSourceType)
+      || templateSourceType === this.detectedSourceType) {
+      return '';
+    }
+
+    return `Seçilen şablon ${this.getSourceTypeLabel(templateSourceType)} formatındadır. `
+      + `Yüklenen dosya ${this.getSourceTypeLabel(this.detectedSourceType)} formatında olduğu için `
+      + 'şablondaki kaynak alan eşlemeleri kullanılamaz. Uyumlu bir dosya yükleyin veya farklı bir şablon seçin.';
   }
 
   protected get hasUnsavedChanges(): boolean {
@@ -254,6 +277,44 @@ export class CreateMappingPageComponent implements OnInit {
       });
   }
 
+  protected selectTemplate(event: Event): void {
+    const templateId = (event.target as HTMLSelectElement).value;
+    this.selectedTemplate = undefined;
+    this.errorMessage = '';
+    this.sourceFileError = '';
+    this.mappingsError = '';
+
+    if (!templateId) {
+      return;
+    }
+
+    this.isMappingsLoading = true;
+    this.mappingApi.getMappingById(templateId)
+      .pipe(finalize(() => {
+        this.isMappingsLoading = false;
+      }))
+      .subscribe({
+        next: (template) => {
+          this.selectedTemplate = template;
+          const patternType = template.patternType === 'mtv' ? 'vergi_mtv' : template.patternType;
+          this.form.patchValue({
+            patternType,
+            mtvSubeKodu: template.patternSettings?.mtvHeader?.subeKodu ?? '',
+            mtvKurumKodu: template.patternSettings?.mtvHeader?.kurumKodu ?? '',
+            mtvDosyaTarihi: template.patternSettings?.mtvHeader?.dosyaTarihi ?? this.getTodayAsYYYYMMDD(),
+            mtvKurumHesapNo: template.patternSettings?.mtvHeader?.kurumHesapNo ?? '',
+            tosSubeKodu: template.patternSettings?.tosHeader?.subeKodu ?? '',
+            tosKurumKodu: template.patternSettings?.tosHeader?.kurumKodu ?? '',
+            tosDosyaTarihi: template.patternSettings?.tosHeader?.dosyaTarihi ?? this.getTodayAsYYYYMMDD(),
+            tosKurumHesapNo: template.patternSettings?.tosHeader?.kurumHesapNo ?? ''
+          });
+        },
+        error: (error: unknown) => {
+          this.mappingsError = this.getErrorMessage(error);
+        }
+      });
+  }
+
   protected startNewMapping(): void {
     this.selectedMapping = undefined;
     this.createdMapping = undefined;
@@ -263,6 +324,7 @@ export class CreateMappingPageComponent implements OnInit {
     this.form.reset({
       name: '',
       description: '',
+      institution: '',
       patternType: '' as MappingPatternType,
       mtvSubeKodu: '',
       mtvKurumKodu: '',
@@ -278,6 +340,7 @@ export class CreateMappingPageComponent implements OnInit {
     this.detectedSourceType = '';
     this.sourceFields = [];
     this.sourceRecords = [];
+    this.selectedTemplate = undefined;
     this.isMappingsPanelOpen = false;
   }
 
@@ -397,10 +460,17 @@ export class CreateMappingPageComponent implements OnInit {
       return;
     }
 
+    if (this.templateCompatibilityWarning) {
+      this.sourceFileError = this.templateCompatibilityWarning;
+      return;
+    }
+
     const value = this.form.getRawValue();
     const request: MappingCreateRequest = {
       name: value.name.trim(),
       description: value.description.trim() || undefined,
+      institution: value.institution.trim() || undefined,
+      templateMappingId: isNewMapping ? this.selectedTemplate?.id : undefined,
       sourceType: this.detectedSourceType as MappingSourceType,
       targetType: 'json' as MappingTargetType,
       patternType: value.patternType,
@@ -424,12 +494,7 @@ export class CreateMappingPageComponent implements OnInit {
             }
         : undefined
     };
-    const sourceRequest: SaveSourceSchemaRequest = {
-      sourceName: this.getFileBaseName(this.sourceFileName),
-      sourceType: this.isDetectedFileSourceType(this.detectedSourceType) ? this.detectedSourceType : undefined,
-      fields: this.sourceFields,
-      records: this.sourceRecords
-    };
+    const sourceRequest = this.buildSourceRequest();
     let mappingId = this.selectedMapping?.id ?? '';
     const metadataRequest = this.selectedMapping
       ? this.mappingApi.updateMapping(this.selectedMapping.id, {
@@ -450,7 +515,7 @@ export class CreateMappingPageComponent implements OnInit {
         mappingId = response.id;
         return this.mappingApi.saveSourceSchema(response.id, sourceRequest);
       }))
-      .pipe(concatMap(() => this.selectedMapping?.targetSchema
+      .pipe(concatMap(() => this.createdMapping?.targetSchema
         ? of(null)
         : this.mappingApi.saveTargetSchema(
             mappingId,
@@ -577,6 +642,7 @@ export class CreateMappingPageComponent implements OnInit {
     this.form.patchValue({
       name: mapping.name,
       description: mapping.description ?? '',
+      institution: mapping.institution ?? '',
       patternType,
       mtvSubeKodu: mapping.patternSettings?.mtvHeader?.subeKodu ?? '',
       mtvKurumKodu: mapping.patternSettings?.mtvHeader?.kurumKodu ?? '',
@@ -595,6 +661,50 @@ export class CreateMappingPageComponent implements OnInit {
     this.sourceRecords = mapping.sourceSchema?.records ?? [];
     this.form.markAsPristine();
     this.isSourceDirty = false;
+  }
+
+  private buildSourceRequest(): SaveSourceSchemaRequest {
+    const templateFields = this.selectedTemplate?.sourceSchema?.fields ?? [];
+    if (!this.isFixedWidthRawSource || templateFields.length === 0) {
+      return {
+        sourceName: this.getFileBaseName(this.sourceFileName),
+        sourceType: this.isDetectedFileSourceType(this.detectedSourceType) ? this.detectedSourceType : undefined,
+        fields: this.sourceFields,
+        records: this.sourceRecords
+      };
+    }
+
+    const positionedFields = templateFields.filter(field =>
+      field.startPosition !== undefined
+      && field.endPosition !== undefined
+    );
+    const records = this.sourceRecords.map(record => {
+      const line = record['line'] ?? '';
+      return positionedFields.reduce<Record<string, string>>((parsedRecord, field) => {
+        parsedRecord[field.name] = this.readFixedWidthValue(line, field.startPosition!, field.endPosition!);
+        return parsedRecord;
+      }, { line });
+    });
+    const sampleLine = this.sourceRecords[0]?.['line'] ?? '';
+    const fields = templateFields.map(field => ({
+      ...field,
+      sampleValue: field.startPosition !== undefined && field.endPosition !== undefined
+        ? this.readFixedWidthValue(sampleLine, field.startPosition, field.endPosition)
+        : undefined
+    }));
+
+    return {
+      sourceName: this.getFileBaseName(this.sourceFileName),
+      sourceType: 'txt',
+      fields,
+      records
+    };
+  }
+
+  private readFixedWidthValue(line: string, startPosition: number, endPosition: number): string {
+    const startIndex = Math.max(startPosition - 1, 0);
+    const endIndex = Math.min(endPosition, line.length);
+    return line.substring(startIndex, endIndex).trim();
   }
 
   private toSourceFields(importedFields: SourceFieldImport[], usedFieldNames = new Set<string>()): SourceField[] {
@@ -716,6 +826,10 @@ export class CreateMappingPageComponent implements OnInit {
 
   private isDetectedFileSourceType(value: MappingSourceType | ''): value is 'excel' | 'txt' {
     return value === 'excel' || value === 'txt';
+  }
+
+  private getSourceTypeLabel(value: 'excel' | 'txt'): string {
+    return value === 'excel' ? 'Excel' : 'TXT';
   }
 
   private getErrorMessage(error: unknown): string {
