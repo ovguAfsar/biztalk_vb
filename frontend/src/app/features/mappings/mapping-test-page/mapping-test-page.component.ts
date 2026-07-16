@@ -117,6 +117,7 @@ export class MappingTestPageComponent implements OnInit {
     this.mappingApi.updateMapping(this.mappingId, {
       name: this.mapping.name,
       description: this.mapping.description,
+      institution: this.mapping.institution,
       sourceType: this.mapping.sourceType,
       targetType: this.mapping.targetType,
       patternType: this.mapping.patternType,

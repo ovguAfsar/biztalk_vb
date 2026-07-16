@@ -19,6 +19,13 @@ public sealed class MappingDocument
     [BsonElement("institution")]
     public string? Institution { get; init; }
 
+    [BsonElement("isTemplate")]
+    public bool IsTemplate { get; init; }
+
+    [BsonElement("sourceTemplateId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? SourceTemplateId { get; init; }
+
     [BsonElement("sourceType")]
     public required string SourceType { get; init; }
 

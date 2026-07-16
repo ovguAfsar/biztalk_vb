@@ -324,6 +324,18 @@
   outline: none;
 }
 
+.template-empty-state {
+  margin: 0 20px 20px;
+  border: 1px dashed #8a6a00;
+  border-radius: 8px;
+  background: #fff8df;
+  color: #5c4700;
+  font-size: .86rem;
+  font-weight: 650;
+  line-height: 1.45;
+  padding: 11px 13px;
+}
+
 .template-summary {
   display: grid;
   gap: 3px;

@@ -489,6 +489,16 @@
       <div class="form-actions">
         <button class="back-action" type="button" (click)="goBack()" [disabled]="isSaving">Geri</button>
         <div class="form-actions__right">
+          <button
+            class="template-action"
+            type="button"
+            *ngIf="mapping && !mapping.sourceTemplateId && !mapping.isTemplate"
+            (click)="markAsTemplate()"
+            [disabled]="mappingDefinitions.length === 0 || isSaving || isMarkingTemplate"
+          >
+            {{ isMarkingTemplate ? 'Şablon Kaydediliyor...' : 'Şablon Olarak Kaydet' }}
+          </button>
+          <span class="template-saved-badge" *ngIf="mapping?.isTemplate">Şablon</span>
           <button class="secondary-action" type="button" (click)="saveMappings()" [disabled]="!canSubmitMappings">
             <span *ngIf="!isSaving">Kaydet</span>
             <span *ngIf="isSaving">Kaydediliyor...</span>
@@ -597,7 +607,18 @@
       >
         <h2 id="required-fields-modal-title">Zorunlu Alanlar</h2>
         <p>{{ requiredFieldsPopupMessage }}</p>
-        <button class="primary-action" type="button" (click)="closeRequiredFieldsPopup()">Tamam</button>
+        <div class="modal-actions">
+          <button class="back-action" type="button" (click)="closeRequiredFieldsPopup()">Geri Dön ve Düzenle</button>
+          <button
+            class="template-action"
+            type="button"
+            *ngIf="isTemplateSavePending"
+            (click)="saveIncompleteAsTemplate()"
+            [disabled]="isSaving || isMarkingTemplate"
+          >
+            Eksik Haliyle Şablon Kaydet
+          </button>
+        </div>
       </section>
     </div>
 
@@ -644,7 +665,9 @@
         <div class="modal-actions">
           <button class="back-action" type="button" (click)="closeMappingValidationWarnings()">Geri Dön ve Düzenle</button>
           <button class="primary-action" type="button" (click)="continueDespiteMappingWarnings()" [disabled]="isSaving">
-            <span *ngIf="!isSaving">Yine de Devam Et</span>
+            <span *ngIf="!isSaving">
+              {{ isTemplateSavePending ? 'Uyarılara Rağmen Şablon Kaydet' : 'Yine de Devam Et' }}
+            </span>
             <span *ngIf="isSaving">Kaydediliyor...</span>
           </button>
         </div>

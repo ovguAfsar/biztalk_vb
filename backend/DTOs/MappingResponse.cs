@@ -10,6 +10,10 @@ public sealed class MappingResponse
 
     public string? Institution { get; init; }
 
+    public bool IsTemplate { get; init; }
+
+    public string? SourceTemplateId { get; init; }
+
     public required string SourceType { get; init; }
 
     public required string TargetType { get; init; }

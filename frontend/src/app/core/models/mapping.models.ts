@@ -11,6 +11,7 @@ export interface MappingCreateRequest {
   description?: string;
   institution?: string;
   templateMappingId?: string;
+  isTemplate?: boolean;
   sourceType: MappingSourceType;
   targetType: MappingTargetType;
   patternType?: MappingPatternType;
@@ -88,6 +89,8 @@ export interface MappingCreateResponse {
   name: string;
   description?: string;
   institution?: string;
+  isTemplate: boolean;
+  sourceTemplateId?: string;
   sourceType: MappingSourceType;
   targetType: MappingTargetType;
   patternType: MappingPatternType;

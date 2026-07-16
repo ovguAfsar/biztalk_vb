@@ -215,6 +215,10 @@ export class CreateMappingPageComponent implements OnInit {
     });
   }
 
+  protected get templateMappings(): MappingDetailsResponse[] {
+    return this.mappings.filter(mapping => mapping.isTemplate);
+  }
+
   protected get detectedSourceTypeLabel(): string {
     switch (this.detectedSourceType) {
       case 'excel':
@@ -239,6 +243,27 @@ export class CreateMappingPageComponent implements OnInit {
     return this.patternTypeGroups
       .flatMap(group => group.options)
       .find(option => option.value === normalizedPatternType)?.label ?? normalizedPatternType;
+  }
+
+  protected getTemplateSourceTypeLabel(sourceType: MappingSourceType): string {
+    switch (sourceType) {
+      case 'excel':
+        return 'Excel / XLSX';
+      case 'txt':
+        return 'TXT';
+      case 'json':
+        return 'JSON';
+      case 'xml':
+        return 'XML';
+      case 'api':
+        return 'API';
+      case 'database':
+        return 'Veritabanı';
+      case 'manual':
+        return 'Manuel';
+      default:
+        return 'Dosya';
+    }
   }
 
   protected toggleMappingsPanel(): void {

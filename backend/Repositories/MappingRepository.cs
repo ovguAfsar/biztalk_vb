@@ -72,6 +72,7 @@ public sealed class MappingRepository : IMappingRepository
         string name,
         string? description,
         string? institution,
+        bool isTemplate,
         string sourceType,
         string targetType,
         string patternType,
@@ -85,6 +86,7 @@ public sealed class MappingRepository : IMappingRepository
             .Set(mapping => mapping.Name, name)
             .Set(mapping => mapping.Description, description)
             .Set(mapping => mapping.Institution, institution)
+            .Set(mapping => mapping.IsTemplate, isTemplate)
             .Set(mapping => mapping.SourceType, sourceType)
             .Set(mapping => mapping.TargetType, targetType)
             .Set(mapping => mapping.PatternType, patternType)
