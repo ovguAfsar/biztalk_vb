@@ -1,0 +1,49 @@
+<main class="output-page">
+  <section class="wizard-shell" aria-labelledby="output-title">
+    <header class="wizard-header">
+      <h1 id="output-title">JSON Çıktısı</h1>
+      <app-wizard-stepper [currentStep]="4"></app-wizard-stepper>
+
+      <div class="mapping-summary" *ngIf="mapping">
+        <span class="mapping-summary__name">{{ mapping.name }}</span>
+        <span class="schema-badge">{{ mapping.sourceType }} → {{ mapping.targetType }}</span>
+      </div>
+    </header>
+
+    <p class="state-message" *ngIf="isLoading">Mapping bilgisi yükleniyor...</p>
+
+    <section class="output-shell" *ngIf="!isLoading">
+      <div class="alert alert--error" *ngIf="loadError">
+        <p>{{ loadError }}</p>
+        <button type="button" class="secondary-action" (click)="returnToTest()">Test Sayfasına Dön</button>
+      </div>
+
+      <ng-container *ngIf="!loadError && outputJson">
+        <section class="json-panel">
+          <header class="panel-header">
+            <div>
+              <p class="panel-eyebrow">Generated target payload</p>
+              <h2>JSON Önizleme</h2>
+            </div>
+            <time [attr.datetime]="generatedAt">Üretildi: {{ formatDate(generatedAt) }}</time>
+          </header>
+          <pre class="json-output" aria-label="Üretilen JSON çıktısı">{{ outputJson }}</pre>
+        </section>
+
+        <div class="feedback" aria-live="polite">
+          <p class="alert" *ngIf="feedbackMessage"
+             [class.alert--success]="feedbackType === 'success'"
+             [class.alert--info]="feedbackType === 'info'"
+             [class.alert--error]="feedbackType === 'error'">{{ feedbackMessage }}</p>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="back-action" (click)="goBack()" [disabled]="isSaving">Geri</button>
+          <button type="button" class="primary-action" (click)="save()" [disabled]="isSaving">
+            {{ isSaving ? 'Kaydediliyor...' : 'Kaydet' }}
+          </button>
+        </div>
+      </ng-container>
+    </section>
+  </section>
+</main>

@@ -426,6 +426,7 @@ public sealed class MappingService : IMappingService
         {
             Id = mapping.Id,
             Output = output,
+            GeneratedAt = DateTime.UtcNow,
             Warnings = warnings,
             Errors = errors
         };

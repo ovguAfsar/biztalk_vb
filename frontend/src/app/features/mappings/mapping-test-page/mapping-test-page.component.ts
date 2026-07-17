@@ -39,6 +39,7 @@ export class MappingTestPageComponent implements OnInit {
   protected successMessage = '';
   protected noticeMessage = '';
   protected hasSuccessfulRun = false;
+  protected generatedAt = '';
   protected showTestResultModal = false;
   protected showCompletionModal = false;
   protected showNewMappingConfirmModal = false;
@@ -132,7 +133,12 @@ export class MappingTestPageComponent implements OnInit {
         next: (mapping) => {
           this.mapping = mapping;
           this.showTestResultModal = false;
-          this.showCompletionModal = true;
+          void this.router.navigate(['/mappings', this.mappingId, 'output'], {
+            state: {
+              output: JSON.parse(this.outputJson) as unknown,
+              generatedAt: this.generatedAt
+            }
+          });
           this.changeDetector.detectChanges();
         },
         error: (error: unknown) => {
@@ -293,6 +299,7 @@ export class MappingTestPageComponent implements OnInit {
 
   private applyTestResponse(response: TestMappingResponse): void {
     this.outputJson = JSON.stringify(response.output, null, 2);
+    this.generatedAt = response.generatedAt;
     this.warnings = response.warnings;
     this.errors = response.errors;
     this.hasSuccessfulRun = response.errors.length === 0;

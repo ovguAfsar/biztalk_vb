@@ -9,9 +9,11 @@ import {
   MappingCreateResponse,
   MappingDetailsResponse,
   MappingPatternType,
+  MappingOutputResponse,
   MappingUpdateRequest,
   SaveMappingsRequest,
   SaveMappingsResponse,
+  SaveMappingOutputRequest,
   SaveSourceSchemaRequest,
   SaveSourceSchemaResponse,
   SaveTargetSchemaRequest,
@@ -64,6 +66,10 @@ export class MappingApiService {
 
   testMapping(id: string, request: TestMappingRequest): Observable<TestMappingResponse> {
     return this.http.post<TestMappingResponse>(`${this.baseUrl}/${encodeURIComponent(id)}/test`, request);
+  }
+
+  saveMappingOutput(id: string, request: SaveMappingOutputRequest): Observable<MappingOutputResponse> {
+    return this.http.post<MappingOutputResponse>(`${this.baseUrl}/${encodeURIComponent(id)}/outputs`, request);
   }
 
   suggestMappingsWithAi(request: AiMappingSuggestionRequest): Observable<AiMappingSuggestionResponse> {

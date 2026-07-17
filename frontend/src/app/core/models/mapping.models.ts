@@ -154,8 +154,23 @@ export interface TestMappingRequest {
 export interface TestMappingResponse {
   id: string;
   output: unknown;
+  generatedAt: string;
   warnings: string[];
   errors: string[];
+}
+
+export interface SaveMappingOutputRequest {
+  output: unknown;
+  generatedAt: string;
+}
+
+export interface MappingOutputResponse {
+  id: string;
+  mappingId: string;
+  output: unknown;
+  generatedAt: string;
+  savedAt: string;
+  alreadyExists: boolean;
 }
 
 export interface AiMappingField {
