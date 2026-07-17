@@ -4,7 +4,7 @@
 
 .wizard-stepper__list {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
   margin: 0;
   padding: 0;
@@ -89,6 +89,10 @@
 }
 
 .wizard-stepper__item--step-3 .wizard-stepper__marker {
+  background: #ea5030;
+}
+
+.wizard-stepper__item--step-4 .wizard-stepper__marker {
   background: #e2241e;
 }
 

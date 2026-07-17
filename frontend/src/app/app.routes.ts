@@ -5,6 +5,7 @@ import { pendingVisualMappingChangesGuard } from './features/mappings/visual-map
 import { DashboardPageComponent } from './features/dashboard/dashboard-page.component';
 import { CreateMappingPageComponent } from './features/mappings/create-mapping-page/create-mapping-page.component';
 import { MappingTestPageComponent } from './features/mappings/mapping-test-page/mapping-test-page.component';
+import { MappingOutputPageComponent } from './features/mappings/mapping-output-page/mapping-output-page.component';
 import { VisualMappingPageComponent } from './features/mappings/visual-mapping-page/visual-mapping-page.component';
 
 export const routes: Routes = [
@@ -31,6 +32,10 @@ export const routes: Routes = [
   {
     path: 'mappings/:mappingId/test',
     component: MappingTestPageComponent
+  },
+  {
+    path: 'mappings/:mappingId/output',
+    component: MappingOutputPageComponent
   },
   {
     path: '**',

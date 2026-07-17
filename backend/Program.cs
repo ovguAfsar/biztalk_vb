@@ -37,6 +37,8 @@ builder.Services.AddScoped<IMongoDatabase>(serviceProvider =>
 
 builder.Services.AddScoped<IMappingRepository, MappingRepository>();
 builder.Services.AddScoped<IMappingService, MappingService>();
+builder.Services.AddScoped<IMappingOutputRepository, MappingOutputRepository>();
+builder.Services.AddScoped<IMappingOutputService, MappingOutputService>();
 builder.Services.AddHttpClient<IOllamaMappingSuggestionService, OllamaMappingSuggestionService>((serviceProvider, httpClient) =>
 {
     var options = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;

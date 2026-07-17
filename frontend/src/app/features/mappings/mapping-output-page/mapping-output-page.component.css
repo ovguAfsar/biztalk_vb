@@ -1,0 +1,27 @@
+.output-page { min-height: 100vh; padding: 40px 20px; }
+.wizard-shell { max-width: 1120px; margin: 0 auto; }
+.wizard-header { margin-bottom: 24px; }
+.wizard-header h1 { margin: 0; font-size: clamp(1.65rem, 3.2vw, 2.35rem); font-weight: 800; }
+.mapping-summary { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.mapping-summary__name { font-weight: 750; }
+.schema-badge { border: 1px solid #000; border-radius: 999px; background: #ffd166; padding: 5px 10px; font-size: .82rem; font-weight: 800; }
+.output-shell { display: grid; gap: 14px; }
+.json-panel { overflow: hidden; border: 2px solid #000; border-radius: 10px; background: #fff; box-shadow: 8px 8px 0 rgb(0 0 0 / 14%); }
+.panel-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 2px solid #000; background: #ffd166; padding: 14px 16px; }
+.panel-eyebrow { margin: 0 0 4px; font-size: .74rem; font-weight: 800; text-transform: uppercase; }
+.panel-header h2 { margin: 0; font-size: 1.05rem; }
+.panel-header time { font-size: .86rem; font-weight: 750; }
+.json-output { min-height: 440px; max-height: 62vh; overflow: auto; margin: 0; background: #fff; padding: 20px; font-family: "SFMono-Regular", Consolas, monospace; font-size: .9rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feedback { min-height: 50px; }
+.alert { margin: 0; border-radius: 8px; padding: 14px 16px; font-weight: 700; }
+.alert p { margin: 0 0 12px; }
+.alert--success { border: 1px solid #16734f; background: #eaf8f3; }
+.alert--info { border: 1px solid #000; background: #fff4cf; }
+.alert--error { border: 1px solid #a12b20; background: #fff0ed; }
+.form-actions { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid #000; padding-top: 18px; }
+.primary-action, .secondary-action, .back-action { min-height: 42px; border-radius: 8px; cursor: pointer; padding: 9px 18px; font-weight: 800; }
+.primary-action { min-width: 150px; border: 2px solid #000; background: #fcbd00; }
+.secondary-action, .back-action { border: 1px solid #000; background: #fff; }
+button:disabled { cursor: not-allowed; opacity: .6; }
+button:focus-visible { outline: 3px solid rgb(0 0 0 / 25%); outline-offset: 2px; }
+@media (max-width: 640px) { .panel-header { align-items: flex-start; flex-direction: column; } .form-actions { flex-direction: column-reverse; } .form-actions button { width: 100%; } }

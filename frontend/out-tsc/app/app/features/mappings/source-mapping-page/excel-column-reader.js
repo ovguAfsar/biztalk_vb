@@ -1,0 +1,354 @@
+class XlsxZipArchive {
+    constructor(bytes) {
+        this.bytes = bytes;
+        this.entries = new Map();
+        this.decoder = new TextDecoder();
+        this.readCentralDirectory();
+    }
+    static from(buffer) {
+        return new XlsxZipArchive(new Uint8Array(buffer));
+    }
+    async readText(path) {
+        const bytes = await this.readBytes(path);
+        return this.decoder.decode(bytes);
+    }
+    has(path) {
+        return this.entries.has(normalizeZipPath(path));
+    }
+    async readBytes(path) {
+        const entry = this.entries.get(normalizeZipPath(path));
+        if (!entry) {
+            throw new Error('Excel dosyası beklenen çalışma sayfasını içermiyor.');
+        }
+        const view = new DataView(this.bytes.buffer, this.bytes.byteOffset, this.bytes.byteLength);
+        if (view.getUint32(entry.localHeaderOffset, true) !== 0x04034b50) {
+            throw new Error('Excel dosyası okunamadı.');
+        }
+        const fileNameLength = view.getUint16(entry.localHeaderOffset + 26, true);
+        const extraLength = view.getUint16(entry.localHeaderOffset + 28, true);
+        const dataStart = entry.localHeaderOffset + 30 + fileNameLength + extraLength;
+        const data = this.bytes.slice(dataStart, dataStart + entry.compressedSize);
+        if (entry.compressionMethod === 0) {
+            return data;
+        }
+        if (entry.compressionMethod === 8) {
+            return inflateRaw(data);
+        }
+        throw new Error('Excel dosyasındaki sıkıştırma formatı desteklenmiyor.');
+    }
+    readCentralDirectory() {
+        const view = new DataView(this.bytes.buffer, this.bytes.byteOffset, this.bytes.byteLength);
+        const eocdOffset = findEndOfCentralDirectory(view);
+        const entryCount = view.getUint16(eocdOffset + 10, true);
+        let offset = view.getUint32(eocdOffset + 16, true);
+        for (let index = 0; index < entryCount; index += 1) {
+            if (view.getUint32(offset, true) !== 0x02014b50) {
+                throw new Error('Excel dosyası okunamadı.');
+            }
+            const compressionMethod = view.getUint16(offset + 10, true);
+            const compressedSize = view.getUint32(offset + 20, true);
+            const fileNameLength = view.getUint16(offset + 28, true);
+            const extraLength = view.getUint16(offset + 30, true);
+            const commentLength = view.getUint16(offset + 32, true);
+            const localHeaderOffset = view.getUint32(offset + 42, true);
+            const fileNameStart = offset + 46;
+            const fileName = this.decoder.decode(this.bytes.slice(fileNameStart, fileNameStart + fileNameLength));
+            this.entries.set(normalizeZipPath(fileName), {
+                compressionMethod,
+                compressedSize,
+                localHeaderOffset
+            });
+            offset = fileNameStart + fileNameLength + extraLength + commentLength;
+        }
+    }
+}
+export async function readExcelColumns(file) {
+    const lowerName = file.name.toLowerCase();
+    if (lowerName.endsWith('.csv')) {
+        return readCsvColumns(await file.text());
+    }
+    if (lowerName.endsWith('.xls')) {
+        throw new Error('Eski .xls formatı desteklenmiyor. Dosyayı .xlsx olarak kaydedip tekrar deneyin.');
+    }
+    if (!lowerName.endsWith('.xlsx')) {
+        throw new Error('Excel için .xlsx dosyası seçin.');
+    }
+    const archive = XlsxZipArchive.from(await file.arrayBuffer());
+    const workbookXml = await archive.readText('xl/workbook.xml');
+    const relationshipsXml = await archive.readText('xl/_rels/workbook.xml.rels');
+    const sheetPath = resolveFirstSheetPath(workbookXml, relationshipsXml);
+    if (!archive.has(sheetPath)) {
+        throw new Error('Excel dosyasında okunabilir çalışma sayfası bulunamadı.');
+    }
+    const sharedStrings = archive.has('xl/sharedStrings.xml')
+        ? parseSharedStrings(await archive.readText('xl/sharedStrings.xml'))
+        : [];
+    const worksheetXml = await archive.readText(sheetPath);
+    return parseWorksheetColumns(worksheetXml, sharedStrings);
+}
+function findEndOfCentralDirectory(view) {
+    const minimumOffset = Math.max(0, view.byteLength - 0xffff - 22);
+    for (let offset = view.byteLength - 22; offset >= minimumOffset; offset -= 1) {
+        if (view.getUint32(offset, true) === 0x06054b50) {
+            return offset;
+        }
+    }
+    throw new Error('Excel dosyası geçerli bir .xlsx arşivi değil.');
+}
+async function inflateRaw(data) {
+    if (typeof DecompressionStream === 'undefined') {
+        throw new Error('Bu tarayıcı Excel dosyası okumayı desteklemiyor.');
+    }
+    const DecompressionStreamConstructor = DecompressionStream;
+    const buffer = new ArrayBuffer(data.byteLength);
+    new Uint8Array(buffer).set(data);
+    const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStreamConstructor('deflate-raw'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+function parseSharedStrings(xml) {
+    const document = parseXml(xml);
+    return getElementsByLocalName(document, 'si').map(item => {
+        const textParts = getElementsByLocalName(item, 't')
+            .map(textElement => textElement.textContent ?? '');
+        return textParts.join('');
+    });
+}
+function resolveFirstSheetPath(workbookXml, relationshipsXml) {
+    const workbook = parseXml(workbookXml);
+    const relationships = parseXml(relationshipsXml);
+    const firstSheet = getElementsByLocalName(workbook, 'sheet')[0];
+    const relationshipId = firstSheet?.getAttribute('r:id')
+        ?? firstSheet?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id');
+    if (!relationshipId) {
+        return 'xl/worksheets/sheet1.xml';
+    }
+    const relationship = getElementsByLocalName(relationships, 'Relationship')
+        .find(item => item.getAttribute('Id') === relationshipId);
+    const target = relationship?.getAttribute('Target');
+    return target ? resolveZipPath('xl', target) : 'xl/worksheets/sheet1.xml';
+}
+function parseWorksheetColumns(xml, sharedStrings) {
+    const document = parseXml(xml);
+    const rows = getElementsByLocalName(document, 'row')
+        .map(row => parseWorksheetRow(row, sharedStrings))
+        .filter(row => row.some(cell => cell.value.trim()));
+    const headerRow = rows[0];
+    if (!headerRow) {
+        throw new Error('Excel dosyasında kolon başlıkları bulunamadı.');
+    }
+    const headerColumnIndexes = headerRow.map(cell => cell.columnIndex);
+    const dataRows = rows.slice(1);
+    const sampleRow = dataRows.find(row => rowHasDataInColumns(row, headerColumnIndexes));
+    if (!sampleRow) {
+        throw new Error('Excel dosyasında başlıklardan sonra veri satırı bulunamadı.');
+    }
+    validateHeaderCells(headerRow, 'Excel', Math.max(...headerRow.map(cell => cell.columnIndex), ...dataRows.flatMap(row => row.filter(cell => cell.value.trim()).map(cell => cell.columnIndex))));
+    const sampleByColumn = new Map(sampleRow.map(cell => [cell.columnIndex, cell.value]));
+    const columns = headerRow
+        .map(cell => ({
+        column: cell.column,
+        header: cell.value.trim(),
+        sampleValue: sampleByColumn.get(cell.columnIndex)?.trim() ?? ''
+    }));
+    if (columns.length === 0) {
+        throw new Error('Excel dosyasında kolon başlıkları bulunamadı.');
+    }
+    const headersByColumn = new Map(headerRow.map(cell => [cell.columnIndex, cell.value.trim()]));
+    const records = dataRows
+        .filter(row => rowHasDataInColumns(row, headerColumnIndexes))
+        .map(row => {
+        const valuesByColumn = new Map(row.map(cell => [cell.columnIndex, cell.value.trim()]));
+        return headerColumnIndexes.reduce((record, columnIndex) => {
+            record[headersByColumn.get(columnIndex) ?? getColumnNameFromIndex(columnIndex)] = valuesByColumn.get(columnIndex) ?? '';
+            return record;
+        }, {});
+    });
+    return { columns, records };
+}
+function validateHeaderCells(headerRow, fileType, maxColumnIndex = headerRow[headerRow.length - 1]?.columnIndex ?? 0) {
+    const firstColumnIndex = headerRow[0]?.columnIndex ?? 1;
+    const cellsByColumn = new Map(headerRow.map(cell => [cell.columnIndex, cell]));
+    const seenHeaders = new Set();
+    for (let columnIndex = firstColumnIndex; columnIndex <= maxColumnIndex; columnIndex += 1) {
+        const cell = cellsByColumn.get(columnIndex);
+        const header = cell?.value.trim() ?? '';
+        if (!header) {
+            const columnName = cell?.column ?? getColumnNameFromIndex(columnIndex);
+            throw new Error(`${fileType} dosyasında kolon adı boş olamaz. Boş kolon: ${columnName}`);
+        }
+        const normalizedHeader = header.toLowerCase();
+        if (seenHeaders.has(normalizedHeader)) {
+            throw new Error(`${fileType} dosyasında tekrarlı kolon başlığı var: ${header}`);
+        }
+        seenHeaders.add(normalizedHeader);
+    }
+}
+function parseWorksheetRow(row, sharedStrings) {
+    return getDirectChildrenByLocalName(row, 'c')
+        .map(cell => {
+        const cellRef = cell.getAttribute('r') ?? '';
+        const column = getColumnName(cellRef);
+        return {
+            column,
+            columnIndex: getColumnIndex(column),
+            value: readCellValue(cell, sharedStrings)
+        };
+    })
+        .sort((left, right) => left.columnIndex - right.columnIndex);
+}
+function rowHasDataInColumns(row, columnIndexes) {
+    const allowedColumns = new Set(columnIndexes);
+    return row.some(cell => allowedColumns.has(cell.columnIndex) && cell.value.trim());
+}
+function readCellValue(cell, sharedStrings) {
+    const type = cell.getAttribute('t');
+    if (type === 'inlineStr') {
+        return getElementsByLocalName(cell, 't')
+            .map(textElement => textElement.textContent ?? '')
+            .join('');
+    }
+    const value = getDirectChildrenByLocalName(cell, 'v')[0]?.textContent ?? '';
+    if (type === 's') {
+        const sharedStringIndex = Number(value);
+        return Number.isInteger(sharedStringIndex) ? sharedStrings[sharedStringIndex] ?? '' : '';
+    }
+    return value;
+}
+function readCsvColumns(text) {
+    const rows = parseCsvRows(text).filter(row => row.some(cell => cell.trim()));
+    const headerRow = rows[0];
+    if (!headerRow) {
+        throw new Error('CSV dosyasında kolon başlıkları bulunamadı.');
+    }
+    const headerCells = headerRow.map((header, index) => ({
+        column: getColumnNameFromIndex(index + 1),
+        columnIndex: index + 1,
+        value: header
+    }));
+    const dataRows = rows.slice(1);
+    const sampleRow = dataRows
+        .find(row => row.some((cell, index) => index < headerRow.length && cell.trim()));
+    if (!sampleRow) {
+        throw new Error('CSV dosyasında başlıklardan sonra veri satırı bulunamadı.');
+    }
+    validateHeaderCells(headerCells, 'CSV', Math.max(headerCells.length, ...dataRows.map(row => row.length)));
+    const columns = headerRow
+        .map((header, index) => ({
+        column: getColumnNameFromIndex(index + 1),
+        header: header.trim(),
+        sampleValue: sampleRow[index]?.trim() ?? ''
+    }));
+    if (columns.length === 0) {
+        throw new Error('CSV dosyasında kolon başlıkları bulunamadı.');
+    }
+    const records = dataRows
+        .filter(row => row.some((cell, index) => index < headerRow.length && cell.trim()))
+        .map(row => headerRow.reduce((record, header, index) => {
+        record[header.trim()] = row[index]?.trim() ?? '';
+        return record;
+    }, {}));
+    return { columns, records };
+}
+function parseCsvRows(text) {
+    const delimiter = chooseCsvDelimiter(text);
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let insideQuotes = false;
+    for (let index = 0; index < text.length; index += 1) {
+        const character = text[index];
+        const nextCharacter = text[index + 1];
+        if (character === '"') {
+            if (insideQuotes && nextCharacter === '"') {
+                currentCell += '"';
+                index += 1;
+            }
+            else {
+                insideQuotes = !insideQuotes;
+            }
+            continue;
+        }
+        if (character === delimiter && !insideQuotes) {
+            currentRow.push(currentCell);
+            currentCell = '';
+            continue;
+        }
+        if ((character === '\n' || character === '\r') && !insideQuotes) {
+            currentRow.push(currentCell);
+            rows.push(currentRow);
+            currentRow = [];
+            currentCell = '';
+            if (character === '\r' && nextCharacter === '\n') {
+                index += 1;
+            }
+            continue;
+        }
+        currentCell += character;
+    }
+    currentRow.push(currentCell);
+    rows.push(currentRow);
+    return rows;
+}
+function chooseCsvDelimiter(text) {
+    const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
+    const commaCount = countOccurrences(firstLine, ',');
+    const semicolonCount = countOccurrences(firstLine, ';');
+    return semicolonCount > commaCount ? ';' : ',';
+}
+function countOccurrences(value, character) {
+    return [...value].filter(item => item === character).length;
+}
+function parseXml(xml) {
+    const document = new DOMParser().parseFromString(xml, 'application/xml');
+    const parseError = document.getElementsByTagName('parsererror')[0];
+    if (parseError) {
+        throw new Error('Excel dosyasındaki XML içeriği okunamadı.');
+    }
+    return document;
+}
+function getElementsByLocalName(parent, localName) {
+    return Array.from(parent.getElementsByTagName('*'))
+        .filter(element => element.localName === localName);
+}
+function getDirectChildrenByLocalName(parent, localName) {
+    return Array.from(parent.children)
+        .filter(element => element.localName === localName);
+}
+function getColumnName(cellRef) {
+    return cellRef.match(/[A-Z]+/i)?.[0]?.toUpperCase() ?? 'A';
+}
+function getColumnIndex(column) {
+    return [...column].reduce((total, character) => total * 26 + character.charCodeAt(0) - 64, 0);
+}
+function getColumnNameFromIndex(index) {
+    let column = '';
+    let current = index;
+    while (current > 0) {
+        current -= 1;
+        column = String.fromCharCode(65 + (current % 26)) + column;
+        current = Math.floor(current / 26);
+    }
+    return column;
+}
+function normalizeZipPath(path) {
+    return path.replace(/^\/+/, '');
+}
+function resolveZipPath(baseDirectory, target) {
+    if (target.startsWith('/')) {
+        return normalizeZipPath(target);
+    }
+    const parts = `${baseDirectory}/${target}`.split('/');
+    const resolved = [];
+    for (const part of parts) {
+        if (!part || part === '.') {
+            continue;
+        }
+        if (part === '..') {
+            resolved.pop();
+            continue;
+        }
+        resolved.push(part);
+    }
+    return resolved.join('/');
+}
+//# sourceMappingURL=excel-column-reader.js.map

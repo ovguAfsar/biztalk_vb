@@ -14,5 +14,7 @@ public sealed class MongoDbOptions
 
     [Required]
     public string MappingsCollectionName { get; init; } = "mappings";
-}
 
+    [Required]
+    public string MappingOutputsCollectionName { get; init; } = "mapping_outputs";
+}

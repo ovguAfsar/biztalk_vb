@@ -6,6 +6,8 @@ public sealed class TestMappingResponse
 
     public required object Output { get; init; }
 
+    public required DateTime GeneratedAt { get; init; }
+
     public required IReadOnlyList<string> Warnings { get; init; }
 
     public required IReadOnlyList<string> Errors { get; init; }

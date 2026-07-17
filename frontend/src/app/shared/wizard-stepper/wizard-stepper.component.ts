@@ -19,7 +19,8 @@ export class WizardStepperComponent {
   protected readonly steps: WizardStep[] = [
     { number: 1, label: 'Kaynak Dosya' },
     { number: 2, label: 'Alan Eşleştirme' },
-    { number: 3, label: 'Onay ve Kaydet' }
+    { number: 3, label: 'Test' },
+    { number: 4, label: 'Çıktı ve Kaydet' }
   ];
 
   protected getStepState(stepNumber: number): 'completed' | 'active' | 'upcoming' {
