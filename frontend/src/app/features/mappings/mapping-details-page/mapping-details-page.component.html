@@ -1,0 +1,70 @@
+<main class="details-page">
+  <section class="details-shell" aria-labelledby="details-title">
+    <p class="details-state" *ngIf="isLoading">Mapping bilgileri yükleniyor...</p>
+    <p class="details-state details-state--error" *ngIf="errorMessage">{{ errorMessage }}</p>
+
+    <ng-container *ngIf="mapping as item">
+      <header class="details-header">
+        <div>
+          <p class="details-header__eyebrow">SALT OKUNUR MAPPING</p>
+          <h1 id="details-title">{{ item.name }}</h1>
+          <p>{{ item.description || 'Açıklama bulunmuyor.' }}</p>
+        </div>
+        <a class="details-back" routerLink="/">Mapping listesine dön</a>
+      </header>
+
+      <section class="summary-grid" aria-label="Mapping özeti">
+        <article><small>Kurum</small><strong>{{ item.institution || '—' }}</strong></article>
+        <article><small>Dosya Deseni</small><strong>{{ getPatternLabel(item.patternType) }}</strong></article>
+        <article><small>Durum</small><strong>{{ getStatusLabel(item.status) }}</strong></article>
+        <article><small>Son Güncelleme</small><strong>{{ item.updatedAt | date:'dd.MM.yyyy HH:mm' }}</strong></article>
+      </section>
+
+      <section class="details-card">
+        <div class="details-card__heading">
+          <div><p>KAYNAK</p><h2>{{ item.sourceSchema?.sourceName || 'Kaynak şeması' }}</h2></div>
+          <span>{{ item.sourceSchema?.fields?.length || 0 }} alan</span>
+        </div>
+        <div class="field-list" *ngIf="item.sourceSchema?.fields?.length; else noSourceFields">
+          <article class="field-item" *ngFor="let field of item.sourceSchema?.fields">
+            <strong>{{ field.displayName || field.name }}</strong>
+            <span>{{ field.name }} · {{ field.type }}</span>
+            <small>{{ field.required ? 'Zorunlu' : 'Opsiyonel' }}</small>
+          </article>
+        </div>
+        <ng-template #noSourceFields><p class="empty-message">Kaynak alanı bulunmuyor.</p></ng-template>
+      </section>
+
+      <section class="details-card">
+        <div class="details-card__heading">
+          <div><p>HEDEF</p><h2>{{ item.targetSchema?.targetName || 'Hedef şeması' }}</h2></div>
+          <span>{{ item.targetSchema?.fields?.length || 0 }} alan</span>
+        </div>
+        <div class="field-list" *ngIf="item.targetSchema?.fields?.length; else noTargetFields">
+          <article class="field-item" *ngFor="let field of item.targetSchema?.fields">
+            <strong>{{ field.displayName || field.name }}</strong>
+            <span>{{ field.name }} · {{ field.type }}</span>
+            <small>{{ field.required ? 'Zorunlu' : 'Opsiyonel' }}</small>
+          </article>
+        </div>
+        <ng-template #noTargetFields><p class="empty-message">Hedef alanı bulunmuyor.</p></ng-template>
+      </section>
+
+      <section class="details-card">
+        <div class="details-card__heading">
+          <div><p>EŞLEMELER</p><h2>Kayıtlı mapping tanımları</h2></div>
+          <span>{{ item.mappingDefinitions?.length || 0 }} eşleme</span>
+        </div>
+        <div class="mapping-list" *ngIf="item.mappingDefinitions?.length; else noMappings">
+          <article class="mapping-item" *ngFor="let definition of item.mappingDefinitions">
+            <strong>{{ definition.sourceField }}</strong>
+            <span aria-hidden="true">→</span>
+            <strong>{{ definition.targetField }}</strong>
+            <small>{{ definition.transformType }}</small>
+          </article>
+        </div>
+        <ng-template #noMappings><p class="empty-message">Kayıtlı eşleme bulunmuyor.</p></ng-template>
+      </section>
+    </ng-container>
+  </section>
+</main>

@@ -1,0 +1,25 @@
+<main class="role-page">
+  <section class="role-card" aria-labelledby="role-title">
+    <p class="role-card__eyebrow">MAPPING STUDIO</p>
+    <h1 id="role-title">Nasıl devam etmek istersiniz?</h1>
+    <p class="role-card__description">
+      Bu seçim yalnızca prototip içindeki ekran ve işlem yetkilerini belirler.
+    </p>
+
+    <div class="role-options">
+      <button class="role-option role-option--admin" type="button" (click)="continueAs('admin')">
+        <span class="role-option__badge">TAM YETKİ</span>
+        <strong>Admin olarak devam et</strong>
+        <span>Mapping oluşturma, düzenleme, eşleme ve test işlemlerine erişin.</span>
+        <span class="role-option__arrow" aria-hidden="true">→</span>
+      </button>
+
+      <button class="role-option" type="button" (click)="continueAs('user')">
+        <span class="role-option__badge">SALT OKUNUR</span>
+        <strong>Kullanıcı olarak devam et</strong>
+        <span>Kayıtlı mapping çalışmalarını güvenli biçimde görüntüleyin.</span>
+        <span class="role-option__arrow" aria-hidden="true">→</span>
+      </button>
+    </div>
+  </section>
+</main>

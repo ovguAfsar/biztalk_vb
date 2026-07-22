@@ -3,10 +3,11 @@
     <header class="dashboard-header">
       <p class="dashboard-header__eyebrow">MAPPING STUDIO</p>
       <h1 id="dashboard-title">Mapping süreçlerinizi tek noktadan yönetin.</h1>
-      <p>Yeni bir çalışma başlatın veya son mapping kayıtlarınıza kaldığınız yerden devam edin.</p>
+      <p *ngIf="isAdmin; else userWelcome">Yeni bir çalışma başlatın veya son mapping kayıtlarınıza kaldığınız yerden devam edin.</p>
+      <ng-template #userWelcome><p>Kayıtlı mapping çalışmalarını salt okunur olarak inceleyin.</p></ng-template>
     </header>
 
-    <a class="create-card" routerLink="/mappings/create">
+    <a class="create-card" routerLink="/mappings/create" *ngIf="isAdmin">
       <span class="create-card__icon" aria-hidden="true">+</span>
       <span class="create-card__content">
         <strong>Yeni Mapping Oluştur</strong>
@@ -56,7 +57,8 @@
       <p class="dashboard-state dashboard-state--error" *ngIf="errorMessage">{{ errorMessage }}</p>
       <div class="dashboard-state" *ngIf="!isLoading && !errorMessage && mappings.length === 0">
         <strong>Henüz mapping bulunmuyor.</strong>
-        <span>İlk mapping çalışmanızı oluşturmak için yukarıdaki kartı kullanabilirsiniz.</span>
+        <span *ngIf="isAdmin; else userEmptyState">İlk mapping çalışmanızı oluşturmak için yukarıdaki kartı kullanabilirsiniz.</span>
+        <ng-template #userEmptyState><span>Görüntülenebilecek kayıtlı mapping bulunmuyor.</span></ng-template>
       </div>
       <div class="dashboard-state" *ngIf="!isLoading && !errorMessage && mappings.length > 0 && filteredMappings.length === 0">
         <strong>Arama ve filtreye uygun mapping bulunamadı.</strong>
@@ -76,7 +78,7 @@
           <tbody>
             <tr *ngFor="let mapping of visibleMappings">
               <td>
-                <a class="mapping-name" [routerLink]="['/mappings', mapping.id, 'edit']">
+                <a class="mapping-name" [routerLink]="mappingRoute(mapping)">
                   <span class="mapping-name__icon" aria-hidden="true"></span>
                   <span>
                     <strong>{{ mapping.name }}</strong>
@@ -102,9 +104,15 @@
               <td>{{ mapping.updatedAt | date:'dd.MM.yyyy HH:mm' }}</td>
               <td>
                 <div class="row-actions">
-                  <a class="row-action row-action--edit" [routerLink]="['/mappings', mapping.id, 'edit']">Düzenle</a>
+                  <a class="row-action row-action--view" [routerLink]="['/mappings', mapping.id, 'view']">Görüntüle</a>
+                  <a
+                    class="row-action row-action--edit"
+                    *ngIf="isAdmin"
+                    [routerLink]="['/mappings', mapping.id, 'edit']"
+                  >Düzenle</a>
                   <button
                     class="row-action row-action--delete"
+                    *ngIf="isAdmin"
                     type="button"
                     [disabled]="deletingMappingId === mapping.id"
                     (click)="deleteMapping(mapping)"

@@ -6,6 +6,7 @@ import { finalize } from 'rxjs';
 
 import { MappingDetailsResponse, MappingStatus } from '../../core/models/mapping.models';
 import { MappingApiService } from '../../core/services/mapping-api.service';
+import { RoleService } from '../../core/services/role.service';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -16,6 +17,7 @@ import { MappingApiService } from '../../core/services/mapping-api.service';
 })
 export class DashboardPageComponent implements OnInit {
   private readonly mappingApi = inject(MappingApiService);
+  private readonly roleService = inject(RoleService);
 
   protected mappings: MappingDetailsResponse[] = [];
   protected isLoading = false;
@@ -25,6 +27,10 @@ export class DashboardPageComponent implements OnInit {
   protected selectedPatternFilter: MappingDetailsResponse['patternType'] | 'all' = 'all';
   protected currentPage = 1;
   protected readonly pageSize = 5;
+
+  protected get isAdmin(): boolean {
+    return this.roleService.isAdmin();
+  }
 
   protected get filteredMappings(): MappingDetailsResponse[] {
     const searchTerm = this.mappingSearchTerm.trim().toLocaleLowerCase('tr-TR');
@@ -110,7 +116,9 @@ export class DashboardPageComponent implements OnInit {
   }
 
   protected deleteMapping(mapping: MappingDetailsResponse): void {
-    if (this.deletingMappingId || !window.confirm(`“${mapping.name}” mapping kaydı silinsin mi?`)) {
+    if (!this.isAdmin
+      || this.deletingMappingId
+      || !window.confirm(`“${mapping.name}” mapping kaydı silinsin mi?`)) {
       return;
     }
 
@@ -129,6 +137,12 @@ export class DashboardPageComponent implements OnInit {
           this.errorMessage = this.getErrorMessage(error, 'Mapping silinemedi.');
         }
       });
+  }
+
+  protected mappingRoute(mapping: MappingDetailsResponse): string[] {
+    return this.isAdmin
+      ? ['/mappings', mapping.id, 'edit']
+      : ['/mappings', mapping.id, 'view'];
   }
 
   private loadMappings(): void {

@@ -1,0 +1,116 @@
+.role-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 110px 24px 48px;
+}
+
+.role-card {
+  width: min(860px, 100%);
+  border: 2px solid #000;
+  border-radius: 22px;
+  background: rgb(255 255 255 / 96%);
+  padding: clamp(28px, 5vw, 52px);
+  box-shadow: 12px 12px 0 rgb(0 0 0 / 88%);
+}
+
+.role-card__eyebrow {
+  margin: 0 0 10px;
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.role-card h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  letter-spacing: -.055em;
+  line-height: 1;
+}
+
+.role-card__description {
+  max-width: 620px;
+  margin: 18px 0 30px;
+  color: #4b5563 !important;
+  font-size: 1.04rem;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.role-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.role-option {
+  position: relative;
+  display: grid;
+  min-height: 230px;
+  align-content: start;
+  gap: 12px;
+  border: 2px solid #000;
+  border-radius: 17px;
+  background: #fcbd00;
+  cursor: pointer;
+  padding: 24px;
+  text-align: left;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.role-option:hover {
+  box-shadow: 7px 7px 0 #000;
+  transform: translate(-2px, -2px);
+}
+
+.role-option__badge {
+  width: fit-content;
+  border: 1px solid #000;
+  border-radius: 999px;
+  background: #fff;
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  padding: 6px 9px;
+}
+
+.role-option strong {
+  max-width: 260px;
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.role-option > span:not(.role-option__badge, .role-option__arrow) {
+  color: #4b5563 !important;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.role-option__arrow {
+  position: absolute;
+  right: 22px;
+  bottom: 17px;
+  font-size: 1.8rem;
+  font-weight: 900;
+}
+
+.role-card__note {
+  margin: 24px 0 0;
+  font-size: .82rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 680px) {
+  .role-page {
+    padding: 92px 16px 32px;
+  }
+
+  .role-options {
+    grid-template-columns: 1fr;
+  }
+
+  .role-option {
+    min-height: 190px;
+  }
+}
