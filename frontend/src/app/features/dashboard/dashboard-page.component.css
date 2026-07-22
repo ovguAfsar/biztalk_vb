@@ -369,7 +369,8 @@
   text-decoration: none;
 }
 
-.row-action--edit:hover {
+.row-action--edit:hover,
+.row-action--view:hover {
   background: #fcbd00;
 }
 

@@ -74,6 +74,39 @@ body * {
   display: block;
 }
 
+.app-role-controls {
+  position: fixed;
+  z-index: 45;
+  top: 22px;
+  right: 190px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-role-controls > span,
+.app-role-controls button {
+  border: 1px solid #000;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 850;
+  padding: 9px 12px;
+}
+
+.app-role-controls > span {
+  background: #fcbd00 !important;
+}
+
+.app-role-controls button {
+  background: #fff !important;
+  cursor: pointer;
+}
+
+.app-role-controls button:hover {
+  background: #000 !important;
+  color: #fff !important;
+}
+
 .app-home-link {
   position: fixed;
   z-index: 40;
@@ -107,6 +140,15 @@ body * {
   .app-home-link {
     top: 16px;
     left: 16px;
+  }
+
+  .app-role-controls {
+    top: 68px;
+    right: 16px;
+  }
+
+  .app-role-controls > span {
+    display: none;
   }
 }
 
