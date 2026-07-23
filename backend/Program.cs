@@ -1,3 +1,4 @@
+using MappingStudio.Api.Pipelines.FileMapping;
 using MappingStudio.Api.Options;
 using MappingStudio.Api.Repositories;
 using MappingStudio.Api.Services;
@@ -22,6 +23,17 @@ builder.Services
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services
+    .AddOptions<FilePipelineOptions>()
+    .Bind(builder.Configuration.GetSection(FilePipelineOptions.SectionName))
+    .Validate(
+        options => !string.IsNullOrWhiteSpace(options.InputFilePath),
+        "FilePipeline:InputFilePath is required.")
+     .Validate(
+         options => !string.IsNullOrWhiteSpace(options.OutputFilePath),
+         "FilePipeline:OutputFilePath is required.")
+      .ValidateOnStart();
+       
 builder.Services.AddSingleton<IMongoClient>(serviceProvider =>
 {
     var options = serviceProvider.GetRequiredService<IOptions<MongoDbOptions>>().Value;
@@ -39,6 +51,12 @@ builder.Services.AddScoped<IMappingRepository, MappingRepository>();
 builder.Services.AddScoped<IMappingService, MappingService>();
 builder.Services.AddScoped<IMappingOutputRepository, MappingOutputRepository>();
 builder.Services.AddScoped<IMappingOutputService, MappingOutputService>();
+builder.Services.AddScoped<IGetterAdapter, FileGetterAdapter>();
+builder.Services.AddScoped<IRawDataConverter, RawDataJsonConverter>();
+builder.Services.AddScoped<IInputValidator, JsonInputValidator>();
+builder.Services.AddScoped<ISenderAdapter, FileSenderAdapter>();
+builder.Services.AddScoped<IFileMappingPipeline, FileMappingPipeline>();
+
 builder.Services.AddHttpClient<IOllamaMappingSuggestionService, OllamaMappingSuggestionService>((serviceProvider, httpClient) =>
 {
     var options = serviceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value;
