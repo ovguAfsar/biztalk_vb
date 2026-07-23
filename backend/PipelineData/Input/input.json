@@ -1,0 +1,47 @@
+[
+  {
+    "musteriHesapNo": "00158027321636102",
+    "kurumMusteriAdi": "ZEHRA YILMAZ",
+    "vergiNoTCKimlik": "10852295775",
+    "plakaNo": "34ABC123",
+    "vergiYili": "2026",
+    "taksitNo": "01",
+    "tutar": "15000",
+    "aciklama": "MTV Odemesi",
+    "adres": "ANKARA CANKAYA",
+    "telefon": "5321234567",
+    "subeKodu": "00002",
+    "tahakkukFisNo": "THK2026000000000001",
+    "vergiDairesiKodu": "034001"
+  },
+  {
+    "musteriHesapNo": "00158000000098765",
+    "kurumMusteriAdi": "AYSE DEMIR",
+    "vergiNoTCKimlik": "12345678901",
+    "plakaNo": "06DEF456",
+    "vergiYili": "2026",
+    "taksitNo": "02",
+    "tutar": "7250.50",
+    "aciklama": "MTV 2 Taksit",
+    "adres": "ISTANBUL KADIKOY",
+    "telefon": "5559876543",
+    "subeKodu": "00015",
+    "tahakkukFisNo": "THK2026000000000002",
+    "vergiDairesiKodu": "006015"
+  },
+  {
+    "musteriHesapNo": "00158011112223334",
+    "kurumMusteriAdi": "MEHMET KAYA",
+    "vergiNoTCKimlik": "98765432109",
+    "plakaNo": "35GHI789",
+    "vergiYili": "2026",
+    "taksitNo": "01",
+    "tutar": "3400",
+    "aciklama": "MTV Tahsilat",
+    "adres": "IZMIR KONAK",
+    "telefon": "5441112233",
+    "subeKodu": "00120",
+    "tahakkukFisNo": "THK2026000000000003",
+    "vergiDairesiKodu": "035120"
+  }
+]

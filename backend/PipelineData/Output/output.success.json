@@ -1,0 +1,83 @@
+{
+  "recordType": "mtvFile",
+  "header": {
+    "fields": {
+      "kayitTipi": "H",
+      "subeKodu": "34718",
+      "kurumKodu": "36363",
+      "dosyaTarihi": "20260716",
+      "kurumHesapNo": "12345671234567889"
+    },
+    "line": "H34718363632026071612345671234567889",
+    "length": 36
+  },
+  "data": [
+    {
+      "fields": {
+        "musteriHesapNo": "00158027321636102",
+        "kurumMusteriAdi": "ZEHRA YILMAZ                  ",
+        "vergiNoTCKimlik": "10852295775",
+        "plakaNo": "34ABC123  ",
+        "vergiYili": "2026",
+        "taksitNo": "01",
+        "tutar": "000000000000015000.00",
+        "aciklama": "MTV Odemesi                                       ",
+        "adres": "ANKARA CANKAYA                                    ",
+        "telefon": "5321234567",
+        "subeKodu": "00002",
+        "tahakkukFisNo": "THK2026000000000001 ",
+        "vergiDairesiKodu": "034001"
+      },
+      "line": " 00158027321636102ZEHRA YILMAZ                  1085229577534ABC123  202601000000000000015000.00MTV Odemesi                                       ANKARA CANKAYA                                    532123456700002THK2026000000000001 034001",
+      "length": 237
+    },
+    {
+      "fields": {
+        "musteriHesapNo": "00158000000098765",
+        "kurumMusteriAdi": "AYSE DEMIR                    ",
+        "vergiNoTCKimlik": "12345678901",
+        "plakaNo": "06DEF456  ",
+        "vergiYili": "2026",
+        "taksitNo": "02",
+        "tutar": "000000000000007250.50",
+        "aciklama": "MTV 2 Taksit                                      ",
+        "adres": "ISTANBUL KADIKOY                                  ",
+        "telefon": "5559876543",
+        "subeKodu": "00015",
+        "tahakkukFisNo": "THK2026000000000002 ",
+        "vergiDairesiKodu": "006015"
+      },
+      "line": " 00158000000098765AYSE DEMIR                    1234567890106DEF456  202602000000000000007250.50MTV 2 Taksit                                      ISTANBUL KADIKOY                                  555987654300015THK2026000000000002 006015",
+      "length": 237
+    },
+    {
+      "fields": {
+        "musteriHesapNo": "00158011112223334",
+        "kurumMusteriAdi": "MEHMET KAYA                   ",
+        "vergiNoTCKimlik": "98765432109",
+        "plakaNo": "35GHI789  ",
+        "vergiYili": "2026",
+        "taksitNo": "01",
+        "tutar": "000000000000003400.00",
+        "aciklama": "MTV Tahsilat                                      ",
+        "adres": "IZMIR KONAK                                       ",
+        "telefon": "5441112233",
+        "subeKodu": "00120",
+        "tahakkukFisNo": "THK2026000000000003 ",
+        "vergiDairesiKodu": "035120"
+      },
+      "line": " 00158011112223334MEHMET KAYA                   9876543210935GHI789  202601000000000000003400.00MTV Tahsilat                                      IZMIR KONAK                                       544111223300120THK2026000000000003 035120",
+      "length": 237
+    }
+  ],
+  "footer": {
+    "fields": {
+      "kayitTipi": "F",
+      "toplamKisi": "000003",
+      "toplamMiktar": "000000000000025650.50"
+    },
+    "line": "F000003000000000000025650.50",
+    "length": 28
+  },
+  "fileContent": "H34718363632026071612345671234567889\n 00158027321636102ZEHRA YILMAZ                  1085229577534ABC123  202601000000000000015000.00MTV Odemesi                                       ANKARA CANKAYA                                    532123456700002THK2026000000000001 034001\n 00158000000098765AYSE DEMIR                    1234567890106DEF456  202602000000000000007250.50MTV 2 Taksit                                      ISTANBUL KADIKOY                                  555987654300015THK2026000000000002 006015\n 00158011112223334MEHMET KAYA                   9876543210935GHI789  202601000000000000003400.00MTV Tahsilat                                      IZMIR KONAK                                       544111223300120THK2026000000000003 035120\nF000003000000000000025650.50"
+}

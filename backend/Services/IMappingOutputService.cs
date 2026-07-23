@@ -9,3 +9,4 @@ public interface IMappingOutputService
         SaveMappingOutputRequest? request,
         CancellationToken cancellationToken);
 }
+
